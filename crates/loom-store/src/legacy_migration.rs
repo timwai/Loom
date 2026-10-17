@@ -30,9 +30,7 @@ pub enum MigrationGate {
 }
 
 /// An observation only. Never returns a "migration approved" token.
-pub fn inspect_legacy_migration_gate(
-    connection: &Connection,
-) -> Result<MigrationGate, StoreError> {
+pub fn inspect_legacy_migration_gate(connection: &Connection) -> Result<MigrationGate, StoreError> {
     let mut tables = 0usize;
     let mut rows = 0u64;
     for name in LEGACY_TABLES {
@@ -104,7 +102,10 @@ mod tests {
                 legacy_rows: 0,
             }
         );
-        assert_eq!(require_no_legacy_schema(&connection), Err(StoreError::Conflict));
+        assert_eq!(
+            require_no_legacy_schema(&connection),
+            Err(StoreError::Conflict)
+        );
     }
 
     #[test]
@@ -122,17 +123,24 @@ mod tests {
                 legacy_rows: 1,
             }
         );
-        assert_eq!(require_no_legacy_schema(&connection), Err(StoreError::Conflict));
-        let actual: Vec<u8> = connection.query_row(
-            "SELECT signed_event FROM revocations LIMIT 1", [], |row| row.get(0),
-        ).unwrap();
+        assert_eq!(
+            require_no_legacy_schema(&connection),
+            Err(StoreError::Conflict)
+        );
+        let actual: Vec<u8> = connection
+            .query_row("SELECT signed_event FROM revocations LIMIT 1", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
         assert_eq!(actual, vec![0xff, 0xff]);
     }
 
     #[test]
     fn partial_old_table_set_requires_explicit_resolution() {
         let connection = Connection::open_in_memory().unwrap();
-        connection.execute_batch("CREATE TABLE security_audit(id INTEGER)").unwrap();
+        connection
+            .execute_batch("CREATE TABLE security_audit(id INTEGER)")
+            .unwrap();
         assert_eq!(
             require_no_legacy_schema(&connection),
             Err(StoreError::Conflict)

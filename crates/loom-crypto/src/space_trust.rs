@@ -129,7 +129,7 @@ pub fn verify_resource_trust_for_spike(
     if m.witness_public_keys[0] == m.witness_public_keys[1] {
         return Err(RootTrustError::DuplicateWitness);
     }
-    if m.owner_public_key == [0; 32] || m.witness_public_keys.iter().any(|key| *key == [0; 32]) {
+    if m.owner_public_key == [0; 32] || m.witness_public_keys.contains(&[0; 32]) {
         return Err(RootTrustError::InvalidManifest);
     }
     let verifier = VerifyingKey::from_bytes(&root.public_key)

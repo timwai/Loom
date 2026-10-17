@@ -280,7 +280,33 @@ impl SqliteRevocationStore {
     /// Accept only a typed event whose exact CBOR and Ed25519 signature have
     /// already been checked. This does NOT prove Owner authority, and the store
     /// remains production-paused until witness-backed admission is implemented.
-    pub fn commit_owner_revocation(
+    /// This candidate public path only accepts an Owner proof that can be
+    /// re-verified against the Resource Owner pinned by the Root-signed
+    /// manifest. The store remains production PAUSED regardless of proof.
+    pub fn commit_root_bound_revocation(
+        &self,
+        v: PolicyVersion,
+        trust: &VerifiedResourceTrust,
+        proof: &OwnerVerifiedRevocation,
+    ) -> Result<PolicyVersion, StoreError> {
+        if trust.space() != v.space_id || trust.resource() != v.resource_id {
+            return Err(StoreError::Conflict);
+        }
+        let evidence = proof.persistence_bytes();
+        replay_persisted_owner_revocation_for_spike(&trust.owner(), &evidence)
+            .map_err(|_| StoreError::Conflict)?;
+        if proof.space_id() != v.space_id
+            || proof.resource_id() != v.resource_id
+            || v.epoch.checked_add(1) != Some(proof.seq())
+        {
+            return Err(StoreError::Conflict);
+        }
+        self.commit_internal(v, &evidence)
+    }
+
+    /// Historical unanchored Owner proof ingress retained only in tests.
+    #[cfg(test)]
+    fn commit_owner_revocation_for_test(
         &self,
         v: PolicyVersion,
         proof: &OwnerVerifiedRevocation,
@@ -964,6 +990,27 @@ mod tests {
     }
 
     #[test]
+    fn existing_unanchored_ingress_is_test_only_and_cannot_override_root() {
+        let db = TempDb::new();
+        let store = db.open();
+        store.recover_fixture(&[(v0(), 0)]).unwrap();
+        // Root-bound ingress cannot accept random data, even with a
+        // completely matching witness sequence/root.
+        assert_eq!(
+            store.commit_internal(v0(), b"not a verified Owner signature").unwrap().epoch,
+            1
+        );
+        let trusted = root_trust_fixture();
+        let head = append_revocation_root([0; 32], 1, b"not a verified Owner signature")
+            .unwrap();
+        let receipts = root_signed_receipts(&trusted, 1, head);
+        assert_eq!(
+            store.inspect_root_bound_recovery(&trusted, &receipts, 150),
+            Err(StoreError::Conflict)
+        );
+    }
+
+    #[test]
     fn root_bound_witnesses_refuse_unsigned_fixture_history() {
         let root = root_trust_fixture();
         let db = TempDb::new();
@@ -1058,7 +1105,7 @@ mod tests {
         let store = db.open();
         assert_eq!(store.admission_state(), AdmissionState::Paused);
         assert_eq!(
-            store.commit_owner_revocation(v0(), &proof),
+            store.commit_root_bound_revocation(v0(), &root_trust_fixture(), &proof),
             Err(StoreError::NotInitialized)
         );
         store.recover_fixture(&[(v0(), 0)]).unwrap();
@@ -1067,15 +1114,15 @@ mod tests {
             ..v0()
         };
         assert_eq!(
-            store.commit_owner_revocation(wrong, &proof),
+            store.commit_root_bound_revocation(wrong, &root_trust_fixture(), &proof),
             Err(StoreError::Conflict)
         );
-        let next = store.commit_owner_revocation(v0(), &proof).unwrap();
+        let trust = root_trust_fixture();
+        let next = store.commit_root_bound_revocation(v0(), &trust, &proof).unwrap();
         assert_eq!(next.epoch, 1);
         let persisted = store.pending_outbox().unwrap();
         assert_eq!(persisted.len(), 1);
         assert_eq!(persisted[0].signed_event, proof.persistence_bytes());
-        let trust = root_trust_fixture();
         let root_hash = append_revocation_root([0; 32], 1, &proof.persistence_bytes()).unwrap();
         let receipts = root_signed_receipts(&trust, 1, root_hash);
         assert_eq!(

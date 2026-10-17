@@ -905,7 +905,9 @@ mod tests {
         assert_eq!(restored.admission_state(), AdmissionState::Paused);
     }
 
-    fn root_trust_fixture_for_owner(owner_seed: u8) -> loom_crypto::space_trust::VerifiedResourceTrust {
+    fn root_trust_fixture_for_owner(
+        owner_seed: u8,
+    ) -> loom_crypto::space_trust::VerifiedResourceTrust {
         use ed25519_dalek::{Signer, SigningKey};
         use loom_crypto::space_trust::{
             ExternallyPinnedRootForSpike, ResourceTrustManifest, SignedResourceTrust,
@@ -985,12 +987,14 @@ mod tests {
         // Root-bound ingress cannot accept random data, even with a
         // completely matching witness sequence/root.
         assert_eq!(
-            store.commit_internal(v0(), b"not a verified Owner signature").unwrap().epoch,
+            store
+                .commit_internal(v0(), b"not a verified Owner signature")
+                .unwrap()
+                .epoch,
             1
         );
         let trusted = root_trust_fixture();
-        let head = append_revocation_root([0; 32], 1, b"not a verified Owner signature")
-            .unwrap();
+        let head = append_revocation_root([0; 32], 1, b"not a verified Owner signature").unwrap();
         let receipts = root_signed_receipts(&trusted, 1, head);
         assert_eq!(
             store.inspect_root_bound_recovery(&trusted, &receipts, 150),
@@ -1111,7 +1115,9 @@ mod tests {
             store.commit_root_bound_revocation(v0(), &substituted_owner, &proof),
             Err(StoreError::Conflict)
         );
-        let next = store.commit_root_bound_revocation(v0(), &trust, &proof).unwrap();
+        let next = store
+            .commit_root_bound_revocation(v0(), &trust, &proof)
+            .unwrap();
         assert_eq!(next.epoch, 1);
         let persisted = store.pending_outbox().unwrap();
         assert_eq!(persisted.len(), 1);

@@ -451,6 +451,9 @@ fn append_transaction(
         params![space, resource, seq, kind, head.as_slice()],
     )
     .map_err(|_| StoreError::PersistenceFailure)?;
+    // Recheck before COMMIT: a successful but malicious SQL trigger must not
+    // leave mirrors inconsistent after an otherwise valid append.
+    verify_side_tables(&tx)?;
     tx.commit().map_err(|_| StoreError::PersistenceFailure)?;
     Ok(snapshot(&state))
 }
@@ -921,6 +924,51 @@ mod tests {
         );
         assert_eq!(store.inspect(root_pin(), genesis).unwrap().sequence, 0);
     }
+    #[test]
+    fn mirror_rewrite_trigger_rolls_back_entire_append() {
+        let db = TempDb::new();
+        let store = db.open();
+        let genesis = trusted_genesis();
+        let conn = Connection::open(&db.0).unwrap();
+        conn.execute_batch(
+            "CREATE TRIGGER tamper_outbox_after_audit
+             AFTER INSERT ON unified_policy_audit
+             BEGIN
+               UPDATE unified_policy_outbox SET evidence=x'01'
+               WHERE space=NEW.space AND resource=NEW.resource AND seq=NEW.seq;
+             END;",
+        )
+        .unwrap();
+        drop(conn);
+        assert_eq!(
+            store.append(
+                root_pin(),
+                genesis,
+                NewPolicyEvent::Revoke(&signed_revocation(1, 11, 3)),
+            ),
+            Err(StoreError::Conflict)
+        );
+        // The changed Outbox was in the same rolled-back transaction.
+        assert_eq!(store.inspect(root_pin(), genesis).unwrap().sequence, 0);
+        assert!(store.pending_outbox().unwrap().is_empty());
+
+        let conn = Connection::open(&db.0).unwrap();
+        conn.execute_batch("DROP TRIGGER tamper_outbox_after_audit")
+            .unwrap();
+        drop(conn);
+        assert_eq!(
+            store
+                .append(
+                    root_pin(),
+                    genesis,
+                    NewPolicyEvent::Revoke(&signed_revocation(1, 11, 3)),
+                )
+                .unwrap()
+                .sequence,
+            1
+        );
+    }
+
     #[test]
     fn mirrored_outbox_and_audit_tampering_fail_closed() {
         // Tamper with one local SQL mirror while leaving signed events intact.

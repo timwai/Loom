@@ -37,6 +37,10 @@ impl ResourceId {
     pub const fn from_bytes(bytes: [u8; 16]) -> Self {
         Self(bytes)
     }
+
+    pub const fn as_bytes(&self) -> &[u8; 16] {
+        &self.0
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]

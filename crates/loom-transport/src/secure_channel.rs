@@ -67,13 +67,17 @@ impl PinnedPeer {
         key_epoch: u64,
     ) -> Result<Self, SecurePeerError> {
         let peer_id = peer_id_from_certificate(&certificate)?;
-        Ok(Self { certificate, peer_id, key_epoch })
+        Ok(Self {
+            certificate,
+            peer_id,
+            key_epoch,
+        })
     }
 }
 
 fn peer_id_from_certificate(cert: &CertificateDer<'_>) -> Result<PeerId, SecurePeerError> {
-    let (rem, parsed) =
-        X509Certificate::from_der(cert.as_ref()).map_err(|_| SecurePeerError::InvalidCertificate)?;
+    let (rem, parsed) = X509Certificate::from_der(cert.as_ref())
+        .map_err(|_| SecurePeerError::InvalidCertificate)?;
     if !rem.is_empty()
         || parsed.public_key().algorithm.algorithm.to_id_string() != "1.3.101.112"
         || parsed.signature_algorithm.algorithm.to_id_string() != "1.3.101.112"
@@ -92,7 +96,9 @@ fn peer_id_from_certificate(cert: &CertificateDer<'_>) -> Result<PeerId, SecureP
 
 fn root_store(cert: CertificateDer<'static>) -> Result<RootCertStore, SecurePeerError> {
     let mut roots = RootCertStore::empty();
-    roots.add(cert).map_err(|_| SecurePeerError::InvalidTlsConfiguration)?;
+    roots
+        .add(cert)
+        .map_err(|_| SecurePeerError::InvalidTlsConfiguration)?;
     Ok(roots)
 }
 
@@ -134,7 +140,13 @@ fn matched_principal(
     membership: &dyn MembershipVerifier,
 ) -> Result<PeerPrincipal, SecurePeerError> {
     let cert = presented_cert
-        .and_then(|certs| if certs.len() == 1 { certs.first() } else { None })
+        .and_then(|certs| {
+            if certs.len() == 1 {
+                certs.first()
+            } else {
+                None
+            }
+        })
         .ok_or(SecurePeerError::InvalidPeer)?;
     if cert.as_ref() != expected.certificate.as_ref()
         || peer_id_from_certificate(cert)? != expected.peer_id
@@ -179,9 +191,7 @@ fn check_association(
     if &received[10..26] != space.as_bytes() {
         return Err(SecurePeerError::InvalidSpace);
     }
-    if &received[26..58] != local_id.digest()
-        || &received[58..90] != peer.peer_id.digest()
-    {
+    if &received[26..58] != local_id.digest() || &received[58..90] != peer.peer_id.digest() {
         return Err(SecurePeerError::InvalidPeer);
     }
     if received[90..98] != peer.key_epoch.to_be_bytes() {
@@ -197,18 +207,41 @@ async fn exchange_association<S: AsyncRead + AsyncWrite + Unpin>(
     local_epoch: u64,
     initiator: bool,
 ) -> Result<(), SecurePeerError> {
-    let hello = association(local, context.expected_remote.peer_id, context.space_id, local_epoch);
+    let hello = association(
+        local,
+        context.expected_remote.peer_id,
+        context.space_id,
+        local_epoch,
+    );
     let mut incoming = [0_u8; ASSOCIATION_SIZE];
     if initiator {
-        stream.write_all(&hello).await.map_err(|_| SecurePeerError::HandshakeFailed)?;
-        stream.flush().await.map_err(|_| SecurePeerError::HandshakeFailed)?;
-        stream.read_exact(&mut incoming).await.map_err(|_| SecurePeerError::HandshakeFailed)?;
+        stream
+            .write_all(&hello)
+            .await
+            .map_err(|_| SecurePeerError::HandshakeFailed)?;
+        stream
+            .flush()
+            .await
+            .map_err(|_| SecurePeerError::HandshakeFailed)?;
+        stream
+            .read_exact(&mut incoming)
+            .await
+            .map_err(|_| SecurePeerError::HandshakeFailed)?;
     } else {
-        stream.read_exact(&mut incoming).await.map_err(|_| SecurePeerError::HandshakeFailed)?;
+        stream
+            .read_exact(&mut incoming)
+            .await
+            .map_err(|_| SecurePeerError::HandshakeFailed)?;
         // Do not send an acknowledgement of successful membership until verified.
         check_association(&incoming, local, &context.expected_remote, context.space_id)?;
-        stream.write_all(&hello).await.map_err(|_| SecurePeerError::HandshakeFailed)?;
-        stream.flush().await.map_err(|_| SecurePeerError::HandshakeFailed)?;
+        stream
+            .write_all(&hello)
+            .await
+            .map_err(|_| SecurePeerError::HandshakeFailed)?;
+        stream
+            .flush()
+            .await
+            .map_err(|_| SecurePeerError::HandshakeFailed)?;
     }
     check_association(&incoming, local, &context.expected_remote, context.space_id)
 }
@@ -221,7 +254,9 @@ pub async fn connect<S>(
     context: SecurePeerContext,
     membership: &dyn MembershipVerifier,
 ) -> Result<SecurePeerChannel<client::TlsStream<S>>, SecurePeerError>
-where S: AsyncRead + AsyncWrite + Send + Unpin {
+where
+    S: AsyncRead + AsyncWrite + Send + Unpin,
+{
     let local_id = local.peer_id()?;
     let roots = root_store(context.expected_remote.certificate.clone())?;
     let config = ClientConfig::builder()
@@ -231,14 +266,21 @@ where S: AsyncRead + AsyncWrite + Send + Unpin {
     let tls = TlsConnector::from(Arc::new(config));
     let server_name = ServerName::try_from(FIXED_SERVER_NAME)
         .map_err(|_| SecurePeerError::InvalidTlsConfiguration)?;
-    let mut stream = tls.connect(server_name, bearer).await
+    let mut stream = tls
+        .connect(server_name, bearer)
+        .await
         .map_err(|_| SecurePeerError::HandshakeFailed)?;
     let principal = matched_principal(
         stream.get_ref().1.peer_certificates(),
-        &context.expected_remote, context.space_id, membership,
+        &context.expected_remote,
+        context.space_id,
+        membership,
     )?;
     exchange_association(&mut stream, local_id, &context, local.key_epoch, true).await?;
-    Ok(SecurePeerChannel { stream, remote: principal })
+    Ok(SecurePeerChannel {
+        stream,
+        remote: principal,
+    })
 }
 
 /// Accept a mutual TLS peer; a stream is returned only after both membership and
@@ -249,7 +291,9 @@ pub async fn accept<S>(
     context: SecurePeerContext,
     membership: &dyn MembershipVerifier,
 ) -> Result<SecurePeerChannel<server::TlsStream<S>>, SecurePeerError>
-where S: AsyncRead + AsyncWrite + Send + Unpin {
+where
+    S: AsyncRead + AsyncWrite + Send + Unpin,
+{
     let local_id = local.peer_id()?;
     let roots = root_store(context.expected_remote.certificate.clone())?;
     let client_verifier = WebPkiClientVerifier::builder(Arc::new(roots))
@@ -259,22 +303,29 @@ where S: AsyncRead + AsyncWrite + Send + Unpin {
         .with_client_cert_verifier(client_verifier)
         .with_single_cert(vec![local.certificate], local.private_key)
         .map_err(|_| SecurePeerError::InvalidTlsConfiguration)?;
-    let mut stream = TlsAcceptor::from(Arc::new(config)).accept(bearer).await
+    let mut stream = TlsAcceptor::from(Arc::new(config))
+        .accept(bearer)
+        .await
         .map_err(|_| SecurePeerError::HandshakeFailed)?;
     let principal = matched_principal(
         stream.get_ref().1.peer_certificates(),
-        &context.expected_remote, context.space_id, membership,
+        &context.expected_remote,
+        context.space_id,
+        membership,
     )?;
     exchange_association(&mut stream, local_id, &context, local.key_epoch, false).await?;
-    Ok(SecurePeerChannel { stream, remote: principal })
+    Ok(SecurePeerChannel {
+        stream,
+        remote: principal,
+    })
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use rcgen::{CertificateParams, KeyPair, PKCS_ED25519};
-    use tokio::io::{duplex, AsyncReadExt, AsyncWriteExt};
-    use tokio::time::{timeout, Duration};
+    use tokio::io::{AsyncReadExt, AsyncWriteExt, duplex};
+    use tokio::time::{Duration, timeout};
 
     struct Fixture {
         cert: CertificateDer<'static>,
@@ -289,7 +340,12 @@ mod tests {
             let cert = params.self_signed(&keypair).unwrap();
             let cert = CertificateDer::from(cert.der().to_vec());
             let peer_id = peer_id_from_certificate(&cert).unwrap();
-            Self { cert, key: keypair.serialize_der(), peer_id, epoch }
+            Self {
+                cert,
+                key: keypair.serialize_der(),
+                peer_id,
+                epoch,
+            }
         }
         fn identity(&self) -> LocalTlsIdentity {
             LocalTlsIdentity {
@@ -304,119 +360,271 @@ mod tests {
     }
 
     #[derive(Clone)]
-    struct StrictLedger { peer: PeerId, space: SpaceId, epoch: u64 }
+    struct StrictLedger {
+        peer: PeerId,
+        space: SpaceId,
+        epoch: u64,
+    }
     impl MembershipVerifier for StrictLedger {
         fn verify_membership(&self, principal: &PeerPrincipal) -> Result<(), CryptoError> {
             if principal.peer_id == self.peer
                 && principal.space_id == self.space
                 && principal.membership_epoch == self.epoch
-            { Ok(()) } else { Err(CryptoError::InvalidIdentity) }
+            {
+                Ok(())
+            } else {
+                Err(CryptoError::InvalidIdentity)
+            }
         }
     }
 
-    fn space() -> SpaceId { SpaceId::from_bytes([9;16]) }
+    fn space() -> SpaceId {
+        SpaceId::from_bytes([9; 16])
+    }
 
     #[tokio::test]
     async fn direct_mutual_tls_and_encrypted_association() {
-        let a = Fixture::new(1); let b = Fixture::new(4);
-        let (left,right) = duplex(16384);
-        let client = connect(left, a.identity(), SecurePeerContext {
-            expected_remote: b.pinned(), space_id: space(),
-        }, &StrictLedger{peer:b.peer_id,space:space(),epoch:b.epoch});
-        let server = accept(right, b.identity(), SecurePeerContext {
-            expected_remote: a.pinned(),space_id:space(),
-        }, &StrictLedger{peer:a.peer_id,space:space(),epoch:a.epoch});
-        let (client,server) = timeout(Duration::from_secs(5), async { tokio::join!(client,server) }).await.unwrap();
-        let mut client = client.unwrap();let mut server=server.unwrap();
-        assert_eq!(client.remote_principal().peer_id,b.peer_id);
-        assert_eq!(server.remote_principal().peer_id,a.peer_id);
-        client.stream_mut().write_all(b"secret service payload").await.unwrap();
-        let mut output=[0u8;22];
+        let a = Fixture::new(1);
+        let b = Fixture::new(4);
+        let (left, right) = duplex(16384);
+        let client = connect(
+            left,
+            a.identity(),
+            SecurePeerContext {
+                expected_remote: b.pinned(),
+                space_id: space(),
+            },
+            &StrictLedger {
+                peer: b.peer_id,
+                space: space(),
+                epoch: b.epoch,
+            },
+        );
+        let server = accept(
+            right,
+            b.identity(),
+            SecurePeerContext {
+                expected_remote: a.pinned(),
+                space_id: space(),
+            },
+            &StrictLedger {
+                peer: a.peer_id,
+                space: space(),
+                epoch: a.epoch,
+            },
+        );
+        let (client, server) = timeout(Duration::from_secs(5), async {
+            tokio::join!(client, server)
+        })
+        .await
+        .unwrap();
+        let mut client = client.unwrap();
+        let mut server = server.unwrap();
+        assert_eq!(client.remote_principal().peer_id, b.peer_id);
+        assert_eq!(server.remote_principal().peer_id, a.peer_id);
+        client
+            .stream_mut()
+            .write_all(b"secret service payload")
+            .await
+            .unwrap();
+        let mut output = [0u8; 22];
         server.stream_mut().read_exact(&mut output).await.unwrap();
-        assert_eq!(&output,b"secret service payload");
+        assert_eq!(&output, b"secret service payload");
     }
 
     #[tokio::test]
     async fn space_mismatch_fails_before_service_open() {
-        let a=Fixture::new(2);let b=Fixture::new(3);
-        let (left,right)=duplex(16384);
-        let client=connect(left,a.identity(),SecurePeerContext{
-            expected_remote:b.pinned(),space_id:space(),
-        },&StrictLedger{peer:b.peer_id,space:space(),epoch:b.epoch});
-        let server=accept(right,b.identity(),SecurePeerContext{
-            expected_remote:a.pinned(),space_id:SpaceId::from_bytes([7;16]),
-        },&StrictLedger{peer:a.peer_id,space:SpaceId::from_bytes([7;16]),epoch:a.epoch});
-        let (client,server)=timeout(Duration::from_secs(5),async{tokio::join!(client,server)}).await.unwrap();
+        let a = Fixture::new(2);
+        let b = Fixture::new(3);
+        let (left, right) = duplex(16384);
+        let client = connect(
+            left,
+            a.identity(),
+            SecurePeerContext {
+                expected_remote: b.pinned(),
+                space_id: space(),
+            },
+            &StrictLedger {
+                peer: b.peer_id,
+                space: space(),
+                epoch: b.epoch,
+            },
+        );
+        let server = accept(
+            right,
+            b.identity(),
+            SecurePeerContext {
+                expected_remote: a.pinned(),
+                space_id: SpaceId::from_bytes([7; 16]),
+            },
+            &StrictLedger {
+                peer: a.peer_id,
+                space: SpaceId::from_bytes([7; 16]),
+                epoch: a.epoch,
+            },
+        );
+        let (client, server) = timeout(Duration::from_secs(5), async {
+            tokio::join!(client, server)
+        })
+        .await
+        .unwrap();
         assert!(client.is_err());
-        assert!(matches!(server,Err(SecurePeerError::InvalidSpace)));
+        assert!(matches!(server, Err(SecurePeerError::InvalidSpace)));
     }
 
     #[tokio::test]
     async fn wrong_target_certificate_fails_tls() {
-        let a=Fixture::new(1);let b=Fixture::new(1);let impostor=Fixture::new(1);
-        let (left,right)=duplex(16384);
-        let client=connect(left,a.identity(),SecurePeerContext{
-            expected_remote:b.pinned(),space_id:space(),
-        },&StrictLedger{peer:b.peer_id,space:space(),epoch:b.epoch});
-        let server=accept(right,impostor.identity(),SecurePeerContext{
-            expected_remote:a.pinned(),space_id:space(),
-        },&StrictLedger{peer:a.peer_id,space:space(),epoch:a.epoch});
-        let (client,_)=timeout(Duration::from_secs(5),async{tokio::join!(client,server)}).await.unwrap();
+        let a = Fixture::new(1);
+        let b = Fixture::new(1);
+        let impostor = Fixture::new(1);
+        let (left, right) = duplex(16384);
+        let client = connect(
+            left,
+            a.identity(),
+            SecurePeerContext {
+                expected_remote: b.pinned(),
+                space_id: space(),
+            },
+            &StrictLedger {
+                peer: b.peer_id,
+                space: space(),
+                epoch: b.epoch,
+            },
+        );
+        let server = accept(
+            right,
+            impostor.identity(),
+            SecurePeerContext {
+                expected_remote: a.pinned(),
+                space_id: space(),
+            },
+            &StrictLedger {
+                peer: a.peer_id,
+                space: space(),
+                epoch: a.epoch,
+            },
+        );
+        let (client, _) = timeout(Duration::from_secs(5), async {
+            tokio::join!(client, server)
+        })
+        .await
+        .unwrap();
         assert!(client.is_err());
     }
 
     #[tokio::test]
     async fn wrong_remote_epoch_or_revoked_membership_fails() {
-        let a=Fixture::new(1);let b=Fixture::new(4);
-        let (left,right)=duplex(16384);
-        let client=connect(left,a.identity(),SecurePeerContext{
-            expected_remote:b.pinned(),space_id:space(),
-        },&StrictLedger{peer:b.peer_id,space:space(),epoch:b.epoch+1});
-        let server=accept(right,b.identity(),SecurePeerContext{
-            expected_remote:a.pinned(),space_id:space(),
-        },&StrictLedger{peer:a.peer_id,space:space(),epoch:a.epoch});
-        let (client,_)=timeout(Duration::from_secs(5),async{tokio::join!(client,server)}).await.unwrap();
-        assert!(matches!(client,Err(SecurePeerError::UntrustedMembership)));
+        let a = Fixture::new(1);
+        let b = Fixture::new(4);
+        let (left, right) = duplex(16384);
+        let client = connect(
+            left,
+            a.identity(),
+            SecurePeerContext {
+                expected_remote: b.pinned(),
+                space_id: space(),
+            },
+            &StrictLedger {
+                peer: b.peer_id,
+                space: space(),
+                epoch: b.epoch + 1,
+            },
+        );
+        let server = accept(
+            right,
+            b.identity(),
+            SecurePeerContext {
+                expected_remote: a.pinned(),
+                space_id: space(),
+            },
+            &StrictLedger {
+                peer: a.peer_id,
+                space: space(),
+                epoch: a.epoch,
+            },
+        );
+        let (client, _) = timeout(Duration::from_secs(5), async {
+            tokio::join!(client, server)
+        })
+        .await
+        .unwrap();
+        assert!(matches!(client, Err(SecurePeerError::UntrustedMembership)));
     }
 
     #[tokio::test]
     async fn malicious_relay_observes_ciphertext_not_service_plaintext() {
-        let a=Fixture::new(1);let b=Fixture::new(2);
-        let (client_end,mut relay_left)=duplex(65536);
-        let (mut relay_right,server_end)=duplex(65536);
-        let capture=Arc::new(std::sync::Mutex::new(Vec::<u8>::new()));
-        let c1=Arc::clone(&capture);
-        let relay=tokio::spawn(async move {
-            let (mut lread,mut lwrite)=tokio::io::split(&mut relay_left);
-            let (mut rread,mut rwrite)=tokio::io::split(&mut relay_right);
-            let forward=async {
-                let mut buffer=[0u8;4096];
-                loop {let len=lread.read(&mut buffer).await.unwrap();if len==0{break;}
+        let a = Fixture::new(1);
+        let b = Fixture::new(2);
+        let (client_end, mut relay_left) = duplex(65536);
+        let (mut relay_right, server_end) = duplex(65536);
+        let capture = Arc::new(std::sync::Mutex::new(Vec::<u8>::new()));
+        let c1 = Arc::clone(&capture);
+        let relay = tokio::spawn(async move {
+            let (mut lread, mut lwrite) = tokio::io::split(&mut relay_left);
+            let (mut rread, mut rwrite) = tokio::io::split(&mut relay_right);
+            let forward = async {
+                let mut buffer = [0u8; 4096];
+                loop {
+                    let len = lread.read(&mut buffer).await.unwrap();
+                    if len == 0 {
+                        break;
+                    }
                     c1.lock().unwrap().extend_from_slice(&buffer[..len]);
-                    rwrite.write_all(&buffer[..len]).await.unwrap();}
+                    rwrite.write_all(&buffer[..len]).await.unwrap();
+                }
             };
-            let reverse=async {
-                let mut buffer=[0u8;4096];
-                loop {let len=rread.read(&mut buffer).await.unwrap();if len==0{break;}
-                    lwrite.write_all(&buffer[..len]).await.unwrap();}
+            let reverse = async {
+                let mut buffer = [0u8; 4096];
+                loop {
+                    let len = rread.read(&mut buffer).await.unwrap();
+                    if len == 0 {
+                        break;
+                    }
+                    lwrite.write_all(&buffer[..len]).await.unwrap();
+                }
             };
-            tokio::join!(forward,reverse);
+            tokio::join!(forward, reverse);
         });
-        let client=connect(client_end,a.identity(),SecurePeerContext {
-            expected_remote:b.pinned(),space_id:space(),
-        },&StrictLedger{peer:b.peer_id,space:space(),epoch:b.epoch});
-        let server=accept(server_end,b.identity(),SecurePeerContext{
-            expected_remote:a.pinned(),space_id:space(),
-        },&StrictLedger{peer:a.peer_id,space:space(),epoch:a.epoch});
-        let (client,server)=timeout(Duration::from_secs(5),async{tokio::join!(client,server)}).await.unwrap();
-        let mut client=client.unwrap();let mut server=server.unwrap();
-        const SECRET: &[u8]=b"TOP_SECRET_RELAY_MUST_NEVER_READ_12345";
+        let client = connect(
+            client_end,
+            a.identity(),
+            SecurePeerContext {
+                expected_remote: b.pinned(),
+                space_id: space(),
+            },
+            &StrictLedger {
+                peer: b.peer_id,
+                space: space(),
+                epoch: b.epoch,
+            },
+        );
+        let server = accept(
+            server_end,
+            b.identity(),
+            SecurePeerContext {
+                expected_remote: a.pinned(),
+                space_id: space(),
+            },
+            &StrictLedger {
+                peer: a.peer_id,
+                space: space(),
+                epoch: a.epoch,
+            },
+        );
+        let (client, server) = timeout(Duration::from_secs(5), async {
+            tokio::join!(client, server)
+        })
+        .await
+        .unwrap();
+        let mut client = client.unwrap();
+        let mut server = server.unwrap();
+        const SECRET: &[u8] = b"TOP_SECRET_RELAY_MUST_NEVER_READ_12345";
         client.stream_mut().write_all(SECRET).await.unwrap();
-        let mut result=vec![0u8;SECRET.len()];
+        let mut result = vec![0u8; SECRET.len()];
         server.stream_mut().read_exact(&mut result).await.unwrap();
-        assert_eq!(&result,SECRET);
-        let wire=capture.lock().unwrap().clone();
-        assert!(!wire.windows(SECRET.len()).any(|chunk|chunk==SECRET));
+        assert_eq!(&result, SECRET);
+        let wire = capture.lock().unwrap().clone();
+        assert!(!wire.windows(SECRET.len()).any(|chunk| chunk == SECRET));
         assert!(!wire.is_empty());
         relay.abort();
     }

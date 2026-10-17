@@ -53,3 +53,6 @@ pub mod signed_revocation;
 
 /// Candidate Owner-anchored revoke-only delegation proof (not production trust).
 pub mod owner_authority;
+
+/// Candidate dual-signed independent checkpoint verifier (no production admission).
+pub mod witness_checkpoint;

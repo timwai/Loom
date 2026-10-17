@@ -1232,7 +1232,7 @@ mod tests {
             witnessed(&store, genesis, &forged, &fake_anchor(&genesis)),
             Ok(UnifiedRecoveryAssessment::HistoryConflict)
         );
-        let mut corrupted_anchor = fake_anchor(&genesis);
+        let corrupted_anchor = fake_anchor(&genesis);
         let expected = witness_receipts(2, second.policy_head, revoke_root);
         {
             let mut guard = corrupted_anchor.state.lock().unwrap();

@@ -2,7 +2,7 @@
 
 Rust-first, **peer-oriented** private networking and device services platform. Loom is the new independent project for the RelayProxy Rust rewrite and decentralized Peer Mesh design.
 
-**Status: L-000 foundation only / not production-ready.** At this stage `loomd` does not listen on any network interface, change system proxy settings, load a driver, provide an exit, or accept remote credentials. The placeholder `loom-crypto`, `loom-identity`, `loom-policy` and `loom-store` interfaces explicitly fail closed.
+**Status: stacked security-engineering PoCs / not production-ready.** The default `main` branch is still the initial repository baseline; feature work is on unmerged Draft PRs. The L-000 workspace has since been extended with experimental signed events, Owner lifecycle verification, an mTLS channel PoC, SQLite revocation/policy journals and local rollback-recovery diagnostics. These are not wired into a production Peer runtime. `loomd` still only prints its disabled state: no network listener, system proxy, driver, VPN, Relay, file sharing or RDP is started. The L-000 placeholder paths remain deny-by-default.
 
 ## Architecture
 
@@ -32,7 +32,7 @@ The `loomd` bootstrap command only prints its disabled-runtime state. A passing 
 - [Review tracker](docs/review-tracker.md)
 - [Implementation status](docs/STATUS.md)
 
-Next independent spikes: `L-001A` secure Peer channel, `L-001B` canonical signed event vectors, `L-001C` SQLite admission barrier/outbox/anti-rollback, `L-001D` real Android/Windows/macOS networking.
+Next integration gates: resolve the single authoritative policy journal and signed migration, bind unified policy heads to an independently trusted anti-rollback provider and witnessed freshness, then complete `L-001D` OS networking spikes and `L-002` two-Peer LAN file-read/revoke test. See `docs/STATUS.md` and `docs/spikes/l-001j-mirror-integrity.md` for the latest draft-branch limits.
 
 ## Compatibility and licensing
 

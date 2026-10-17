@@ -6,9 +6,7 @@
 
 use ed25519_dalek::{Signature, VerifyingKey};
 use loom_types::{PeerId, ResourceId, SpaceId};
-use loom_wire::security_event::{
-    EventKind, decode_security_event, signing_input,
-};
+use loom_wire::security_event::{EventKind, decode_security_event, signing_input};
 use sha2::{Digest, Sha256};
 
 use crate::signed_revocation::{

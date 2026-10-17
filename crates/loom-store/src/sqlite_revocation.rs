@@ -1,0 +1,407 @@
+//! L-001C experimental revocation persistence. No production ServiceOpen.
+//! The only admission helpers are test-only. ADR-20/21 are not yet accepted.
+
+use crate::{PolicyVersion, SecurityEventStore, StoreError};
+use loom_types::{ResourceId, SpaceId};
+use rusqlite::{params, Connection, OptionalExtension, TransactionBehavior};
+use std::collections::HashMap;
+use std::path::PathBuf;
+use std::sync::mpsc::{self, Receiver, Sender};
+use std::sync::Mutex;
+use std::thread::{self, JoinHandle};
+use std::time::Duration;
+
+const MAX_EVENT_BYTES: usize = 64 * 1024;
+
+#[derive(Clone, Copy, Debug, Hash, Eq, PartialEq)]
+struct Key(SpaceId, ResourceId);
+
+impl From<PolicyVersion> for Key {
+    fn from(v: PolicyVersion) -> Self { Self(v.space_id, v.resource_id) }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum AdmissionState { Paused, Ready }
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct OutboxEntry {
+    pub id: i64,
+    pub epoch: u64,
+    pub signed_event: Vec<u8>,
+}
+
+struct Gate {
+    epochs: HashMap<Key, u64>,
+    status: AdmissionState,
+    #[cfg(test)]
+    permits: Vec<(Key, std::sync::Arc<std::sync::atomic::AtomicBool>)>,
+    #[cfg(test)]
+    fail_after_commit: bool,
+}
+
+impl Gate {
+    fn pause(&mut self) {
+        self.status = AdmissionState::Paused;
+        #[cfg(test)]
+        for (_, live) in &self.permits {
+            live.store(false, std::sync::atomic::Ordering::SeqCst);
+        }
+    }
+}
+
+enum Command {
+    Commit(PolicyVersion, Vec<u8>, Sender<Result<PolicyVersion, StoreError>>),
+    Pending(Sender<Result<Vec<OutboxEntry>, StoreError>>),
+}
+
+/// Synchronous API using one dedicated SQLite OS thread. Async callers must
+/// use a blocking executor. Start-up is always Paused until verified recovery.
+pub struct SqliteRevocationStore {
+    tx: Option<Sender<Command>>,
+    gate: Mutex<Gate>,
+    join: Option<JoinHandle<()>>,
+}
+
+impl SqliteRevocationStore {
+    pub fn open(path: PathBuf) -> Result<Self, StoreError> {
+        let (tx, rx) = mpsc::channel();
+        let (ready_tx, ready_rx) = mpsc::channel();
+        let join = thread::Builder::new()
+            .name("loom-revocation-db".to_owned())
+            .spawn(move || db_worker(path, rx, ready_tx))
+            .map_err(|_| StoreError::PersistenceFailure)?;
+        let epochs = ready_rx.recv().map_err(|_| StoreError::PersistenceFailure)??;
+        Ok(Self { tx: Some(tx), join: Some(join), gate: Mutex::new(Gate {
+            epochs, status: AdmissionState::Paused,
+            #[cfg(test)] permits: Vec::new(),
+            #[cfg(test)] fail_after_commit: false,
+        })})
+    }
+
+    pub fn admission_state(&self) -> AdmissionState {
+        self.gate.lock().map(|g| g.status).unwrap_or(AdmissionState::Paused)
+    }
+
+    /// Diagnostic only; version read is never proof of current authorization.
+    pub fn persisted_epoch(&self, v: PolicyVersion) -> Result<u64, StoreError> {
+        let gate = self.gate.lock().map_err(|_| StoreError::PersistenceFailure)?;
+        Ok(*gate.epochs.get(&v.into()).unwrap_or(&0))
+    }
+
+    /// P0 security events must not be ACKed or dropped before remote durable receipt.
+    /// The PoC reads pending events but intentionally has no ACK operation.
+    pub fn pending_outbox(&self) -> Result<Vec<OutboxEntry>, StoreError> {
+        let (send, recv) = mpsc::channel();
+        self.tx.as_ref().ok_or(StoreError::PersistenceFailure)?
+            .send(Command::Pending(send)).map_err(|_| StoreError::PersistenceFailure)?;
+        recv.recv().map_err(|_| StoreError::PersistenceFailure)?
+    }
+
+    #[cfg(test)]
+    fn recover_fixture(&self, witnessed: &[(PolicyVersion, u64)]) -> Result<(), StoreError> {
+        let mut gate = self.gate.lock().map_err(|_| StoreError::PersistenceFailure)?;
+        if witnessed.iter().any(|(v, min)| gate.epochs.get(&(*v).into()).copied().unwrap_or(0) < *min) {
+            gate.pause();
+            return Err(StoreError::Conflict);
+        }
+        // No real signed witness implemented. This function is test-only.
+        gate.status = AdmissionState::Ready;
+        Ok(())
+    }
+
+    #[cfg(test)]
+    fn admit_fixture(&self, v: PolicyVersion) -> Result<std::sync::Arc<std::sync::atomic::AtomicBool>, StoreError> {
+        use std::sync::{Arc, atomic::AtomicBool};
+        let mut gate = self.gate.lock().map_err(|_| StoreError::PersistenceFailure)?;
+        if gate.status != AdmissionState::Ready { return Err(StoreError::NotInitialized); }
+        if gate.epochs.get(&v.into()).copied().unwrap_or(0) != v.epoch { return Err(StoreError::Conflict); }
+        let live = Arc::new(AtomicBool::new(true));
+        gate.permits.push((v.into(), Arc::clone(&live)));
+        Ok(live)
+    }
+
+    #[cfg(test)]
+    fn simulate_post_commit_crash(&self) {
+        self.gate.lock().expect("test gate").fail_after_commit = true;
+    }
+}
+
+impl SecurityEventStore for SqliteRevocationStore {
+    fn commit_revocation(&self, v: PolicyVersion, event: &[u8]) -> Result<PolicyVersion, StoreError> {
+        if event.is_empty() || event.len() > MAX_EVENT_BYTES {
+            return Err(StoreError::PersistenceFailure);
+        }
+        // Single admission barrier covers test-only SessionOpen and transaction.
+        let mut gate = self.gate.lock().map_err(|_| StoreError::PersistenceFailure)?;
+        if gate.status != AdmissionState::Ready { return Err(StoreError::NotInitialized); }
+        let key: Key = v.into();
+        if gate.epochs.get(&key).copied().unwrap_or(0) != v.epoch {
+            return Err(StoreError::Conflict);
+        }
+        let (send, recv) = mpsc::channel();
+        let result = match self.tx.as_ref().ok_or(StoreError::PersistenceFailure)
+            .and_then(|tx| tx.send(Command::Commit(v, event.to_vec(), send))
+                .map_err(|_| StoreError::PersistenceFailure)) {
+            Ok(()) => recv.recv().unwrap_or(Err(StoreError::PersistenceFailure)),
+            Err(error) => Err(error),
+        };
+        match result {
+            Ok(committed) => {
+                #[cfg(test)]
+                if gate.fail_after_commit {
+                    gate.pause();
+                    return Err(StoreError::PersistenceFailure);
+                }
+                gate.epochs.insert(key, committed.epoch);
+                #[cfg(test)] {
+                    for (id, live) in &gate.permits {
+                        if *id == key {
+                            live.store(false, std::sync::atomic::Ordering::SeqCst);
+                        }
+                    }
+                    gate.permits.retain(|(id, _)| *id != key);
+                }
+                Ok(committed)
+            }
+            Err(error) => {
+                // A successful COMMIT followed by response failure is ambiguous:
+                // pause rather than serving from a stale in-memory snapshot.
+                gate.pause();
+                Err(error)
+            }
+        }
+    }
+}
+
+impl Drop for SqliteRevocationStore {
+    fn drop(&mut self) {
+        self.tx.take();
+        if let Some(join) = self.join.take() { let _ = join.join(); }
+    }
+}
+
+fn db_worker(path: PathBuf, rx: Receiver<Command>,
+             ready: Sender<Result<HashMap<Key, u64>, StoreError>>) {
+    match initialize(&path) {
+        Ok((mut conn, versions)) => {
+            let _ = ready.send(Ok(versions));
+            for command in rx {
+                match command {
+                    Command::Commit(v, event, done) => { let _ = done.send(write_revocation(&mut conn, v, &event)); }
+                    Command::Pending(done) => { let _ = done.send(read_outbox(&conn)); }
+                }
+            }
+        }
+        Err(error) => { let _ = ready.send(Err(error)); }
+    }
+}
+
+fn initialize(path: &PathBuf) -> Result<(Connection, HashMap<Key, u64>), StoreError> {
+    let conn = Connection::open(path).map_err(|_| StoreError::PersistenceFailure)?;
+    conn.busy_timeout(Duration::from_secs(2)).map_err(|_| StoreError::PersistenceFailure)?;
+    conn.execute_batch(
+        "PRAGMA journal_mode=WAL;
+         PRAGMA synchronous=FULL;
+         PRAGMA foreign_keys=ON;
+         CREATE TABLE IF NOT EXISTS policy_versions(
+           space BLOB NOT NULL CHECK(length(space)=16),
+           resource BLOB NOT NULL CHECK(length(resource)=16),
+           epoch INTEGER NOT NULL CHECK(epoch>=0),
+           PRIMARY KEY(space,resource)
+         ) STRICT;
+         CREATE TABLE IF NOT EXISTS revocations(
+           id INTEGER PRIMARY KEY AUTOINCREMENT,
+           space BLOB NOT NULL CHECK(length(space)=16),
+           resource BLOB NOT NULL CHECK(length(resource)=16),
+           epoch INTEGER NOT NULL CHECK(epoch>0),
+           signed_event BLOB NOT NULL CHECK(length(signed_event)>0),
+           UNIQUE(space,resource,epoch)
+         ) STRICT;
+         CREATE TABLE IF NOT EXISTS critical_outbox(
+           id INTEGER PRIMARY KEY AUTOINCREMENT,
+           revocation_id INTEGER NOT NULL UNIQUE REFERENCES revocations(id),
+           epoch INTEGER NOT NULL,
+           signed_event BLOB NOT NULL
+         ) STRICT;
+         CREATE TABLE IF NOT EXISTS security_audit(
+           id INTEGER PRIMARY KEY AUTOINCREMENT,
+           revocation_id INTEGER NOT NULL REFERENCES revocations(id),
+           action TEXT NOT NULL
+         ) STRICT;",
+    ).map_err(|_| StoreError::PersistenceFailure)?;
+    let mut versions = HashMap::new();
+    {
+        let mut stmt = conn.prepare("SELECT space,resource,epoch FROM policy_versions")
+            .map_err(|_| StoreError::PersistenceFailure)?;
+        let rows = stmt.query_map([], |row| {
+            let space: Vec<u8> = row.get(0)?;
+            let resource: Vec<u8> = row.get(1)?;
+            let epoch: i64 = row.get(2)?;
+            Ok((space, resource, epoch))
+        }).map_err(|_| StoreError::PersistenceFailure)?;
+        for row in rows {
+            let (space, resource, epoch) = row.map_err(|_| StoreError::PersistenceFailure)?;
+            let space: [u8;16] = space.try_into().map_err(|_| StoreError::PersistenceFailure)?;
+            let resource: [u8;16] = resource.try_into().map_err(|_| StoreError::PersistenceFailure)?;
+            let epoch = u64::try_from(epoch).map_err(|_| StoreError::PersistenceFailure)?;
+            versions.insert(Key(SpaceId::from_bytes(space),ResourceId::from_bytes(resource)),epoch);
+        }
+    }
+    Ok((conn,versions))
+}
+
+fn write_revocation(conn: &mut Connection, v: PolicyVersion,
+                    event: &[u8]) -> Result<PolicyVersion, StoreError> {
+    let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)
+        .map_err(|_| StoreError::PersistenceFailure)?;
+    let space = v.space_id.as_bytes().as_slice();
+    let resource = v.resource_id.as_bytes().as_slice();
+    let actual: Option<i64> = tx.query_row(
+        "SELECT epoch FROM policy_versions WHERE space=?1 AND resource=?2",
+        params![space, resource], |row| row.get(0)
+    ).optional().map_err(|_| StoreError::PersistenceFailure)?;
+    let actual = actual.unwrap_or(0);
+    let expected = i64::try_from(v.epoch).map_err(|_| StoreError::PersistenceFailure)?;
+    if actual != expected { return Err(StoreError::Conflict); }
+    let next = actual.checked_add(1).ok_or(StoreError::PersistenceFailure)?;
+    tx.execute(
+        "INSERT INTO policy_versions(space,resource,epoch) VALUES(?1,?2,?3)
+         ON CONFLICT(space,resource) DO UPDATE SET epoch=excluded.epoch",
+        params![space,resource,next]
+    ).map_err(|_| StoreError::PersistenceFailure)?;
+    tx.execute("INSERT INTO revocations(space,resource,epoch,signed_event) VALUES(?1,?2,?3,?4)",
+               params![space,resource,next,event])
+        .map_err(|_| StoreError::PersistenceFailure)?;
+    let event_id = tx.last_insert_rowid();
+    tx.execute("INSERT INTO critical_outbox(revocation_id,epoch,signed_event) VALUES(?1,?2,?3)",
+               params![event_id,next,event]).map_err(|_| StoreError::PersistenceFailure)?;
+    tx.execute("INSERT INTO security_audit(revocation_id,action) VALUES(?1,'revoke')",
+               params![event_id]).map_err(|_| StoreError::PersistenceFailure)?;
+    tx.commit().map_err(|_| StoreError::PersistenceFailure)?;
+    Ok(PolicyVersion { epoch: u64::try_from(next).map_err(|_| StoreError::PersistenceFailure)?, ..v })
+}
+
+fn read_outbox(db: &Connection) -> Result<Vec<OutboxEntry>, StoreError> {
+    let mut stmt = db.prepare("SELECT id,epoch,signed_event FROM critical_outbox ORDER BY id")
+        .map_err(|_| StoreError::PersistenceFailure)?;
+    let rows = stmt.query_map([], |row| {
+        let id: i64 = row.get(0)?;
+        let epoch: i64 = row.get(1)?;
+        let event: Vec<u8> = row.get(2)?;
+        Ok((id,epoch,event))
+    }).map_err(|_| StoreError::PersistenceFailure)?;
+    let mut entries = Vec::new();
+    for row in rows {
+        let (id,epoch,event) = row.map_err(|_| StoreError::PersistenceFailure)?;
+        entries.push(OutboxEntry { id, epoch: u64::try_from(epoch)
+            .map_err(|_| StoreError::PersistenceFailure)?, signed_event: event });
+    }
+    Ok(entries)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::{Arc, Barrier};
+    use std::sync::atomic::Ordering;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    struct TempDb(PathBuf);
+    impl TempDb {
+        fn new() -> Self {
+            let ns = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+            Self(std::env::temp_dir().join(format!("loom-{}-{ns}.sqlite", std::process::id())))
+        }
+        fn open(&self) -> SqliteRevocationStore {
+            SqliteRevocationStore::open(self.0.clone()).unwrap()
+        }
+    }
+    impl Drop for TempDb {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_file(&self.0);
+            let _ = std::fs::remove_file(format!("{}-wal",self.0.display()));
+            let _ = std::fs::remove_file(format!("{}-shm",self.0.display()));
+        }
+    }
+    fn v0() -> PolicyVersion {
+        PolicyVersion { space_id: SpaceId::from_bytes([1;16]),
+            resource_id: ResourceId::from_bytes([2;16]), epoch: 0 }
+    }
+    #[test]
+    fn startup_is_paused_no_trust_source() {
+        let db = TempDb::new(); let store = db.open();
+        assert_eq!(store.admission_state(),AdmissionState::Paused);
+        assert!(matches!(store.admit_fixture(v0()),Err(StoreError::NotInitialized)));
+        assert_eq!(store.commit_revocation(v0(),b"fixture"),Err(StoreError::NotInitialized));
+    }
+    #[test]
+    fn atomic_commit_cancels_old_session_and_survives_restart() {
+        let db = TempDb::new(); let store = db.open();
+        store.recover_fixture(&[(v0(),0)]).unwrap();
+        let permit = store.admit_fixture(v0()).unwrap();
+        let updated = store.commit_revocation(v0(),b"signed fixture").unwrap();
+        assert_eq!(updated.epoch,1);
+        assert!(!permit.load(Ordering::SeqCst));
+        assert!(matches!(store.admit_fixture(v0()),Err(StoreError::Conflict)));
+        assert!(store.admit_fixture(updated).is_ok());
+        let events = store.pending_outbox().unwrap();
+        assert_eq!(events.len(),1);
+        assert_eq!(events[0].signed_event,b"signed fixture");
+        drop(store);
+        let recovered = db.open();
+        assert_eq!(recovered.admission_state(),AdmissionState::Paused);
+        assert_eq!(recovered.persisted_epoch(v0()).unwrap(),1);
+        assert_eq!(recovered.pending_outbox().unwrap(),events);
+        recovered.recover_fixture(&[(v0(),1)]).unwrap();
+        assert!(matches!(recovered.admit_fixture(v0()),Err(StoreError::Conflict)));
+    }
+    #[test]
+    fn crash_after_commit_before_memory_publication_fails_closed() {
+        let db = TempDb::new(); let store = db.open();
+        store.recover_fixture(&[(v0(),0)]).unwrap();
+        let permit = store.admit_fixture(v0()).unwrap();
+        store.simulate_post_commit_crash();
+        assert_eq!(store.commit_revocation(v0(),b"crash"),Err(StoreError::PersistenceFailure));
+        assert_eq!(store.admission_state(),AdmissionState::Paused);
+        assert!(!permit.load(Ordering::SeqCst));
+        drop(store);
+        let recovered=db.open();
+        assert_eq!(recovered.persisted_epoch(v0()).unwrap(),1);
+        assert_eq!(recovered.pending_outbox().unwrap().len(),1);
+    }
+    #[test]
+    fn restored_old_db_rejected_against_independent_test_highwater() {
+        let db = TempDb::new(); let store=db.open();
+        assert_eq!(store.recover_fixture(&[(v0(),2)]),Err(StoreError::Conflict));
+        assert_eq!(store.admission_state(),AdmissionState::Paused);
+    }
+    #[test]
+    fn stale_writer_does_not_duplicate_revocation() {
+        let db = TempDb::new();let store=db.open();
+        store.recover_fixture(&[(v0(),0)]).unwrap();
+        assert_eq!(store.commit_revocation(v0(),b"one").unwrap().epoch,1);
+        assert_eq!(store.commit_revocation(v0(),b"stale"),Err(StoreError::Conflict));
+        assert_eq!(store.pending_outbox().unwrap().len(),1);
+    }
+    #[test]
+    fn thousand_parallel_admissions_cannot_survive_commit() {
+        let db=TempDb::new();let store=std::sync::Arc::new(db.open());
+        store.recover_fixture(&[(v0(),0)]).unwrap();
+        let barrier=Arc::new(Barrier::new(9));
+        let mut threads=Vec::new();
+        for _ in 0..8 {
+            let s=Arc::clone(&store);let b=Arc::clone(&barrier);
+            threads.push(thread::spawn(move || {
+                b.wait();
+                for _ in 0..125 {
+                    if let Ok(permit)=s.admit_fixture(v0()) { let _=permit.load(Ordering::SeqCst); }
+                }
+            }));
+        }
+        barrier.wait();
+        assert_eq!(store.commit_revocation(v0(),b"race").unwrap().epoch,1);
+        for t in threads { t.join().unwrap(); }
+        assert!(matches!(store.admit_fixture(v0()),Err(StoreError::Conflict)));
+        assert!(store.gate.lock().unwrap().permits.is_empty());
+    }
+}

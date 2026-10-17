@@ -1,4 +1,4 @@
-//! Transaction persistence boundary; SQLite actor and durable outbox are L-001C work.
+//! Transaction persistence boundary; L-001C experimental actor added.
 //! The default deliberately does not persist or acknowledge security events.
 
 use loom_types::{ResourceId, SpaceId};
@@ -54,3 +54,6 @@ mod tests {
         );
     }
 }
+
+/// Experimental fail-closed SQLite revoke/outbox coordinator.
+pub mod sqlite_revocation;

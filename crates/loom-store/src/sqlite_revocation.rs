@@ -4,6 +4,8 @@
 #[cfg(test)]
 use crate::SecurityEventStore;
 use crate::{PolicyVersion, StoreError};
+use loom_crypto::owner_authority::OwnerVerifiedRevocation;
+#[cfg(test)]
 use loom_crypto::signed_revocation::VerifiedRevocation;
 use loom_types::{ResourceId, SpaceId};
 use rusqlite::{Connection, OptionalExtension, TransactionBehavior, params};
@@ -176,7 +178,23 @@ impl SqliteRevocationStore {
     /// Accept only a typed event whose exact CBOR and Ed25519 signature have
     /// already been checked. This does NOT prove Owner authority, and the store
     /// remains production-paused until witness-backed admission is implemented.
-    pub fn commit_verified_revocation(
+    pub fn commit_owner_revocation(
+        &self,
+        v: PolicyVersion,
+        proof: &OwnerVerifiedRevocation,
+    ) -> Result<PolicyVersion, StoreError> {
+        if proof.space_id() != v.space_id
+            || proof.resource_id() != v.resource_id
+            || v.epoch.checked_add(1) != Some(proof.seq())
+        {
+            return Err(StoreError::Conflict);
+        }
+        self.commit_internal(v, &proof.persistence_bytes())
+    }
+
+    /// Legacy caller-supplied issuer test path; absent in production builds.
+    #[cfg(test)]
+    fn commit_spike_revocation_for_test(
         &self,
         v: PolicyVersion,
         proof: &VerifiedRevocation,
@@ -585,6 +603,96 @@ mod tests {
         assert!(store.gate.lock().unwrap().permits.is_empty());
     }
 
+
+    #[test]
+    fn owner_delegated_revocation_must_match_db_resource_and_remain_paused_on_restart() {
+        use ed25519_dalek::{Signer, SigningKey};
+        use loom_crypto::owner_authority::{
+            ProvisionedOwnerForSpike, issuer_key_id, verify_owner_delegated_revocation_for_spike,
+        };
+        use loom_wire::security_event::{
+            CanonicalSecurityEvent, EventKind, encode_security_event, signing_input,
+        };
+
+        let owner = SigningKey::from_bytes(&[11; 32]);
+        let delegate = SigningKey::from_bytes(&[12; 32]);
+        let provisioned = ProvisionedOwnerForSpike {
+            space_id: v0().space_id,
+            resource_id: v0().resource_id,
+            public_key: owner.verifying_key().to_bytes(),
+            current_key_epoch: 3,
+        };
+        let delegated_key = delegate.verifying_key().to_bytes();
+        let mut grant_payload = v0().resource_id.as_bytes().to_vec();
+        grant_payload.extend_from_slice(&delegated_key);
+        grant_payload.extend_from_slice(&issuer_key_id(&delegated_key));
+        grant_payload.push(1);
+        grant_payload.extend_from_slice(&4u64.to_be_bytes());
+        let grant = CanonicalSecurityEvent {
+            kind: EventKind::OwnerGrant,
+            space_id: *v0().space_id.as_bytes(),
+            signer_key_id: issuer_key_id(&provisioned.public_key),
+            issuer_epoch: 3,
+            issued_at_ms: 100,
+            expires_at_ms: 300,
+            seq: 1,
+            payload: grant_payload,
+        };
+        let mut revoke_payload = v0().resource_id.as_bytes().to_vec();
+        revoke_payload.extend_from_slice(&[5; 32]);
+        revoke_payload.push(3);
+        let revoke = CanonicalSecurityEvent {
+            kind: EventKind::Revocation,
+            space_id: *v0().space_id.as_bytes(),
+            signer_key_id: issuer_key_id(&delegated_key),
+            issuer_epoch: 4,
+            issued_at_ms: 120,
+            expires_at_ms: 260,
+            seq: 1,
+            payload: revoke_payload,
+        };
+        let grant_bytes = encode_security_event(&grant).unwrap();
+        let revoke_bytes = encode_security_event(&revoke).unwrap();
+        let grant_sig = owner.sign(&signing_input(&grant_bytes).unwrap()).to_bytes();
+        let revoke_sig = delegate.sign(&signing_input(&revoke_bytes).unwrap()).to_bytes();
+        let proof = verify_owner_delegated_revocation_for_spike(
+            &provisioned,
+            &grant_bytes,
+            &grant_sig,
+            &revoke_bytes,
+            &revoke_sig,
+            150,
+        )
+        .unwrap();
+
+        let db = TempDb::new();
+        let store = db.open();
+        assert_eq!(store.admission_state(), AdmissionState::Paused);
+        assert_eq!(
+            store.commit_owner_revocation(v0(), &proof),
+            Err(StoreError::NotInitialized)
+        );
+        store.recover_fixture(&[(v0(), 0)]).unwrap();
+        let wrong = PolicyVersion {
+            resource_id: ResourceId::from_bytes([88; 16]),
+            ..v0()
+        };
+        assert_eq!(
+            store.commit_owner_revocation(wrong, &proof),
+            Err(StoreError::Conflict)
+        );
+        let next = store.commit_owner_revocation(v0(), &proof).unwrap();
+        assert_eq!(next.epoch, 1);
+        let persisted = store.pending_outbox().unwrap();
+        assert_eq!(persisted.len(), 1);
+        assert_eq!(persisted[0].signed_event, proof.persistence_bytes());
+        drop(store);
+        let store = db.open();
+        assert_eq!(store.admission_state(), AdmissionState::Paused);
+        assert_eq!(store.persisted_epoch(v0()).unwrap(), 1);
+        assert_eq!(store.pending_outbox().unwrap()[0].signed_event, proof.persistence_bytes());
+    }
+
     #[test]
     fn signed_revocation_must_match_expected_resource_and_sequence() {
         use ed25519_dalek::{Signer, SigningKey};
@@ -632,15 +740,15 @@ mod tests {
             ..v0()
         };
         assert_eq!(
-            store.commit_verified_revocation(wrong_resource, &checked),
+            store.commit_spike_revocation_for_test(wrong_resource, &checked),
             Err(StoreError::Conflict)
         );
         let wrong_seq = PolicyVersion { epoch: 1, ..v0() };
         assert_eq!(
-            store.commit_verified_revocation(wrong_seq, &checked),
+            store.commit_spike_revocation_for_test(wrong_seq, &checked),
             Err(StoreError::Conflict)
         );
-        let next = store.commit_verified_revocation(v0(), &checked).unwrap();
+        let next = store.commit_spike_revocation_for_test(v0(), &checked).unwrap();
         assert_eq!(next.epoch, 1);
         let entries = store.pending_outbox().unwrap();
         assert_eq!(entries.len(), 1);

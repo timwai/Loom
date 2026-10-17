@@ -64,3 +64,6 @@ pub mod rollback_anchor;
 mod policy_journal_codec;
 /// Unified signed lifecycle journal candidate. Always fail-closed for network use.
 pub mod unified_policy_journal;
+
+/// Two-witness policy-head high-water interface; no production storage provider.
+pub mod unified_policy_anchor;

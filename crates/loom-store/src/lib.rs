@@ -60,3 +60,7 @@ pub mod sqlite_revocation;
 
 /// External rollback-resistant high-water interface; no production provider.
 pub mod rollback_anchor;
+
+/// Unified signed lifecycle journal candidate. Always fail-closed for network use.
+pub mod unified_policy_journal;
+mod policy_journal_codec;

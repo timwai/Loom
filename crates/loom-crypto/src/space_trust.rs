@@ -123,18 +123,13 @@ pub fn verify_resource_trust_for_spike(
     {
         return Err(RootTrustError::WrongEpoch);
     }
-    if m.issued_at_ms > now_ms
-        || now_ms >= m.expires_at_ms
-        || m.issued_at_ms >= m.expires_at_ms
-    {
+    if m.issued_at_ms > now_ms || now_ms >= m.expires_at_ms || m.issued_at_ms >= m.expires_at_ms {
         return Err(RootTrustError::InvalidTime);
     }
     if m.witness_public_keys[0] == m.witness_public_keys[1] {
         return Err(RootTrustError::DuplicateWitness);
     }
-    if m.owner_public_key == [0; 32]
-        || m.witness_public_keys.iter().any(|key| *key == [0; 32])
-    {
+    if m.owner_public_key == [0; 32] || m.witness_public_keys.iter().any(|key| *key == [0; 32]) {
         return Err(RootTrustError::InvalidManifest);
     }
     let verifier = VerifyingKey::from_bytes(&root.public_key)
@@ -149,8 +144,7 @@ pub fn verify_resource_trust_for_spike(
     for key in m.witness_public_keys {
         VerifyingKey::from_bytes(&key).map_err(|_| RootTrustError::InvalidManifest)?;
     }
-    VerifyingKey::from_bytes(&m.owner_public_key)
-        .map_err(|_| RootTrustError::InvalidManifest)?;
+    VerifyingKey::from_bytes(&m.owner_public_key).map_err(|_| RootTrustError::InvalidManifest)?;
     Ok(VerifiedResourceTrust { manifest: m })
 }
 
@@ -208,7 +202,9 @@ mod tests {
         };
         let signed = SignedResourceTrust {
             manifest,
-            signature: root_key.sign(&trust_manifest_transcript(&manifest)).to_bytes(),
+            signature: root_key
+                .sign(&trust_manifest_transcript(&manifest))
+                .to_bytes(),
         };
         (pin, signed, [a, b])
     }
@@ -268,9 +264,7 @@ mod tests {
             RootTrustError::InvalidRootSignature
         );
         let (mut root, signed, _) = fixture();
-        root.public_key = SigningKey::from_bytes(&[44; 32])
-            .verifying_key()
-            .to_bytes();
+        root.public_key = SigningKey::from_bytes(&[44; 32]).verifying_key().to_bytes();
         assert_eq!(
             verify_resource_trust_for_spike(&root, &signed, 150).unwrap_err(),
             RootTrustError::InvalidRootSignature
@@ -309,12 +303,14 @@ mod tests {
         let (root, signed, mut keys) = fixture();
         let trust = verify_resource_trust_for_spike(&root, &signed, 150).unwrap();
         keys[1] = SigningKey::from_bytes(&[33; 32]);
-        assert!(verify_root_bound_witnesses(
-            &trust,
-            &receipts(&signed.manifest, &keys, 1, [8; 32]),
-            150,
-        )
-        .is_err());
+        assert!(
+            verify_root_bound_witnesses(
+                &trust,
+                &receipts(&signed.manifest, &keys, 1, [8; 32]),
+                150,
+            )
+            .is_err()
+        );
     }
 
     #[test]

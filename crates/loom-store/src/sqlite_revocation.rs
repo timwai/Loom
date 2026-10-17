@@ -7,10 +7,10 @@ use crate::{PolicyVersion, StoreError};
 use loom_crypto::owner_authority::{
     OwnerVerifiedRevocation, ProvisionedOwnerForSpike, replay_persisted_owner_revocation_for_spike,
 };
-use loom_crypto::space_trust::{VerifiedResourceTrust, verify_root_bound_witnesses};
-use loom_crypto::witness_checkpoint::SignedCheckpoint;
 #[cfg(test)]
 use loom_crypto::signed_revocation::VerifiedRevocation;
+use loom_crypto::space_trust::{VerifiedResourceTrust, verify_root_bound_witnesses};
+use loom_crypto::witness_checkpoint::SignedCheckpoint;
 use loom_crypto::witness_checkpoint::{VerifiedWitnessCheckpoint, append_revocation_root};
 use loom_types::{ResourceId, SpaceId};
 use rusqlite::{Connection, OptionalExtension, TransactionBehavior, params};
@@ -199,15 +199,23 @@ impl SqliteRevocationStore {
         receipts: &[SignedCheckpoint],
         now_ms: u64,
     ) -> Result<RecoveryAssessment, StoreError> {
-        let mut gate = self.gate.lock().map_err(|_| StoreError::PersistenceFailure)?;
+        let mut gate = self
+            .gate
+            .lock()
+            .map_err(|_| StoreError::PersistenceFailure)?;
         gate.pause();
         let witness = verify_root_bound_witnesses(trust, receipts, now_ms)
             .map_err(|_| StoreError::Conflict)?;
         let cp = witness.checkpoint();
         let (send, recv) = mpsc::channel();
-        self.tx.as_ref().ok_or(StoreError::PersistenceFailure)?
+        self.tx
+            .as_ref()
+            .ok_or(StoreError::PersistenceFailure)?
             .send(Command::RootReplaySnapshot(
-                cp.space, cp.resource, trust.owner(), send,
+                cp.space,
+                cp.resource,
+                trust.owner(),
+                send,
             ))
             .map_err(|_| StoreError::PersistenceFailure)?;
         let local = recv.recv().map_err(|_| StoreError::PersistenceFailure)??;
@@ -400,7 +408,8 @@ fn db_worker(
                         let _ = done.send(read_chain_snapshot(&conn, space, resource, None));
                     }
                     Command::RootReplaySnapshot(space, resource, owner, done) => {
-                        let _ = done.send(read_chain_snapshot(&conn, space, resource, Some(&owner)));
+                        let _ =
+                            done.send(read_chain_snapshot(&conn, space, resource, Some(&owner)));
                     }
                 }
             }
@@ -603,10 +612,7 @@ fn read_chain_snapshot(
             }
             let proof = replay_persisted_owner_revocation_for_spike(owner, &event)
                 .map_err(|_| StoreError::Conflict)?;
-            if proof.seq() != seq
-                || proof.space_id() != space
-                || proof.resource_id() != resource
-            {
+            if proof.seq() != seq || proof.space_id() != space || proof.resource_id() != resource {
                 return Err(StoreError::Conflict);
             }
         }
@@ -920,7 +926,9 @@ mod tests {
         };
         let signed = SignedResourceTrust {
             manifest,
-            signature: root_key.sign(&trust_manifest_transcript(&manifest)).to_bytes(),
+            signature: root_key
+                .sign(&trust_manifest_transcript(&manifest))
+                .to_bytes(),
         };
         verify_resource_trust_for_spike(&root, &signed, 150).unwrap()
     }
@@ -948,9 +956,8 @@ mod tests {
         };
         let transcript = checkpoint_transcript(&cp);
         [a, b].map(|key| SignedCheckpoint {
-            witness_key_id: TrustedWitnessForSpike::from_public_key(
-                key.verifying_key().to_bytes(),
-            ).key_id,
+            witness_key_id: TrustedWitnessForSpike::from_public_key(key.verifying_key().to_bytes())
+                .key_id,
             checkpoint: cp,
             signature: key.sign(&transcript).to_bytes(),
         })
@@ -962,16 +969,19 @@ mod tests {
         let db = TempDb::new();
         let store = db.open();
         store.recover_fixture(&[(v0(), 0)]).unwrap();
-        store.commit_revocation(v0(), b"arbitrary unsigned bytes").unwrap();
+        store
+            .commit_revocation(v0(), b"arbitrary unsigned bytes")
+            .unwrap();
         let head = append_revocation_root([0; 32], 1, b"arbitrary unsigned bytes").unwrap();
         let receipts = root_signed_receipts(&root, 1, head);
         // Plain hash comparison would be consistent. Owner signature replay fails.
         assert_eq!(
-            store.inspect_witnessed_recovery(
-                &loom_crypto::space_trust::verify_root_bound_witnesses(
-                    &root, &receipts, 150,
-                ).unwrap()
-            ).unwrap(),
+            store
+                .inspect_witnessed_recovery(
+                    &loom_crypto::space_trust::verify_root_bound_witnesses(&root, &receipts, 150,)
+                        .unwrap()
+                )
+                .unwrap(),
             RecoveryAssessment::CandidateConsistent
         );
         assert_eq!(
@@ -1066,12 +1076,12 @@ mod tests {
         assert_eq!(persisted.len(), 1);
         assert_eq!(persisted[0].signed_event, proof.persistence_bytes());
         let trust = root_trust_fixture();
-        let root_hash = append_revocation_root(
-            [0; 32], 1, &proof.persistence_bytes(),
-        ).unwrap();
+        let root_hash = append_revocation_root([0; 32], 1, &proof.persistence_bytes()).unwrap();
         let receipts = root_signed_receipts(&trust, 1, root_hash);
         assert_eq!(
-            store.inspect_root_bound_recovery(&trust, &receipts, 150).unwrap(),
+            store
+                .inspect_root_bound_recovery(&trust, &receipts, 150)
+                .unwrap(),
             RecoveryAssessment::CandidateConsistent
         );
         assert_eq!(store.admission_state(), AdmissionState::Paused);
@@ -1085,7 +1095,9 @@ mod tests {
         );
         // A fresh startup remains Paused even with a matching signed history.
         assert_eq!(
-            store.inspect_root_bound_recovery(&trust, &receipts, 150).unwrap(),
+            store
+                .inspect_root_bound_recovery(&trust, &receipts, 150)
+                .unwrap(),
             RecoveryAssessment::CandidateConsistent
         );
         assert_eq!(store.admission_state(), AdmissionState::Paused);

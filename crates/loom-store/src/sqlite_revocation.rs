@@ -905,14 +905,14 @@ mod tests {
         assert_eq!(restored.admission_state(), AdmissionState::Paused);
     }
 
-    fn root_trust_fixture() -> loom_crypto::space_trust::VerifiedResourceTrust {
+    fn root_trust_fixture_for_owner(owner_seed: u8) -> loom_crypto::space_trust::VerifiedResourceTrust {
         use ed25519_dalek::{Signer, SigningKey};
         use loom_crypto::space_trust::{
             ExternallyPinnedRootForSpike, ResourceTrustManifest, SignedResourceTrust,
             trust_manifest_transcript, verify_resource_trust_for_spike,
         };
         let root_key = SigningKey::from_bytes(&[30; 32]);
-        let owner_key = SigningKey::from_bytes(&[11; 32]);
+        let owner_key = SigningKey::from_bytes(&[owner_seed; 32]);
         let witness_a = SigningKey::from_bytes(&[21; 32]);
         let witness_b = SigningKey::from_bytes(&[22; 32]);
         let root = ExternallyPinnedRootForSpike {
@@ -941,6 +941,10 @@ mod tests {
                 .to_bytes(),
         };
         verify_resource_trust_for_spike(&root, &signed, 150).unwrap()
+    }
+
+    fn root_trust_fixture() -> loom_crypto::space_trust::VerifiedResourceTrust {
+        root_trust_fixture_for_owner(11)
     }
 
     fn root_signed_receipts(
@@ -1102,6 +1106,11 @@ mod tests {
             Err(StoreError::Conflict)
         );
         let trust = root_trust_fixture();
+        let substituted_owner = root_trust_fixture_for_owner(44);
+        assert_eq!(
+            store.commit_root_bound_revocation(v0(), &substituted_owner, &proof),
+            Err(StoreError::Conflict)
+        );
         let next = store.commit_root_bound_revocation(v0(), &trust, &proof).unwrap();
         assert_eq!(next.epoch, 1);
         let persisted = store.pending_outbox().unwrap();

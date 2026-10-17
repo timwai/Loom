@@ -4,7 +4,11 @@
 #[cfg(test)]
 use crate::SecurityEventStore;
 use crate::{PolicyVersion, StoreError};
-use loom_crypto::owner_authority::OwnerVerifiedRevocation;
+use loom_crypto::owner_authority::{
+    OwnerVerifiedRevocation, ProvisionedOwnerForSpike, replay_persisted_owner_revocation_for_spike,
+};
+use loom_crypto::space_trust::{VerifiedResourceTrust, verify_root_bound_witnesses};
+use loom_crypto::witness_checkpoint::SignedCheckpoint;
 #[cfg(test)]
 use loom_crypto::signed_revocation::VerifiedRevocation;
 use loom_crypto::witness_checkpoint::{VerifiedWitnessCheckpoint, append_revocation_root};
@@ -84,6 +88,12 @@ enum Command {
     Snapshot(
         SpaceId,
         ResourceId,
+        Sender<Result<LocalChainSnapshot, StoreError>>,
+    ),
+    RootReplaySnapshot(
+        SpaceId,
+        ResourceId,
+        ProvisionedOwnerForSpike,
         Sender<Result<LocalChainSnapshot, StoreError>>,
     ),
 }
@@ -178,6 +188,39 @@ impl SqliteRevocationStore {
             RecoveryAssessment::CandidateConsistent
         };
         Ok(result)
+    }
+
+    /// New P0 diagnostic path: Root-signed witness policy + every persisted
+    /// two-signature Owner/delegate event must verify before comparing roots.
+    /// No READY transition is possible, including when all proofs match.
+    pub fn inspect_root_bound_recovery(
+        &self,
+        trust: &VerifiedResourceTrust,
+        receipts: &[SignedCheckpoint],
+        now_ms: u64,
+    ) -> Result<RecoveryAssessment, StoreError> {
+        let mut gate = self.gate.lock().map_err(|_| StoreError::PersistenceFailure)?;
+        gate.pause();
+        let witness = verify_root_bound_witnesses(trust, receipts, now_ms)
+            .map_err(|_| StoreError::Conflict)?;
+        let cp = witness.checkpoint();
+        let (send, recv) = mpsc::channel();
+        self.tx.as_ref().ok_or(StoreError::PersistenceFailure)?
+            .send(Command::RootReplaySnapshot(
+                cp.space, cp.resource, trust.owner(), send,
+            ))
+            .map_err(|_| StoreError::PersistenceFailure)?;
+        let local = recv.recv().map_err(|_| StoreError::PersistenceFailure)??;
+        let assessment = if local.seq < cp.seq {
+            RecoveryAssessment::RollbackDetected
+        } else if local.seq > cp.seq {
+            RecoveryAssessment::WitnessBehind
+        } else if local.root != cp.revocation_root || local.root != cp.head_hash {
+            RecoveryAssessment::HistoryDiverged
+        } else {
+            RecoveryAssessment::CandidateConsistent
+        };
+        Ok(assessment)
     }
 
     #[cfg(test)]
@@ -354,7 +397,10 @@ fn db_worker(
                         let _ = done.send(read_outbox(&conn));
                     }
                     Command::Snapshot(space, resource, done) => {
-                        let _ = done.send(read_chain_snapshot(&conn, space, resource));
+                        let _ = done.send(read_chain_snapshot(&conn, space, resource, None));
+                    }
+                    Command::RootReplaySnapshot(space, resource, owner, done) => {
+                        let _ = done.send(read_chain_snapshot(&conn, space, resource, Some(&owner)));
                     }
                 }
             }
@@ -516,6 +562,7 @@ fn read_chain_snapshot(
     db: &Connection,
     space: SpaceId,
     resource: ResourceId,
+    owner: Option<&ProvisionedOwnerForSpike>,
 ) -> Result<LocalChainSnapshot, StoreError> {
     let epoch: Option<i64> = db
         .query_row(
@@ -549,6 +596,19 @@ fn read_chain_snapshot(
         let seq = u64::try_from(seq).map_err(|_| StoreError::Conflict)?;
         if seq != previous + 1 || seq > epoch {
             return Err(StoreError::Conflict);
+        }
+        if let Some(owner) = owner {
+            if owner.space_id != space || owner.resource_id != resource {
+                return Err(StoreError::Conflict);
+            }
+            let proof = replay_persisted_owner_revocation_for_spike(owner, &event)
+                .map_err(|_| StoreError::Conflict)?;
+            if proof.seq() != seq
+                || proof.space_id() != space
+                || proof.resource_id() != resource
+            {
+                return Err(StoreError::Conflict);
+            }
         }
         root = append_revocation_root(root, seq, &event).ok_or(StoreError::Conflict)?;
         previous = seq;
@@ -829,6 +889,98 @@ mod tests {
         assert_eq!(restored.admission_state(), AdmissionState::Paused);
     }
 
+    fn root_trust_fixture() -> loom_crypto::space_trust::VerifiedResourceTrust {
+        use ed25519_dalek::{Signer, SigningKey};
+        use loom_crypto::space_trust::{
+            ExternallyPinnedRootForSpike, ResourceTrustManifest, SignedResourceTrust,
+            trust_manifest_transcript, verify_resource_trust_for_spike,
+        };
+        let root_key = SigningKey::from_bytes(&[30; 32]);
+        let owner_key = SigningKey::from_bytes(&[11; 32]);
+        let witness_a = SigningKey::from_bytes(&[21; 32]);
+        let witness_b = SigningKey::from_bytes(&[22; 32]);
+        let root = ExternallyPinnedRootForSpike {
+            space: v0().space_id,
+            public_key: root_key.verifying_key().to_bytes(),
+            key_epoch: 7,
+        };
+        let manifest = ResourceTrustManifest {
+            space: v0().space_id,
+            resource: v0().resource_id,
+            owner_public_key: owner_key.verifying_key().to_bytes(),
+            owner_key_epoch: 3,
+            witness_public_keys: [
+                witness_a.verifying_key().to_bytes(),
+                witness_b.verifying_key().to_bytes(),
+            ],
+            writer_epoch: 1,
+            root_key_epoch: 7,
+            issued_at_ms: 100,
+            expires_at_ms: 300,
+        };
+        let signed = SignedResourceTrust {
+            manifest,
+            signature: root_key.sign(&trust_manifest_transcript(&manifest)).to_bytes(),
+        };
+        verify_resource_trust_for_spike(&root, &signed, 150).unwrap()
+    }
+
+    fn root_signed_receipts(
+        root: &loom_crypto::space_trust::VerifiedResourceTrust,
+        seq: u64,
+        head: [u8; 32],
+    ) -> [SignedCheckpoint; 2] {
+        use ed25519_dalek::{Signer, SigningKey};
+        use loom_crypto::witness_checkpoint::{
+            Checkpoint, TrustedWitnessForSpike, checkpoint_transcript,
+        };
+        let a = SigningKey::from_bytes(&[21; 32]);
+        let b = SigningKey::from_bytes(&[22; 32]);
+        let cp = Checkpoint {
+            space: root.space(),
+            resource: root.resource(),
+            writer_epoch: root.writer_epoch(),
+            seq,
+            head_hash: head,
+            revocation_root: head,
+            issued_at_ms: 100,
+            expires_at_ms: 300,
+        };
+        let transcript = checkpoint_transcript(&cp);
+        [a, b].map(|key| SignedCheckpoint {
+            witness_key_id: TrustedWitnessForSpike::from_public_key(
+                key.verifying_key().to_bytes(),
+            ).key_id,
+            checkpoint: cp,
+            signature: key.sign(&transcript).to_bytes(),
+        })
+    }
+
+    #[test]
+    fn root_bound_witnesses_refuse_unsigned_fixture_history() {
+        let root = root_trust_fixture();
+        let db = TempDb::new();
+        let store = db.open();
+        store.recover_fixture(&[(v0(), 0)]).unwrap();
+        store.commit_revocation(v0(), b"arbitrary unsigned bytes").unwrap();
+        let head = append_revocation_root([0; 32], 1, b"arbitrary unsigned bytes").unwrap();
+        let receipts = root_signed_receipts(&root, 1, head);
+        // Plain hash comparison would be consistent. Owner signature replay fails.
+        assert_eq!(
+            store.inspect_witnessed_recovery(
+                &loom_crypto::space_trust::verify_root_bound_witnesses(
+                    &root, &receipts, 150,
+                ).unwrap()
+            ).unwrap(),
+            RecoveryAssessment::CandidateConsistent
+        );
+        assert_eq!(
+            store.inspect_root_bound_recovery(&root, &receipts, 150),
+            Err(StoreError::Conflict)
+        );
+        assert_eq!(store.admission_state(), AdmissionState::Paused);
+    }
+
     #[test]
     fn owner_delegated_revocation_must_match_db_resource_and_remain_paused_on_restart() {
         use ed25519_dalek::{Signer, SigningKey};
@@ -913,6 +1065,16 @@ mod tests {
         let persisted = store.pending_outbox().unwrap();
         assert_eq!(persisted.len(), 1);
         assert_eq!(persisted[0].signed_event, proof.persistence_bytes());
+        let trust = root_trust_fixture();
+        let root_hash = append_revocation_root(
+            [0; 32], 1, &proof.persistence_bytes(),
+        ).unwrap();
+        let receipts = root_signed_receipts(&trust, 1, root_hash);
+        assert_eq!(
+            store.inspect_root_bound_recovery(&trust, &receipts, 150).unwrap(),
+            RecoveryAssessment::CandidateConsistent
+        );
+        assert_eq!(store.admission_state(), AdmissionState::Paused);
         drop(store);
         let store = db.open();
         assert_eq!(store.admission_state(), AdmissionState::Paused);
@@ -921,6 +1083,12 @@ mod tests {
             store.pending_outbox().unwrap()[0].signed_event,
             proof.persistence_bytes()
         );
+        // A fresh startup remains Paused even with a matching signed history.
+        assert_eq!(
+            store.inspect_root_bound_recovery(&trust, &receipts, 150).unwrap(),
+            RecoveryAssessment::CandidateConsistent
+        );
+        assert_eq!(store.admission_state(), AdmissionState::Paused);
     }
 
     #[test]

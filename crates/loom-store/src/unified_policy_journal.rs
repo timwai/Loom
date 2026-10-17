@@ -1446,4 +1446,134 @@ mod tests {
             Ok(UnifiedRecoveryAssessment::HistoryConflict)
         );
     }
+
+    fn local_confirmed_seq(path: &PathBuf) -> Option<i64> {
+        let connection = Connection::open(path).unwrap();
+        connection.query_row(
+            "SELECT seq FROM unified_policy_witnessed WHERE space=?1 AND resource=?2",
+            params![[1u8; 16].as_slice(), [2u8; 16].as_slice()],
+            |row| row.get(0),
+        ).optional().unwrap()
+    }
+
+    #[test]
+    fn legacy_revocation_schema_cannot_be_silently_opened_as_empty_unified_history() {
+        let db = TempDb::new();
+        let connection = Connection::open(&db.0).unwrap();
+        connection.execute_batch(
+            "CREATE TABLE policy_versions (
+               space BLOB, resource BLOB, epoch INTEGER
+             );
+             CREATE TABLE revocations (
+               space BLOB, resource BLOB, epoch INTEGER, signed_event BLOB
+             );
+             INSERT INTO policy_versions VALUES (
+               x'01010101010101010101010101010101',
+               x'02020202020202020202020202020202', 1
+             );
+             INSERT INTO revocations VALUES (
+               x'01010101010101010101010101010101',
+               x'02020202020202020202020202020202', 1, x'FFFF'
+             );",
+        ).unwrap();
+        drop(connection);
+        assert!(matches!(
+            UnifiedPolicyJournal::open(db.0.clone()),
+            Err(StoreError::Conflict),
+        ));
+        let preserved = Connection::open(&db.0).unwrap();
+        let count: i64 = preserved.query_row(
+            "SELECT COUNT(*) FROM revocations", [], |row| row.get(0),
+        ).unwrap();
+        assert_eq!(count, 1);
+        let unified_exists: i64 = preserved.query_row(
+            "SELECT COUNT(*) FROM sqlite_master
+             WHERE type='table' AND name='unified_policy_events'",
+            [], |row| row.get(0),
+        ).unwrap();
+        assert_eq!(unified_exists, 0);
+    }
+
+    #[test]
+    fn witness_confirmation_recorded_only_after_successful_external_cas() {
+        let genesis = trusted_genesis();
+        let db = TempDb::new();
+        let store = db.open();
+        let proof = signed_revocation(1, 11, 3);
+        let after = store.append(root_pin(), genesis, NewPolicyEvent::Revoke(&proof)).unwrap();
+        assert_eq!(local_confirmed_seq(&db.0), None);
+        let revocation = append_revocation_root([0; 32], 1, &proof.persistence_bytes()).unwrap();
+        let receipts = witness_receipts(1, after.policy_head, revocation);
+        let anchor = fake_anchor(&genesis);
+        assert_eq!(
+            witnessed(&store, genesis, &receipts, &anchor),
+            Ok(UnifiedRecoveryAssessment::CandidateConsistent)
+        );
+        assert_eq!(local_confirmed_seq(&db.0), Some(1));
+        assert_eq!(anchor.state.lock().unwrap().policy_sequence, 1);
+        assert!(store.inspect(root_pin(), genesis).unwrap().admission_paused);
+        drop(store);
+        let restarted = db.open();
+        assert_eq!(
+            witnessed(&restarted, genesis, &receipts, &anchor),
+            Ok(UnifiedRecoveryAssessment::CandidateConsistent)
+        );
+        assert_eq!(local_confirmed_seq(&db.0), Some(1));
+    }
+
+    #[test]
+    fn durable_anchor_cas_before_sql_marker_failure_is_recoverable_without_ready() {
+        let genesis = trusted_genesis();
+        let db = TempDb::new();
+        let store = db.open();
+        let proof = signed_revocation(1, 11, 3);
+        let after = store.append(root_pin(), genesis, NewPolicyEvent::Revoke(&proof)).unwrap();
+        let revocation = append_revocation_root([0; 32], 1, &proof.persistence_bytes()).unwrap();
+        let receipts = witness_receipts(1, after.policy_head, revocation);
+        let anchor = fake_anchor(&genesis);
+
+        let conn = Connection::open(&db.0).unwrap();
+        conn.execute_batch(
+            "CREATE TRIGGER interrupt_after_external_cas
+             BEFORE INSERT ON unified_policy_witnessed
+             BEGIN SELECT RAISE(ABORT, 'simulated-power-loss-before-marker'); END;",
+        ).unwrap();
+        drop(conn);
+        assert_eq!(
+            witnessed(&store, genesis, &receipts, &anchor),
+            Err(StoreError::PersistenceFailure)
+        );
+        assert_eq!(anchor.state.lock().unwrap().policy_sequence, 1);
+        assert_eq!(local_confirmed_seq(&db.0), None);
+        assert!(store.inspect(root_pin(), genesis).unwrap().admission_paused);
+        drop(store);
+
+        let conn = Connection::open(&db.0).unwrap();
+        conn.execute_batch("DROP TRIGGER interrupt_after_external_cas").unwrap();
+        drop(conn);
+        let restarted = db.open();
+        assert_eq!(local_confirmed_seq(&db.0), None);
+        assert_eq!(
+            witnessed(&restarted, genesis, &receipts, &anchor),
+            Ok(UnifiedRecoveryAssessment::CandidateConsistent)
+        );
+        assert_eq!(local_confirmed_seq(&db.0), Some(1));
+        assert!(restarted.inspect(root_pin(), genesis).unwrap().admission_paused);
+    }
+
+    #[test]
+    fn ambiguous_external_cas_leaves_no_local_confirmation() {
+        let genesis = trusted_genesis();
+        let db = TempDb::new();
+        let store = db.open();
+        let receipts = witness_receipts(0, [0; 32], [0; 32]);
+        let mut anchor = fake_anchor(&genesis);
+        anchor.fail_cas = true;
+        assert_eq!(
+            witnessed(&store, genesis, &receipts, &anchor),
+            Err(StoreError::PersistenceFailure)
+        );
+        assert_eq!(local_confirmed_seq(&db.0), None);
+        assert_eq!(anchor.state.lock().unwrap().policy_sequence, 0);
+    }
 }

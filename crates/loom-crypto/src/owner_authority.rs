@@ -7,7 +7,7 @@
 use ed25519_dalek::{Signature, VerifyingKey};
 use loom_types::{PeerId, ResourceId, SpaceId};
 use loom_wire::security_event::{
-    CanonicalSecurityEvent, EventKind, decode_security_event, signing_input,
+    EventKind, decode_security_event, signing_input,
 };
 use sha2::{Digest, Sha256};
 
@@ -200,7 +200,7 @@ pub fn verify_owner_delegated_revocation_for_spike(
 mod tests {
     use super::*;
     use ed25519_dalek::{Signer, SigningKey};
-    use loom_wire::security_event::encode_security_event;
+    use loom_wire::security_event::{CanonicalSecurityEvent, encode_security_event};
 
     struct Fixture {
         owner: SigningKey,

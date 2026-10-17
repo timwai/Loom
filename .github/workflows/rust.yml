@@ -17,12 +17,6 @@ jobs:
           toolchain: "1.90.0"
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
-      - name: Generate candidate Cargo.lock
-        run: |
-          cargo generate-lockfile
-          echo LOOM_LOCK_BEGIN
-          cat Cargo.lock
-          echo LOOM_LOCK_END
       - name: Verify formatting
         run: cargo fmt --all -- --check
       - name: Unit tests
@@ -35,11 +29,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: "1.90.0"
-      - name: Generate candidate Cargo.lock
-        run: cargo generate-lockfile
       - uses: EmbarkStudios/cargo-deny-action@v2
         with:
           command: check

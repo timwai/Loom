@@ -5,6 +5,7 @@
 use crate::SecurityEventStore;
 use crate::{PolicyVersion, StoreError};
 use loom_crypto::owner_authority::OwnerVerifiedRevocation;
+use loom_crypto::witness_checkpoint::{VerifiedWitnessCheckpoint, append_revocation_root};
 #[cfg(test)]
 use loom_crypto::signed_revocation::VerifiedRevocation;
 use loom_types::{ResourceId, SpaceId};
@@ -31,6 +32,20 @@ impl From<PolicyVersion> for Key {
 pub enum AdmissionState {
     Paused,
     Ready,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RecoveryAssessment {
+    CandidateConsistent,
+    RollbackDetected,
+    WitnessBehind,
+    HistoryDiverged,
+}
+
+#[derive(Clone, Copy, Debug)]
+struct LocalChainSnapshot {
+    seq: u64,
+    root: [u8; 32],
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -66,6 +81,11 @@ enum Command {
         Sender<Result<PolicyVersion, StoreError>>,
     ),
     Pending(Sender<Result<Vec<OutboxEntry>, StoreError>>),
+    Snapshot(
+        SpaceId,
+        ResourceId,
+        Sender<Result<LocalChainSnapshot, StoreError>>,
+    ),
 }
 
 /// Synchronous API using one dedicated SQLite OS thread. Async callers must
@@ -127,6 +147,32 @@ impl SqliteRevocationStore {
             .send(Command::Pending(send))
             .map_err(|_| StoreError::PersistenceFailure)?;
         recv.recv().map_err(|_| StoreError::PersistenceFailure)?
+    }
+
+    /// Diagnostic only. The admission gate remains Paused even if both
+    /// independent signatures and the full local evidence root match.
+    pub fn inspect_witnessed_recovery(
+        &self,
+        verified: &VerifiedWitnessCheckpoint,
+    ) -> Result<RecoveryAssessment, StoreError> {
+        let cp = verified.checkpoint();
+        let mut gate = self.gate.lock().map_err(|_| StoreError::PersistenceFailure)?;
+        gate.pause();
+        let (send, recv) = mpsc::channel();
+        self.tx.as_ref().ok_or(StoreError::PersistenceFailure)?
+            .send(Command::Snapshot(cp.space, cp.resource, send))
+            .map_err(|_| StoreError::PersistenceFailure)?;
+        let local = recv.recv().map_err(|_| StoreError::PersistenceFailure)??;
+        let result = if local.seq < cp.seq {
+            RecoveryAssessment::RollbackDetected
+        } else if local.seq > cp.seq {
+            RecoveryAssessment::WitnessBehind
+        } else if local.root != cp.revocation_root || local.root != cp.head_hash {
+            RecoveryAssessment::HistoryDiverged
+        } else {
+            RecoveryAssessment::CandidateConsistent
+        };
+        Ok(result)
     }
 
     #[cfg(test)]
@@ -302,6 +348,9 @@ fn db_worker(
                     Command::Pending(done) => {
                         let _ = done.send(read_outbox(&conn));
                     }
+                    Command::Snapshot(space, resource, done) => {
+                        let _ = done.send(read_chain_snapshot(&conn, space, resource));
+                    }
                 }
             }
         }
@@ -456,6 +505,49 @@ fn read_outbox(db: &Connection) -> Result<Vec<OutboxEntry>, StoreError> {
     Ok(entries)
 }
 
+/// Build a fresh hash of the signed evidence; SQLite-local digests would
+/// roll back along with the backup and cannot serve as independent anchors.
+fn read_chain_snapshot(
+    db: &Connection,
+    space: SpaceId,
+    resource: ResourceId,
+) -> Result<LocalChainSnapshot, StoreError> {
+    let epoch: Option<i64> = db.query_row(
+        "SELECT epoch FROM policy_versions WHERE space=?1 AND resource=?2",
+        params![space.as_bytes().as_slice(), resource.as_bytes().as_slice()],
+        |row| row.get(0),
+    ).optional().map_err(|_| StoreError::PersistenceFailure)?;
+    let epoch = u64::try_from(epoch.unwrap_or(0))
+        .map_err(|_| StoreError::PersistenceFailure)?;
+    let mut stmt = db.prepare(
+        "SELECT epoch,signed_event FROM revocations
+         WHERE space=?1 AND resource=?2 ORDER BY epoch",
+    ).map_err(|_| StoreError::PersistenceFailure)?;
+    let rows = stmt.query_map(
+        params![space.as_bytes().as_slice(), resource.as_bytes().as_slice()],
+        |row| {
+            let seq: i64 = row.get(0)?;
+            let event: Vec<u8> = row.get(1)?;
+            Ok((seq, event))
+        },
+    ).map_err(|_| StoreError::PersistenceFailure)?;
+    let mut root = [0_u8; 32];
+    let mut previous = 0_u64;
+    for row in rows {
+        let (seq, event) = row.map_err(|_| StoreError::PersistenceFailure)?;
+        let seq = u64::try_from(seq).map_err(|_| StoreError::Conflict)?;
+        if seq != previous + 1 || seq > epoch {
+            return Err(StoreError::Conflict);
+        }
+        root = append_revocation_root(root, seq, &event).ok_or(StoreError::Conflict)?;
+        previous = seq;
+    }
+    if previous != epoch {
+        return Err(StoreError::Conflict);
+    }
+    Ok(LocalChainSnapshot { seq: epoch, root })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -601,6 +693,136 @@ mod tests {
             Err(StoreError::Conflict)
         ));
         assert!(store.gate.lock().unwrap().permits.is_empty());
+    }
+
+    fn checkpoint_fixture(
+        seq: u64,
+        root: [u8; 32],
+    ) -> VerifiedWitnessCheckpoint {
+        use ed25519_dalek::{Signer, SigningKey};
+        use loom_crypto::witness_checkpoint::{
+            Checkpoint, SignedCheckpoint, TrustedWitnessForSpike,
+            checkpoint_transcript, verify_two_witnesses,
+        };
+        let first = SigningKey::from_bytes(&[21; 32]);
+        let second = SigningKey::from_bytes(&[22; 32]);
+        let a = TrustedWitnessForSpike::from_public_key(first.verifying_key().to_bytes());
+        let b = TrustedWitnessForSpike::from_public_key(second.verifying_key().to_bytes());
+        let checkpoint = Checkpoint {
+            space: v0().space_id,
+            resource: v0().resource_id,
+            writer_epoch: 1,
+            seq,
+            head_hash: root,
+            revocation_root: root,
+            issued_at_ms: 100,
+            expires_at_ms: 300,
+        };
+        let transcript = checkpoint_transcript(&checkpoint);
+        let signed = [
+            SignedCheckpoint {
+                witness_key_id: a.key_id,
+                checkpoint,
+                signature: first.sign(&transcript).to_bytes(),
+            },
+            SignedCheckpoint {
+                witness_key_id: b.key_id,
+                checkpoint,
+                signature: second.sign(&transcript).to_bytes(),
+            },
+        ];
+        verify_two_witnesses(
+            &[a, b],
+            &signed,
+            checkpoint.space,
+            checkpoint.resource,
+            150,
+        ).unwrap()
+    }
+
+    #[test]
+    fn real_signed_witnesses_detect_an_older_restored_database() {
+        let expected_root = append_revocation_root([0; 32], 1, b"revoke-1").unwrap();
+        let witness = checkpoint_fixture(1, expected_root);
+        let old = TempDb::new();
+        let old_store = old.open();
+        assert_eq!(
+            old_store.inspect_witnessed_recovery(&witness).unwrap(),
+            RecoveryAssessment::RollbackDetected
+        );
+        assert_eq!(old_store.admission_state(), AdmissionState::Paused);
+        let newer = TempDb::new();
+        let store = newer.open();
+        store.recover_fixture(&[(v0(), 0)]).unwrap();
+        store.commit_revocation(v0(), b"revoke-1").unwrap();
+        assert_eq!(
+            store.inspect_witnessed_recovery(&witness).unwrap(),
+            RecoveryAssessment::CandidateConsistent
+        );
+        assert_eq!(store.admission_state(), AdmissionState::Paused);
+        assert!(matches!(
+            store.admit_fixture(v0()),
+            Err(StoreError::NotInitialized)
+        ));
+    }
+
+    #[test]
+    fn same_epoch_with_corrupt_evidence_detects_different_root() {
+        let db = TempDb::new();
+        let store = db.open();
+        store.recover_fixture(&[(v0(), 0)]).unwrap();
+        store.commit_revocation(v0(), b"original").unwrap();
+        let witness = checkpoint_fixture(
+            1, append_revocation_root([0; 32], 1, b"original").unwrap(),
+        );
+        drop(store);
+        let connection = Connection::open(&db.0).unwrap();
+        connection.execute(
+            "UPDATE revocations SET signed_event=?1 WHERE epoch=1",
+            ["substituted"],
+        ).unwrap();
+        drop(connection);
+        let restored = db.open();
+        assert_eq!(
+            restored.inspect_witnessed_recovery(&witness).unwrap(),
+            RecoveryAssessment::HistoryDiverged
+        );
+        assert_eq!(restored.admission_state(), AdmissionState::Paused);
+    }
+
+    #[test]
+    fn witness_behind_local_epoch_does_not_restore_old_permission() {
+        let db = TempDb::new();
+        let store = db.open();
+        store.recover_fixture(&[(v0(), 0)]).unwrap();
+        store.commit_revocation(v0(), b"revoke-1").unwrap();
+        let witness = checkpoint_fixture(0, [0; 32]);
+        assert_eq!(
+            store.inspect_witnessed_recovery(&witness).unwrap(),
+            RecoveryAssessment::WitnessBehind
+        );
+        assert_eq!(store.admission_state(), AdmissionState::Paused);
+    }
+
+    #[test]
+    fn inconsistent_policy_version_and_event_history_fail_closed() {
+        let db = TempDb::new();
+        let store = db.open();
+        store.recover_fixture(&[(v0(), 0)]).unwrap();
+        store.commit_revocation(v0(), b"revoke-1").unwrap();
+        drop(store);
+        let connection = Connection::open(&db.0).unwrap();
+        connection.execute("UPDATE policy_versions SET epoch=2", []).unwrap();
+        drop(connection);
+        let restored = db.open();
+        let witness = checkpoint_fixture(
+            1, append_revocation_root([0; 32], 1, b"revoke-1").unwrap(),
+        );
+        assert_eq!(
+            restored.inspect_witnessed_recovery(&witness),
+            Err(StoreError::Conflict)
+        );
+        assert_eq!(restored.admission_state(), AdmissionState::Paused);
     }
 
     #[test]

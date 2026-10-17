@@ -955,8 +955,16 @@ mod tests {
             drop(conn);
 
             let store = db.open();
-            assert_eq!(store.inspect(root_pin(), genesis), Err(StoreError::Conflict), "{attack}");
-            assert_eq!(store.pending_outbox(), Err(StoreError::Conflict), "{attack}");
+            assert_eq!(
+                store.inspect(root_pin(), genesis),
+                Err(StoreError::Conflict),
+                "{attack}"
+            );
+            assert_eq!(
+                store.pending_outbox(),
+                Err(StoreError::Conflict),
+                "{attack}"
+            );
             assert_eq!(
                 store.append(
                     root_pin(),
@@ -983,14 +991,24 @@ mod tests {
                 conn.execute(
                     "INSERT INTO unified_policy_outbox(space,resource,seq,kind,evidence)
                      VALUES(?1,?2,1,?3,?4)",
-                    params![space.as_bytes().as_slice(), resource.as_bytes().as_slice(), kind, evidence],
+                    params![
+                        space.as_bytes().as_slice(),
+                        resource.as_bytes().as_slice(),
+                        kind,
+                        evidence
+                    ],
                 )
                 .unwrap();
             } else {
                 conn.execute(
                     "INSERT INTO unified_policy_audit(space,resource,seq,kind,policy_head)
                      VALUES(?1,?2,1,?3,?4)",
-                    params![space.as_bytes().as_slice(), resource.as_bytes().as_slice(), kind, [9_u8; 32].as_slice()],
+                    params![
+                        space.as_bytes().as_slice(),
+                        resource.as_bytes().as_slice(),
+                        kind,
+                        [9_u8; 32].as_slice()
+                    ],
                 )
                 .unwrap();
             }
@@ -1003,5 +1021,4 @@ mod tests {
             assert_eq!(store.pending_outbox(), Err(StoreError::Conflict), "{table}");
         }
     }
-
 }

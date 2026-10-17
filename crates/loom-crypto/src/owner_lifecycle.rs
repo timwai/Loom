@@ -175,6 +175,12 @@ impl ResourceOwnerLifecycle {
         self.trust.owner()
     }
 
+    /// Current Root-verified Owner/witness manifest after ordered replay.
+    /// This is not a live network admission permission.
+    pub fn current_trust(&self) -> VerifiedResourceTrust {
+        self.trust
+    }
+
     fn next_sequence(&self, candidate: u64) -> Result<(), LifecycleError> {
         if self.sequence.checked_add(1) != Some(candidate) {
             return Err(LifecycleError::StaleOrOutOfOrder);

@@ -38,6 +38,7 @@ pub enum OwnerChainError {
     StaleOwnerKey,
     WrongDelegate,
     BadRevocation(VerifyEventError),
+    InvalidPersistenceEnvelope,
 }
 
 #[derive(Debug, Clone)]
@@ -192,6 +193,68 @@ pub fn verify_owner_delegated_revocation_for_spike(
         signed_delegation: delegation_cbor.to_vec(),
         delegation_signature,
     })
+}
+
+/// Validate a saved two-signature Owner-grant / delegate-revocation envelope.
+/// This checks historical issuance, NOT whether a delegated key was later
+/// revoked. The owner key MUST come from authenticated *external* root policy.
+pub fn replay_persisted_owner_revocation_for_spike(
+    owner: &ProvisionedOwnerForSpike,
+    saved: &[u8],
+) -> Result<OwnerVerifiedRevocation, OwnerChainError> {
+    if saved.len() > 64 * 1024 || !saved.starts_with(PROOF_DOMAIN) {
+        return Err(OwnerChainError::InvalidPersistenceEnvelope);
+    }
+    let mut offset = PROOF_DOMAIN.len();
+    fn field<'a>(
+        bytes: &'a [u8],
+        offset: &mut usize,
+        length: usize,
+    ) -> Result<&'a [u8], OwnerChainError> {
+        let end = offset
+            .checked_add(length)
+            .ok_or(OwnerChainError::InvalidPersistenceEnvelope)?;
+        let result = bytes
+            .get(*offset..end)
+            .ok_or(OwnerChainError::InvalidPersistenceEnvelope)?;
+        *offset = end;
+        Ok(result)
+    }
+    fn length(bytes: &[u8], offset: &mut usize) -> Result<usize, OwnerChainError> {
+        let size: [u8; 4] = field(bytes, offset, 4)?
+            .try_into()
+            .map_err(|_| OwnerChainError::InvalidPersistenceEnvelope)?;
+        Ok(u32::from_be_bytes(size) as usize)
+    }
+    let grant_len = length(saved, &mut offset)?;
+    if grant_len > 60 * 1024 {
+        return Err(OwnerChainError::InvalidPersistenceEnvelope);
+    }
+    let grant = field(saved, &mut offset, grant_len)?;
+    let grant_sig = field(saved, &mut offset, 64)?;
+    let revoke_len = length(saved, &mut offset)?;
+    if revoke_len > 60 * 1024 {
+        return Err(OwnerChainError::InvalidPersistenceEnvelope);
+    }
+    let revoke = field(saved, &mut offset, revoke_len)?;
+    let revoke_sig = field(saved, &mut offset, 64)?;
+    if offset != saved.len() {
+        return Err(OwnerChainError::InvalidPersistenceEnvelope);
+    }
+    let event = decode_security_event(revoke)
+        .map_err(|_| OwnerChainError::InvalidPersistenceEnvelope)?;
+    let checked = verify_owner_delegated_revocation_for_spike(
+        owner,
+        grant,
+        grant_sig,
+        revoke,
+        revoke_sig,
+        event.issued_at_ms,
+    )?;
+    if checked.persistence_bytes() != saved {
+        return Err(OwnerChainError::InvalidPersistenceEnvelope);
+    }
+    Ok(checked)
 }
 
 #[cfg(test)]
@@ -414,4 +477,44 @@ mod tests {
             ))
         ));
     }
+
+    #[test]
+    fn saved_owner_delegation_replays_with_both_signatures() {
+        let fixture = Fixture::new();
+        let persisted = fixture.verify().unwrap().persistence_bytes();
+        let replay = replay_persisted_owner_revocation_for_spike(&fixture.anchor, &persisted)
+            .unwrap();
+        assert_eq!(replay.resource_id(), fixture.anchor.resource_id);
+        assert_eq!(replay.seq(), 1);
+        assert_eq!(replay.persistence_bytes(), persisted);
+    }
+
+    #[test]
+    fn saved_envelope_rejects_truncation_suffix_and_forged_grant() {
+        let fixture = Fixture::new();
+        let saved = fixture.verify().unwrap().persistence_bytes();
+        for cut in 0..saved.len() {
+            assert!(replay_persisted_owner_revocation_for_spike(
+                &fixture.anchor, &saved[..cut],
+            ).is_err());
+        }
+        let mut trailing = saved.clone();
+        trailing.push(0);
+        assert_eq!(
+            replay_persisted_owner_revocation_for_spike(&fixture.anchor, &trailing)
+                .unwrap_err(),
+            OwnerChainError::InvalidPersistenceEnvelope
+        );
+        let mut wrong = saved;
+        let start = PROOF_DOMAIN.len() + 4;
+        wrong[start + 5] ^= 1;
+        assert!(replay_persisted_owner_revocation_for_spike(&fixture.anchor, &wrong).is_err());
+        let mut wrong_owner = fixture.anchor;
+        wrong_owner.public_key = SigningKey::from_bytes(&[99; 32]).verifying_key().to_bytes();
+        assert!(replay_persisted_owner_revocation_for_spike(
+            &wrong_owner,
+            &fixture.verify().unwrap().persistence_bytes(),
+        ).is_err());
+    }
+
 }

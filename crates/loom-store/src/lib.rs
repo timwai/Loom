@@ -57,3 +57,6 @@ mod tests {
 
 /// Experimental fail-closed SQLite revoke/outbox coordinator.
 pub mod sqlite_revocation;
+
+/// External rollback-resistant high-water interface; no production provider.
+pub mod rollback_anchor;

@@ -2,7 +2,7 @@
 //! Pinned issuer input MUST eventually be resolved via validated Owner grants,
 //! identity chain, revocation and independent anti-rollback witnesses.
 
-use ed25519_dalek::{Signature, Verifier, VerifyingKey};
+use ed25519_dalek::{Signature, VerifyingKey};
 use loom_types::{PeerId, ResourceId, SpaceId};
 use loom_wire::security_event::{
     CanonicalSecurityEvent, EventKind, decode_security_event, signing_input,

@@ -367,3 +367,356 @@ fn read_outbox(conn: &Connection) -> Result<Vec<CriticalPolicyOutbox>, StoreErro
     }
     Ok(outbox)
 }
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::policy_journal_codec::{KIND_CANCEL, KIND_REVOKE, KIND_TRANSFER};
+    use ed25519_dalek::{Signer, SigningKey};
+    use loom_crypto::owner_authority::{
+        OwnerVerifiedRevocation, ProvisionedOwnerForSpike, issuer_key_id,
+        verify_owner_delegated_revocation_for_spike,
+    };
+    use loom_crypto::owner_lifecycle::{
+        DelegateCancellation, DualSignedOwnerTransfer, OwnerTransfer,
+        SignedDelegateCancellation, cancellation_transcript, owner_transfer_transcript,
+    };
+    use loom_crypto::space_trust::{
+        ResourceTrustManifest, SignedResourceTrust, trust_manifest_transcript,
+        verify_resource_trust_for_spike,
+    };
+    use loom_wire::security_event::{
+        CanonicalSecurityEvent, EventKind, encode_security_event, signing_input,
+    };
+    use std::sync::Arc;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    struct TempDb(PathBuf);
+    impl TempDb {
+        fn new() -> Self {
+            let nanos = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+            Self(std::env::temp_dir().join(format!(
+                "loom-unified-{}-{nanos}.sqlite", std::process::id(),
+            )))
+        }
+        fn open(&self) -> UnifiedPolicyJournal {
+            UnifiedPolicyJournal::open(self.0.clone()).unwrap()
+        }
+    }
+    impl Drop for TempDb {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_file(&self.0);
+            let _ = std::fs::remove_file(format!("{}-wal", self.0.display()));
+            let _ = std::fs::remove_file(format!("{}-shm", self.0.display()));
+        }
+    }
+
+    fn root_pin() -> ExternallyPinnedRootForSpike {
+        ExternallyPinnedRootForSpike {
+            space: SpaceId::from_bytes([1; 16]),
+            public_key: SigningKey::from_bytes(&[30; 32]).verifying_key().to_bytes(),
+            key_epoch: 7,
+        }
+    }
+
+    fn signed_manifest(owner_seed: u8, epoch: u64) -> SignedResourceTrust {
+        let pin = root_pin();
+        let signer = SigningKey::from_bytes(&[30; 32]);
+        let owner = SigningKey::from_bytes(&[owner_seed; 32]);
+        let witness_a = SigningKey::from_bytes(&[21; 32]);
+        let witness_b = SigningKey::from_bytes(&[22; 32]);
+        let manifest = ResourceTrustManifest {
+            space: pin.space,
+            resource: ResourceId::from_bytes([2; 16]),
+            owner_public_key: owner.verifying_key().to_bytes(),
+            owner_key_epoch: epoch,
+            witness_public_keys: [
+                witness_a.verifying_key().to_bytes(),
+                witness_b.verifying_key().to_bytes(),
+            ],
+            writer_epoch: 1,
+            root_key_epoch: pin.key_epoch,
+            issued_at_ms: 100,
+            expires_at_ms: 300,
+        };
+        SignedResourceTrust {
+            manifest,
+            signature: signer.sign(&trust_manifest_transcript(&manifest)).to_bytes(),
+        }
+    }
+
+    fn trusted_genesis() -> VerifiedResourceTrust {
+        verify_resource_trust_for_spike(&root_pin(), &signed_manifest(11, 3), 150).unwrap()
+    }
+
+    fn signed_revocation(seq: u64, owner_seed: u8, owner_epoch: u64) -> OwnerVerifiedRevocation {
+        let signer = SigningKey::from_bytes(&[owner_seed; 32]);
+        let delegate = SigningKey::from_bytes(&[12; 32]);
+        let delegate_key = delegate.verifying_key().to_bytes();
+        let pin = root_pin();
+        let resource = ResourceId::from_bytes([2; 16]);
+        let mut grant_payload = resource.as_bytes().to_vec();
+        grant_payload.extend_from_slice(&delegate_key);
+        grant_payload.extend_from_slice(&issuer_key_id(&delegate_key));
+        grant_payload.push(1);
+        grant_payload.extend_from_slice(&4u64.to_be_bytes());
+        let grant = CanonicalSecurityEvent {
+            kind: EventKind::OwnerGrant,
+            space_id: *pin.space.as_bytes(),
+            signer_key_id: issuer_key_id(&signer.verifying_key().to_bytes()),
+            issuer_epoch: owner_epoch,
+            issued_at_ms: 100,
+            expires_at_ms: 300,
+            seq: 1,
+            payload: grant_payload,
+        };
+        let mut revocation_payload = resource.as_bytes().to_vec();
+        revocation_payload.extend_from_slice(&[5; 32]);
+        revocation_payload.push(3);
+        let revoke = CanonicalSecurityEvent {
+            kind: EventKind::Revocation,
+            space_id: *pin.space.as_bytes(),
+            signer_key_id: issuer_key_id(&delegate_key),
+            issuer_epoch: 4,
+            issued_at_ms: 120,
+            expires_at_ms: 250,
+            seq,
+            payload: revocation_payload,
+        };
+        let grant_cbor = encode_security_event(&grant).unwrap();
+        let revoke_cbor = encode_security_event(&revoke).unwrap();
+        verify_owner_delegated_revocation_for_spike(
+            &ProvisionedOwnerForSpike {
+                space_id: pin.space,
+                resource_id: resource,
+                public_key: signer.verifying_key().to_bytes(),
+                current_key_epoch: owner_epoch,
+            },
+            &grant_cbor,
+            &signer.sign(&signing_input(&grant_cbor).unwrap()).to_bytes(),
+            &revoke_cbor,
+            &delegate.sign(&signing_input(&revoke_cbor).unwrap()).to_bytes(),
+            150,
+        ).unwrap()
+    }
+
+    fn signed_cancellation(seq: u64) -> SignedDelegateCancellation {
+        let owner = SigningKey::from_bytes(&[11; 32]);
+        let delegate = SigningKey::from_bytes(&[12; 32]);
+        let event = DelegateCancellation {
+            space: SpaceId::from_bytes([1; 16]),
+            resource: ResourceId::from_bytes([2; 16]),
+            owner_public_key: owner.verifying_key().to_bytes(),
+            owner_epoch: 3,
+            delegate_key_id: issuer_key_id(&delegate.verifying_key().to_bytes()),
+            delegate_epoch: 4,
+            sequence: seq,
+            issued_at_ms: 120,
+            expires_at_ms: 250,
+        };
+        SignedDelegateCancellation {
+            cancellation: event,
+            signature: owner.sign(&cancellation_transcript(&event)).to_bytes(),
+        }
+    }
+
+    fn signed_transfer(
+        prior: &VerifiedResourceTrust,
+        successor: &SignedResourceTrust,
+        seq: u64,
+    ) -> DualSignedOwnerTransfer {
+        let next = verify_resource_trust_for_spike(&root_pin(), successor, 150).unwrap();
+        let event = OwnerTransfer {
+            space: prior.space(),
+            resource: prior.resource(),
+            prior_manifest: prior.manifest_commitment(),
+            successor_manifest: next.manifest_commitment(),
+            previous_owner_public_key: prior.owner().public_key,
+            successor_owner_public_key: next.owner().public_key,
+            previous_owner_epoch: prior.owner().current_key_epoch,
+            successor_owner_epoch: next.owner().current_key_epoch,
+            sequence: seq,
+            issued_at_ms: 120,
+            expires_at_ms: 250,
+        };
+        let bytes = owner_transfer_transcript(&event);
+        DualSignedOwnerTransfer {
+            transfer: event,
+            old_owner_signature: SigningKey::from_bytes(&[11; 32]).sign(&bytes).to_bytes(),
+            next_owner_signature: SigningKey::from_bytes(&[33; 32]).sign(&bytes).to_bytes(),
+        }
+    }
+
+    #[test]
+    fn unified_lifecycle_replays_from_genesis_after_restart() {
+        let db = TempDb::new();
+        let store = db.open();
+        let genesis = trusted_genesis();
+        assert!(store.inspect(root_pin(), genesis).unwrap().admission_paused);
+        let revocation = signed_revocation(1, 11, 3);
+        let first = store.append(root_pin(), genesis, NewPolicyEvent::Revoke(&revocation)).unwrap();
+        assert_eq!(first.sequence, 1);
+        let cancellation = signed_cancellation(2);
+        let second = store.append(root_pin(), genesis, NewPolicyEvent::Cancel(&cancellation)).unwrap();
+        assert_eq!(second.sequence, 2);
+        assert_ne!(first.policy_head, second.policy_head);
+        assert_eq!(
+            store.append(root_pin(), genesis, NewPolicyEvent::Revoke(&signed_revocation(3, 11, 3))),
+            Err(StoreError::Conflict)
+        );
+        let successor = signed_manifest(33, 4);
+        let transfer = signed_transfer(&genesis, &successor, 3);
+        let third = store.append(root_pin(), genesis, NewPolicyEvent::Transfer {
+            transfer: &transfer,
+            successor_manifest: &successor,
+        }).unwrap();
+        assert_eq!(third.sequence, 3);
+        assert_eq!(
+            store.append(root_pin(), genesis, NewPolicyEvent::Revoke(&signed_revocation(4, 11, 3))),
+            Err(StoreError::Conflict)
+        );
+        let last = store.append(root_pin(), genesis, NewPolicyEvent::Revoke(
+            &signed_revocation(4, 33, 4),
+        )).unwrap();
+        assert_eq!(last.sequence, 4);
+        assert_eq!(last.owner_public_key, SigningKey::from_bytes(&[33; 32])
+            .verifying_key().to_bytes());
+        assert!(last.admission_paused);
+        let outbox = store.pending_outbox().unwrap();
+        assert_eq!(outbox.iter().map(|e| e.kind).collect::<Vec<_>>(),
+            vec![KIND_REVOKE, KIND_CANCEL, KIND_TRANSFER, KIND_REVOKE]);
+        assert_eq!(outbox.iter().map(|e| e.sequence).collect::<Vec<_>>(),
+            vec![1, 2, 3, 4]);
+        drop(store);
+        let restored = db.open();
+        assert_eq!(restored.inspect(root_pin(), genesis).unwrap(), last);
+        assert_eq!(restored.pending_outbox().unwrap(), outbox);
+    }
+
+    #[test]
+    fn old_signed_delegate_remains_blocked_after_restart() {
+        let db = TempDb::new();
+        let store = db.open();
+        let genesis = trusted_genesis();
+        store.append(root_pin(), genesis, NewPolicyEvent::Revoke(
+            &signed_revocation(1, 11, 3),
+        )).unwrap();
+        let cancellation = signed_cancellation(2);
+        store.append(root_pin(), genesis, NewPolicyEvent::Cancel(&cancellation)).unwrap();
+        drop(store);
+        let store = db.open();
+        assert_eq!(
+            store.append(root_pin(), genesis, NewPolicyEvent::Revoke(
+                &signed_revocation(3, 11, 3),
+            )),
+            Err(StoreError::Conflict)
+        );
+        assert_eq!(store.inspect(root_pin(), genesis).unwrap().sequence, 2);
+    }
+
+    #[test]
+    fn stored_evidence_tampering_cannot_be_hidden_by_cursor() {
+        let db = TempDb::new();
+        let store = db.open();
+        let genesis = trusted_genesis();
+        store.append(root_pin(), genesis, NewPolicyEvent::Revoke(
+            &signed_revocation(1, 11, 3),
+        )).unwrap();
+        drop(store);
+        let conn = Connection::open(&db.0).unwrap();
+        conn.execute(
+            "UPDATE unified_policy_events SET evidence=?1 WHERE seq=1",
+            [b"valid BLOB type, invalid signatures".as_slice()],
+        ).unwrap();
+        drop(conn);
+        let reopened = db.open();
+        assert_eq!(reopened.inspect(root_pin(), genesis), Err(StoreError::Conflict));
+    }
+
+    #[test]
+    fn outbox_insert_failure_rolls_back_event_cursor_and_audit() {
+        let db = TempDb::new();
+        let store = db.open();
+        let genesis = trusted_genesis();
+        let conn = Connection::open(&db.0).unwrap();
+        conn.execute_batch(
+            "CREATE TRIGGER reject_outbox BEFORE INSERT ON unified_policy_outbox
+             BEGIN SELECT RAISE(ABORT, 'simulated-full-disk'); END;",
+        ).unwrap();
+        drop(conn);
+        assert_eq!(
+            store.append(root_pin(), genesis, NewPolicyEvent::Revoke(
+                &signed_revocation(1, 11, 3),
+            )),
+            Err(StoreError::PersistenceFailure)
+        );
+        assert_eq!(store.inspect(root_pin(), genesis).unwrap().sequence, 0);
+        assert!(store.pending_outbox().unwrap().is_empty());
+        let conn = Connection::open(&db.0).unwrap();
+        for name in ["unified_policy_events", "unified_policy_cursor",
+                     "unified_policy_audit", "unified_policy_outbox"] {
+            let sql = format!("SELECT COUNT(*) FROM {name}");
+            assert_eq!(conn.query_row(&sql, [], |row| row.get::<_, i64>(0)).unwrap(), 0);
+        }
+        conn.execute_batch("DROP TRIGGER reject_outbox").unwrap();
+        drop(conn);
+        assert_eq!(
+            store.append(root_pin(), genesis, NewPolicyEvent::Revoke(
+                &signed_revocation(1, 11, 3),
+            )).unwrap().sequence,
+            1,
+        );
+    }
+
+    #[test]
+    fn concurrent_identical_resource_version_has_single_winner() {
+        let db = TempDb::new();
+        let store = Arc::new(db.open());
+        let genesis = trusted_genesis();
+        let proof = signed_revocation(1, 11, 3);
+        let mut handles = Vec::new();
+        for _ in 0..6 {
+            let db = Arc::clone(&store);
+            let proof = proof.clone();
+            handles.push(thread::spawn(move || {
+                db.append(root_pin(), genesis, NewPolicyEvent::Revoke(&proof))
+            }));
+        }
+        let results: Vec<_> = handles.into_iter().map(|thread| thread.join().unwrap()).collect();
+        assert_eq!(results.iter().filter(|r| r.is_ok()).count(), 1);
+        assert_eq!(results.iter().filter(|r| **r == Err(StoreError::Conflict)).count(), 5);
+        assert_eq!(store.pending_outbox().unwrap().len(), 1);
+        assert_eq!(store.inspect(root_pin(), genesis).unwrap().sequence, 1);
+    }
+
+    #[test]
+    fn genesis_root_substitution_is_rejected_before_history_access() {
+        let db = TempDb::new();
+        let store = db.open();
+        let genesis = trusted_genesis();
+        let mut impostor = root_pin();
+        impostor.public_key = SigningKey::from_bytes(&[99; 32])
+            .verifying_key().to_bytes();
+        assert_eq!(store.inspect(impostor, genesis), Err(StoreError::Conflict));
+        assert!(store.pending_outbox().unwrap().is_empty());
+    }
+
+    #[test]
+    fn successor_manifest_is_not_trusted_from_sqlite_or_unpinned_root() {
+        let db = TempDb::new();
+        let store = db.open();
+        let genesis = trusted_genesis();
+        let successor = signed_manifest(33, 4);
+        let transfer = signed_transfer(&genesis, &successor, 1);
+        let mut forged = signed_manifest(33, 4);
+        forged.signature[7] ^= 1;
+        assert_eq!(
+            store.append(root_pin(), genesis, NewPolicyEvent::Transfer {
+                transfer: &transfer, successor_manifest: &forged,
+            }),
+            Err(StoreError::Conflict)
+        );
+        assert_eq!(store.inspect(root_pin(), genesis).unwrap().sequence, 0);
+    }
+}

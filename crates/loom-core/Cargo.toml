@@ -1,0 +1,18 @@
+[package]
+name = "loom-core"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+loom-types = { path = "../loom-types" }
+loom-crypto = { path = "../loom-crypto" }
+loom-wire = { path = "../loom-wire" }
+loom-identity = { path = "../loom-identity" }
+loom-policy = { path = "../loom-policy" }
+loom-store = { path = "../loom-store" }
+loom-transport = { path = "../loom-transport" }
+
+[lints]
+workspace = true

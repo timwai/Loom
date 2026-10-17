@@ -1,0 +1,13 @@
+[package]
+name = "loom-policy"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+loom-types = { path = "../loom-types" }
+loom-identity = { path = "../loom-identity" }
+
+[lints]
+workspace = true

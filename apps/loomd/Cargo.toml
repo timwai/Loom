@@ -1,0 +1,12 @@
+[package]
+name = "loomd"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+loom-core = { path = "../../crates/loom-core" }
+
+[lints]
+workspace = true

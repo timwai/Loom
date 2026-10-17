@@ -10,9 +10,9 @@ L-001I replay-verified the signed policy event stream and authenticated Owner li
 
 - A cross-resource check requires exactly one Outbox and one Audit row for **each** event, matched by (SpaceId, ResourceId, sequence).
 - It compares event kind, exact evidence bytes (Outbox), and exact policy head (Audit), and rejects both missing and orphan mirror rows.
-- The signed-history replay must also pass that parity check before `inspect()` returns a diagnostic or `append()` proceeds to the next write.
+- The signed-history replay must pass parity verification before `inspect()` returns a diagnostic or `append()` proceeds. `append()` repeats the parity check **after all four writes and before COMMIT**, catching successful SQL trigger side effects and rolling the entire transaction back.
 - The read-only `pending_outbox()` runs mirror verification and the read inside a single `BEGIN IMMEDIATE` SQLite transaction. It never acknowledges delivery or produces a `ServiceOpen` permit.
-- Fail-closed negative tests inject deleted, modified, extra, and orphaned rows without changing the signed events; all three public operations must reject. Existing valid lifecycle and atomic Outbox transaction tests must continue to pass.
+- Fail-closed negative tests inject deleted, modified, extra, and orphaned rows without changing the signed events; all three public operations must reject. Another test injects a trigger that silently rewrites Outbox evidence after Audit insertion and verifies atomic rollback. Existing valid lifecycle and atomic Outbox transaction tests must continue to pass.
 
 ## Explicit non-guarantees / NO-GO
 

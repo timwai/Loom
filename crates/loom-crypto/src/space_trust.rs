@@ -4,6 +4,7 @@
 
 use ed25519_dalek::{Signature, VerifyingKey};
 use loom_types::{ResourceId, SpaceId};
+use sha2::{Digest, Sha256};
 
 use crate::owner_authority::ProvisionedOwnerForSpike;
 use crate::witness_checkpoint::{
@@ -56,6 +57,7 @@ pub enum RootTrustError {
 #[derive(Clone, Copy, Debug)]
 pub struct VerifiedResourceTrust {
     manifest: ResourceTrustManifest,
+    authenticated_root_public_key: [u8; 32],
 }
 
 impl VerifiedResourceTrust {
@@ -84,6 +86,27 @@ impl VerifiedResourceTrust {
 
     pub fn writer_epoch(&self) -> u64 {
         self.manifest.writer_epoch
+    }
+
+    pub fn root_key_epoch(&self) -> u64 {
+        self.manifest.root_key_epoch
+    }
+
+    pub fn root_public_key(&self) -> [u8; 32] {
+        self.authenticated_root_public_key
+    }
+
+    /// A stable digest of the exact authorized Owner/witness/epoch manifest.
+    /// A Root epoch alone is insufficient to detect policy replacement.
+    pub fn manifest_commitment(&self) -> [u8; 32] {
+        let mut hash = Sha256::new();
+        hash.update(b"LOOM:ROOT-MANIFEST-COMMITMENT:V1\0");
+        hash.update(trust_manifest_transcript(&self.manifest));
+        hash.finalize().into()
+    }
+
+    pub fn valid_at(&self, now_ms: u64) -> bool {
+        self.manifest.issued_at_ms <= now_ms && now_ms < self.manifest.expires_at_ms
     }
 }
 
@@ -145,7 +168,10 @@ pub fn verify_resource_trust_for_spike(
         VerifyingKey::from_bytes(&key).map_err(|_| RootTrustError::InvalidManifest)?;
     }
     VerifyingKey::from_bytes(&m.owner_public_key).map_err(|_| RootTrustError::InvalidManifest)?;
-    Ok(VerifiedResourceTrust { manifest: m })
+    Ok(VerifiedResourceTrust {
+        manifest: m,
+        authenticated_root_public_key: root.public_key,
+    })
 }
 
 /// Roots and witnesses have distinct domains. Checkpoint writer epoch must

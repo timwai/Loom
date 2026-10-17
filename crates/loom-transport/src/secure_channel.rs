@@ -388,15 +388,15 @@ mod tests {
         let b = Fixture::new(4);
         let (left, right) = duplex(16384);
         let client_ledger = StrictLedger {
-                peer: b.peer_id,
-                space: space(),
-                epoch: b.epoch,
-            };
+            peer: b.peer_id,
+            space: space(),
+            epoch: b.epoch,
+        };
         let server_ledger = StrictLedger {
-                peer: a.peer_id,
-                space: space(),
-                epoch: a.epoch,
-            };
+            peer: a.peer_id,
+            space: space(),
+            epoch: a.epoch,
+        };
         let client = connect(
             left,
             a.identity(),
@@ -440,15 +440,15 @@ mod tests {
         let b = Fixture::new(3);
         let (left, right) = duplex(16384);
         let client_ledger = StrictLedger {
-                peer: b.peer_id,
-                space: space(),
-                epoch: b.epoch,
-            };
+            peer: b.peer_id,
+            space: space(),
+            epoch: b.epoch,
+        };
         let server_ledger = StrictLedger {
-                peer: a.peer_id,
-                space: SpaceId::from_bytes([7; 16]),
-                epoch: a.epoch,
-            };
+            peer: a.peer_id,
+            space: SpaceId::from_bytes([7; 16]),
+            epoch: a.epoch,
+        };
         let client = connect(
             left,
             a.identity(),
@@ -483,15 +483,15 @@ mod tests {
         let impostor = Fixture::new(1);
         let (left, right) = duplex(16384);
         let client_ledger = StrictLedger {
-                peer: b.peer_id,
-                space: space(),
-                epoch: b.epoch,
-            };
+            peer: b.peer_id,
+            space: space(),
+            epoch: b.epoch,
+        };
         let server_ledger = StrictLedger {
-                peer: a.peer_id,
-                space: space(),
-                epoch: a.epoch,
-            };
+            peer: a.peer_id,
+            space: space(),
+            epoch: a.epoch,
+        };
         let client = connect(
             left,
             a.identity(),
@@ -524,15 +524,15 @@ mod tests {
         let b = Fixture::new(4);
         let (left, right) = duplex(16384);
         let client_ledger = StrictLedger {
-                peer: b.peer_id,
-                space: space(),
-                epoch: b.epoch + 1,
-            };
+            peer: b.peer_id,
+            space: space(),
+            epoch: b.epoch + 1,
+        };
         let server_ledger = StrictLedger {
-                peer: a.peer_id,
-                space: space(),
-                epoch: a.epoch,
-            };
+            peer: a.peer_id,
+            space: space(),
+            epoch: a.epoch,
+        };
         let client = connect(
             left,
             a.identity(),
@@ -594,15 +594,15 @@ mod tests {
             tokio::join!(forward, reverse);
         });
         let client_ledger = StrictLedger {
-                peer: b.peer_id,
-                space: space(),
-                epoch: b.epoch,
-            };
+            peer: b.peer_id,
+            space: space(),
+            epoch: b.epoch,
+        };
         let server_ledger = StrictLedger {
-                peer: a.peer_id,
-                space: space(),
-                epoch: a.epoch,
-            };
+            peer: a.peer_id,
+            space: space(),
+            epoch: a.epoch,
+        };
         let client = connect(
             client_end,
             a.identity(),

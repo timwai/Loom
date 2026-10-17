@@ -59,3 +59,6 @@ pub mod witness_checkpoint;
 
 /// Root-signed Resource Owner and independent witness binding (candidate only).
 pub mod space_trust;
+
+/// Experimental two-key Root rollover; never a ServiceOpen authorization.
+pub mod root_rotation;

@@ -47,3 +47,6 @@ mod tests {
         );
     }
 }
+
+/// Experimental Ed25519 verification of candidate CBOR security events.
+pub mod signed_revocation;

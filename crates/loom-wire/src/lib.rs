@@ -90,3 +90,6 @@ mod tests {
         assert!(leftover.is_empty());
     }
 }
+
+/// Candidate canonical security-event wire codec (protocol not frozen).
+pub mod security_event;

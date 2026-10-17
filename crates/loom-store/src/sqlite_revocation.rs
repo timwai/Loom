@@ -1095,7 +1095,9 @@ mod tests {
             fail_write: false,
         };
         assert_eq!(
-            store.inspect_root_bound_recovery(&trust, &stale, 150).unwrap(),
+            store
+                .inspect_root_bound_recovery(&trust, &stale, 150)
+                .unwrap(),
             RecoveryAssessment::CandidateConsistent
         );
         assert_eq!(
@@ -1119,9 +1121,7 @@ mod tests {
             fail_write: false,
         };
         assert_eq!(
-            store.inspect_root_recovery_with_anchor(
-                &currently_trusted, &receipts, 150, &anchor,
-            ),
+            store.inspect_root_recovery_with_anchor(&currently_trusted, &receipts, 150, &anchor,),
             Err(StoreError::Conflict)
         );
         assert_eq!(store.admission_state(), AdmissionState::Paused);

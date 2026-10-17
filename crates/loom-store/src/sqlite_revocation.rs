@@ -304,22 +304,6 @@ impl SqliteRevocationStore {
         self.commit_internal(v, &evidence)
     }
 
-    /// Historical unanchored Owner proof ingress retained only in tests.
-    #[cfg(test)]
-    fn commit_owner_revocation_for_test(
-        &self,
-        v: PolicyVersion,
-        proof: &OwnerVerifiedRevocation,
-    ) -> Result<PolicyVersion, StoreError> {
-        if proof.space_id() != v.space_id
-            || proof.resource_id() != v.resource_id
-            || v.epoch.checked_add(1) != Some(proof.seq())
-        {
-            return Err(StoreError::Conflict);
-        }
-        self.commit_internal(v, &proof.persistence_bytes())
-    }
-
     /// Legacy caller-supplied issuer test path; absent in production builds.
     #[cfg(test)]
     fn commit_spike_revocation_for_test(

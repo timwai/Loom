@@ -1079,6 +1079,55 @@ mod tests {
     }
 
     #[test]
+    fn older_sqlite_and_matching_stale_witnesses_cannot_defeat_independent_high_water() {
+        use crate::rollback_anchor::HighWaterRecord;
+        let trust = root_trust_fixture();
+        let db = TempDb::new();
+        let store = db.open();
+        // SQLite and both witnesses agree on empty history (seq=0), but the
+        // independent trust domain already witnessed a later revocation.
+        let stale = root_signed_receipts(&trust, 0, [0; 32]);
+        let mut newer_record = HighWaterRecord::initial(&trust);
+        newer_record.seq = 1;
+        newer_record.revocation_root = [9; 32];
+        let anchor = TestIndependentAnchor {
+            record: std::sync::Mutex::new(newer_record),
+            fail_write: false,
+        };
+        assert_eq!(
+            store.inspect_root_bound_recovery(&trust, &stale, 150).unwrap(),
+            RecoveryAssessment::CandidateConsistent
+        );
+        assert_eq!(
+            store.inspect_root_recovery_with_anchor(&trust, &stale, 150, &anchor),
+            Err(StoreError::Conflict)
+        );
+        assert_eq!(store.admission_state(), AdmissionState::Paused);
+        assert_eq!(anchor.record.lock().unwrap().seq, 1);
+    }
+
+    #[test]
+    fn same_root_epoch_with_changed_owner_manifest_cannot_be_replayed() {
+        use crate::rollback_anchor::HighWaterRecord;
+        let currently_trusted = root_trust_fixture();
+        let old_owner_policy = root_trust_fixture_for_owner(44);
+        let db = TempDb::new();
+        let store = db.open();
+        let receipts = root_signed_receipts(&currently_trusted, 0, [0; 32]);
+        let anchor = TestIndependentAnchor {
+            record: std::sync::Mutex::new(HighWaterRecord::initial(&old_owner_policy)),
+            fail_write: false,
+        };
+        assert_eq!(
+            store.inspect_root_recovery_with_anchor(
+                &currently_trusted, &receipts, 150, &anchor,
+            ),
+            Err(StoreError::Conflict)
+        );
+        assert_eq!(store.admission_state(), AdmissionState::Paused);
+    }
+
+    #[test]
     fn anchor_storage_failure_never_returns_success_or_opens_access() {
         use crate::rollback_anchor::HighWaterRecord;
         let trust = root_trust_fixture();

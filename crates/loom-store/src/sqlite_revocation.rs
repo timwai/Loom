@@ -1,7 +1,10 @@
 //! L-001C experimental revocation persistence. No production ServiceOpen.
 //! The only admission helpers are test-only. ADR-20/21 are not yet accepted.
 
-use crate::{PolicyVersion, SecurityEventStore, StoreError};
+use crate::{PolicyVersion, StoreError};
+#[cfg(test)]
+use crate::SecurityEventStore;
+use loom_crypto::signed_revocation::VerifiedRevocation;
 use loom_types::{ResourceId, SpaceId};
 use rusqlite::{Connection, OptionalExtension, TransactionBehavior, params};
 use std::collections::HashMap;
@@ -169,8 +172,26 @@ impl SqliteRevocationStore {
     }
 }
 
-impl SecurityEventStore for SqliteRevocationStore {
-    fn commit_revocation(
+impl SqliteRevocationStore {
+    /// Accept only a typed event whose exact CBOR and Ed25519 signature have
+    /// already been checked. This does NOT prove Owner authority, and the store
+    /// remains production-paused until witness-backed admission is implemented.
+    pub fn commit_verified_revocation(
+        &self,
+        v: PolicyVersion,
+        proof: &VerifiedRevocation,
+    ) -> Result<PolicyVersion, StoreError> {
+        if proof.space_id() != v.space_id
+            || proof.resource_id() != v.resource_id
+            || v.epoch.checked_add(1) != Some(proof.seq())
+        {
+            return Err(StoreError::Conflict);
+        }
+        self.commit_internal(v, &proof.persistence_bytes())
+    }
+
+    /// Private commit primitive: callers cannot bypass signature verification.
+    fn commit_internal(
         &self,
         v: PolicyVersion,
         event: &[u8],
@@ -228,6 +249,17 @@ impl SecurityEventStore for SqliteRevocationStore {
                 Err(error)
             }
         }
+    }
+}
+
+#[cfg(test)]
+impl SecurityEventStore for SqliteRevocationStore {
+    fn commit_revocation(
+        &self,
+        v: PolicyVersion,
+        event: &[u8],
+    ) -> Result<PolicyVersion, StoreError> {
+        self.commit_internal(v, event)
     }
 }
 
@@ -555,5 +587,73 @@ mod tests {
             Err(StoreError::Conflict)
         ));
         assert!(store.gate.lock().unwrap().permits.is_empty());
+    }
+
+    #[test]
+    fn signed_revocation_must_match_expected_resource_and_sequence() {
+        use ed25519_dalek::{Signer, SigningKey};
+        use loom_crypto::signed_revocation::{
+            PinnedIssuerForSpike, verify_revocation_for_spike, VerifyEventError,
+        };
+        use loom_wire::security_event::{
+            CanonicalSecurityEvent, EventKind, encode_security_event, signing_input,
+        };
+        let signer = SigningKey::from_bytes(&[3; 32]);
+        let issuer = PinnedIssuerForSpike {
+            key_id: [9; 32],
+            public_key: signer.verifying_key().to_bytes(),
+            space_id: v0().space_id,
+            minimum_key_epoch: 1,
+        };
+        let mut payload = v0().resource_id.as_bytes().to_vec();
+        payload.extend_from_slice(&[4; 32]);
+        payload.push(3);
+        let event = CanonicalSecurityEvent {
+            kind: EventKind::Revocation,
+            space_id: *v0().space_id.as_bytes(),
+            signer_key_id: issuer.key_id,
+            issuer_epoch: 1,
+            issued_at_ms: 100,
+            expires_at_ms: 200,
+            seq: 1,
+            payload,
+        };
+        let cbor = encode_security_event(&event).unwrap();
+        let signature = signer.sign(&signing_input(&cbor).unwrap()).to_bytes();
+        let checked =
+            verify_revocation_for_spike(&cbor, &signature, &issuer, 150).unwrap();
+        assert_eq!(checked.seq(), 1);
+        assert_eq!(
+            verify_revocation_for_spike(&cbor, &signature, &issuer, 250).unwrap_err(),
+            VerifyEventError::Expired
+        );
+
+        let db = TempDb::new();
+        let store = db.open();
+        // This fixture simulates a trust witness. No production permit exists.
+        store.recover_fixture(&[(v0(), 0)]).unwrap();
+        let wrong_resource = PolicyVersion {
+            resource_id: ResourceId::from_bytes([99; 16]),
+            ..v0()
+        };
+        assert_eq!(
+            store.commit_verified_revocation(wrong_resource, &checked),
+            Err(StoreError::Conflict)
+        );
+        let wrong_seq = PolicyVersion { epoch: 1, ..v0() };
+        assert_eq!(
+            store.commit_verified_revocation(wrong_seq, &checked),
+            Err(StoreError::Conflict)
+        );
+        let next = store.commit_verified_revocation(v0(), &checked).unwrap();
+        assert_eq!(next.epoch, 1);
+        let entries = store.pending_outbox().unwrap();
+        assert_eq!(entries.len(), 1);
+        let stored = checked.persistence_bytes();
+        assert_eq!(entries[0].signed_event, stored);
+        drop(store);
+        let restarted = db.open();
+        assert_eq!(restarted.admission_state(), AdmissionState::Paused);
+        assert_eq!(restarted.pending_outbox().unwrap()[0].signed_event, stored);
     }
 }

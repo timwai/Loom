@@ -7,7 +7,12 @@ publish = false
 
 [dependencies]
 loom-types = { path = "../loom-types" }
+loom-crypto = { path = "../loom-crypto" }
 rusqlite = { version = "0.37.0", features = ["bundled"] }
+
+[dev-dependencies]
+loom-wire = { path = "../loom-wire" }
+ed25519-dalek = { version = "2.2.0", default-features = false, features = ["std"] }
 
 [lints]
 workspace = true

@@ -638,4 +638,65 @@ mod tests {
         assert!(!wire.is_empty());
         relay.abort();
     }
+
+    #[tokio::test]
+    async fn relay_cannot_modify_tls_handshake_into_valid_peer_channel() {
+        let a = Fixture::new(1);
+        let b = Fixture::new(1);
+        let (client_end, mut relay_left) = duplex(16384);
+        let (mut relay_right, server_end) = duplex(16384);
+        let relay = tokio::spawn(async move {
+            let (mut left_reader, mut left_writer) = tokio::io::split(&mut relay_left);
+            let (mut right_reader, mut right_writer) = tokio::io::split(&mut relay_right);
+            let forward = async {
+                let mut record = [0u8; 4096];
+                let count = left_reader.read(&mut record).await.unwrap();
+                assert!(count > 0);
+                // Corrupt the outer TLS record content type before it reaches B.
+                record[0] ^= 0x80;
+                right_writer.write_all(&record[..count]).await.unwrap();
+                let _ = tokio::io::copy(&mut left_reader, &mut right_writer).await;
+            };
+            let back = async {
+                let _ = tokio::io::copy(&mut right_reader, &mut left_writer).await;
+            };
+            tokio::join!(forward, back);
+        });
+        let client_ledger = StrictLedger {
+            peer: b.peer_id,
+            space: space(),
+            epoch: b.epoch,
+        };
+        let server_ledger = StrictLedger {
+            peer: a.peer_id,
+            space: space(),
+            epoch: a.epoch,
+        };
+        let client = connect(
+            client_end,
+            a.identity(),
+            SecurePeerContext {
+                expected_remote: b.pinned(),
+                space_id: space(),
+            },
+            &client_ledger,
+        );
+        let server = accept(
+            server_end,
+            b.identity(),
+            SecurePeerContext {
+                expected_remote: a.pinned(),
+                space_id: space(),
+            },
+            &server_ledger,
+        );
+        let (client, server) = timeout(Duration::from_secs(5), async {
+            tokio::join!(client, server)
+        })
+        .await
+        .unwrap();
+        assert!(client.is_err());
+        assert!(server.is_err());
+        relay.abort();
+    }
 }

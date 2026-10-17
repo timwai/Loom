@@ -8,6 +8,7 @@
 //! Synchronous APIs: call from a blocking pool, never on a Tokio runtime core.
 
 use crate::StoreError;
+use crate::legacy_migration::require_no_legacy_schema;
 use crate::policy_journal_codec::KIND_REVOKE;
 pub use crate::policy_journal_codec::NewPolicyEvent;
 use crate::policy_journal_codec::{MAX_EVIDENCE, encode_event, replay_event};
@@ -17,7 +18,7 @@ use crate::unified_policy_anchor::{
 use loom_crypto::owner_lifecycle::ResourceOwnerLifecycle;
 use loom_crypto::space_trust::verify_root_bound_witnesses;
 use loom_crypto::space_trust::{ExternallyPinnedRootForSpike, VerifiedResourceTrust};
-use loom_crypto::witness_checkpoint::{SignedCheckpoint, append_revocation_root};
+use loom_crypto::witness_checkpoint::{Checkpoint, SignedCheckpoint, append_revocation_root};
 use loom_types::ResourceId;
 #[cfg(test)]
 use loom_types::SpaceId;
@@ -77,6 +78,13 @@ enum Command {
         root: ExternallyPinnedRootForSpike,
         genesis: VerifiedResourceTrust,
         done: Sender<Result<JournalCheckpointState, StoreError>>,
+    },
+    MarkWitness {
+        root: ExternallyPinnedRootForSpike,
+        genesis: VerifiedResourceTrust,
+        checkpoint: Checkpoint,
+        current_manifest: [u8; 32],
+        done: Sender<Result<(), StoreError>>,
     },
 }
 
@@ -232,6 +240,21 @@ impl UnifiedPolicyJournal {
         anchor
             .compare_and_advance(previous, next)
             .map_err(|_| StoreError::PersistenceFailure)?;
+
+        // The external CAS is already durable; now record only a LOCAL
+        // diagnostic confirmation, conditioned on a fresh signed-history
+        // replay inside SQLite. A crash before this SQL COMMIT leaves the
+        // marker absent/stale; repeating the signed checkpoint + CAS can
+        // reconcile the ambiguous interval. Never trust the marker alone.
+        let (send, recv) = mpsc::channel();
+        self.tx.as_ref().ok_or(StoreError::PersistenceFailure)?
+            .send(Command::MarkWitness {
+                root: external_root, genesis, checkpoint: cp,
+                current_manifest: local.current_trust.manifest_commitment(),
+                done: send,
+            })
+            .map_err(|_| StoreError::PersistenceFailure)?;
+        recv.recv().map_err(|_| StoreError::PersistenceFailure)??;
         Ok(UnifiedRecoveryAssessment::CandidateConsistent)
     }
 
@@ -299,6 +322,13 @@ fn worker(path: PathBuf, rx: Receiver<Command>, started: Sender<Result<(), Store
                     } => {
                         let _ = done.send(inspect_checkpoint_db(&mut connection, root, genesis));
                     }
+                    Command::MarkWitness {
+                        root, genesis, checkpoint, current_manifest, done,
+                    } => {
+                        let _ = done.send(record_witness_confirmation(
+                            &mut connection, root, genesis, checkpoint, current_manifest,
+                        ));
+                    }
                 }
             }
         }
@@ -312,6 +342,10 @@ fn initialize(path: &PathBuf) -> Result<Connection, StoreError> {
     let conn = Connection::open(path).map_err(|_| StoreError::PersistenceFailure)?;
     conn.busy_timeout(Duration::from_secs(2))
         .map_err(|_| StoreError::PersistenceFailure)?;
+    // Never create a parallel, empty unified ledger next to legacy
+    // revocation-only tables: that would erase required authorization
+    // history by omission. Explicit reviewed migration is still pending.
+    require_no_legacy_schema(&conn)?;
     conn.execute_batch(
         "PRAGMA journal_mode=WAL;
          PRAGMA synchronous=FULL;
@@ -350,6 +384,15 @@ fn initialize(path: &PathBuf) -> Result<Connection, StoreError> {
            kind INTEGER NOT NULL,
            policy_head BLOB NOT NULL CHECK(length(policy_head)=32),
            UNIQUE(space,resource,seq)
+         ) STRICT;
+         CREATE TABLE IF NOT EXISTS unified_policy_witnessed (
+           space BLOB NOT NULL CHECK(length(space)=16),
+           resource BLOB NOT NULL CHECK(length(resource)=16),
+           seq INTEGER NOT NULL CHECK(seq>=0),
+           policy_head BLOB NOT NULL CHECK(length(policy_head)=32),
+           revocation_root BLOB NOT NULL CHECK(length(revocation_root)=32),
+           owner_manifest BLOB NOT NULL CHECK(length(owner_manifest)=32),
+           PRIMARY KEY(space,resource)
          ) STRICT;",
     )
     .map_err(|_| StoreError::PersistenceFailure)?;
@@ -518,6 +561,55 @@ fn inspect_checkpoint_db(
     };
     tx.commit().map_err(|_| StoreError::PersistenceFailure)?;
     Ok(result)
+}
+
+/// Only runs *after* successful external durable CAS. SQLite and an external
+/// platform monotonic counter are NOT a distributed atomic transaction.
+/// Confirmation is purely local bookkeeping; missing/forged markers cannot
+/// enable admission. Must revalidate the exact journal state under BEGIN
+/// IMMEDIATE to prevent mislabeling a newer append.
+fn record_witness_confirmation(
+    conn: &mut Connection,
+    root: ExternallyPinnedRootForSpike,
+    genesis: VerifiedResourceTrust,
+    checkpoint: Checkpoint,
+    expected_manifest: [u8; 32],
+) -> Result<(), StoreError> {
+    let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)
+        .map_err(|_| StoreError::PersistenceFailure)?;
+    let state = replay(&tx, &root, genesis)?;
+    let revocation_root = revocation_root_for_journal(&tx, &root, genesis.resource())?;
+    if checkpoint.space != genesis.space()
+        || checkpoint.resource != genesis.resource()
+        || checkpoint.writer_epoch != genesis.writer_epoch()
+        || checkpoint.seq != state.sequence()
+        || checkpoint.head_hash != state.policy_head()
+        || checkpoint.revocation_root != revocation_root
+        || expected_manifest != state.current_trust().manifest_commitment()
+    {
+        return Err(StoreError::Conflict);
+    }
+    let seq = i64::try_from(checkpoint.seq).map_err(|_| StoreError::Conflict)?;
+    tx.execute(
+        "INSERT INTO unified_policy_witnessed
+           (space,resource,seq,policy_head,revocation_root,owner_manifest)
+         VALUES(?1,?2,?3,?4,?5,?6)
+         ON CONFLICT(space,resource) DO UPDATE SET
+           seq=excluded.seq, policy_head=excluded.policy_head,
+           revocation_root=excluded.revocation_root,
+           owner_manifest=excluded.owner_manifest
+         WHERE excluded.seq >= unified_policy_witnessed.seq",
+        params![
+            checkpoint.space.as_bytes().as_slice(),
+            checkpoint.resource.as_bytes().as_slice(),
+            seq,
+            checkpoint.head_hash.as_slice(),
+            checkpoint.revocation_root.as_slice(),
+            expected_manifest.as_slice(),
+        ],
+    ).map_err(|_| StoreError::PersistenceFailure)?;
+    tx.commit().map_err(|_| StoreError::PersistenceFailure)?;
+    Ok(())
 }
 
 fn append_transaction(

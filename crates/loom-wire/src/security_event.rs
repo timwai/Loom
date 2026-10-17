@@ -131,8 +131,14 @@ struct Cursor<'a> {
 
 impl<'a> Cursor<'a> {
     fn take(&mut self, size: usize) -> Result<&'a [u8], EventCodecError> {
-        let end = self.offset.checked_add(size).ok_or(EventCodecError::TooLarge)?;
-        let data = self.input.get(self.offset..end).ok_or(EventCodecError::Incomplete)?;
+        let end = self
+            .offset
+            .checked_add(size)
+            .ok_or(EventCodecError::TooLarge)?;
+        let data = self
+            .input
+            .get(self.offset..end)
+            .ok_or(EventCodecError::Incomplete)?;
         self.offset = end;
         Ok(data)
     }
@@ -153,7 +159,10 @@ impl<'a> Cursor<'a> {
                 Ok(value)
             }
             25 => {
-                let bytes: [u8; 2] = self.take(2)?.try_into().map_err(|_| EventCodecError::Incomplete)?;
+                let bytes: [u8; 2] = self
+                    .take(2)?
+                    .try_into()
+                    .map_err(|_| EventCodecError::Incomplete)?;
                 let value = u64::from(u16::from_be_bytes(bytes));
                 if value <= u8::MAX as u64 {
                     return Err(EventCodecError::NonCanonical);
@@ -161,7 +170,10 @@ impl<'a> Cursor<'a> {
                 Ok(value)
             }
             26 => {
-                let bytes: [u8; 4] = self.take(4)?.try_into().map_err(|_| EventCodecError::Incomplete)?;
+                let bytes: [u8; 4] = self
+                    .take(4)?
+                    .try_into()
+                    .map_err(|_| EventCodecError::Incomplete)?;
                 let value = u64::from(u32::from_be_bytes(bytes));
                 if value <= u16::MAX as u64 {
                     return Err(EventCodecError::NonCanonical);
@@ -169,7 +181,10 @@ impl<'a> Cursor<'a> {
                 Ok(value)
             }
             27 => {
-                let bytes: [u8; 8] = self.take(8)?.try_into().map_err(|_| EventCodecError::Incomplete)?;
+                let bytes: [u8; 8] = self
+                    .take(8)?
+                    .try_into()
+                    .map_err(|_| EventCodecError::Incomplete)?;
                 let value = u64::from_be_bytes(bytes);
                 if value <= u32::MAX as u64 {
                     return Err(EventCodecError::NonCanonical);
@@ -194,7 +209,9 @@ impl<'a> Cursor<'a> {
     }
 
     fn fixed<const N: usize>(&mut self) -> Result<[u8; N], EventCodecError> {
-        self.bytes(N)?.try_into().map_err(|_| EventCodecError::InvalidLength)
+        self.bytes(N)?
+            .try_into()
+            .map_err(|_| EventCodecError::InvalidLength)
     }
 }
 
@@ -202,7 +219,10 @@ pub fn decode_security_event(bytes: &[u8]) -> Result<CanonicalSecurityEvent, Eve
     if bytes.len() > MAX_SECURITY_EVENT_BYTES {
         return Err(EventCodecError::TooLarge);
     }
-    let mut cur = Cursor { input: bytes, offset: 0 };
+    let mut cur = Cursor {
+        input: bytes,
+        offset: 0,
+    };
     if cur.head(5)? != 9 {
         return Err(EventCodecError::InvalidLength);
     }
@@ -250,7 +270,14 @@ pub fn decode_security_event(bytes: &[u8]) -> Result<CanonicalSecurityEvent, Eve
         return Err(EventCodecError::TrailingBytes);
     }
     let event = CanonicalSecurityEvent {
-        kind, space_id, signer_key_id, issuer_epoch, issued_at_ms, expires_at_ms, seq, payload,
+        kind,
+        space_id,
+        signer_key_id,
+        issuer_epoch,
+        issued_at_ms,
+        expires_at_ms,
+        seq,
+        payload,
     };
     validate_semantics(&event)?;
     // Re-encoding comparison means the accepted form has exactly one representation.
@@ -298,21 +325,31 @@ mod tests {
     fn unhex(input: &str) -> Vec<u8> {
         let bytes = input.trim().as_bytes();
         assert_eq!(bytes.len() % 2, 0);
-        bytes.chunks_exact(2).map(|pair| {
-            let s = core::str::from_utf8(pair).expect("ASCII hex");
-            u8::from_str_radix(s, 16).expect("valid hex")
-        }).collect()
+        bytes
+            .chunks_exact(2)
+            .map(|pair| {
+                let s = core::str::from_utf8(pair).expect("ASCII hex");
+                u8::from_str_radix(s, 16).expect("valid hex")
+            })
+            .collect()
     }
 
     #[test]
     fn independent_golden_vector() {
         let event = fixture();
-        let expected = unhex(include_str!("../../../test-vectors/wire-v1/event-01.cbor.hex"));
-        let expected_transcript = unhex(include_str!("../../../test-vectors/wire-v1/event-01.signing.hex"));
+        let expected = unhex(include_str!(
+            "../../../test-vectors/wire-v1/event-01.cbor.hex"
+        ));
+        let expected_transcript = unhex(include_str!(
+            "../../../test-vectors/wire-v1/event-01.signing.hex"
+        ));
         let encoded = encode_security_event(&event).expect("encode");
         assert_eq!(encoded, expected);
         assert_eq!(decode_security_event(&encoded).expect("decode"), event);
-        assert_eq!(signing_input(&encoded).expect("signing input"), expected_transcript);
+        assert_eq!(
+            signing_input(&encoded).expect("signing input"),
+            expected_transcript
+        );
     }
 
     #[test]
@@ -335,38 +372,65 @@ mod tests {
         let good = encode_security_event(&fixture()).expect("encode");
         let mut duplicate_key = good.clone();
         duplicate_key[3] = 0;
-        assert_eq!(decode_security_event(&duplicate_key), Err(EventCodecError::NonCanonical));
+        assert_eq!(
+            decode_security_event(&duplicate_key),
+            Err(EventCodecError::NonCanonical)
+        );
         let mut wrong_order = good.clone();
         wrong_order[3] = 2;
         assert!(decode_security_event(&wrong_order).is_err());
         let mut nonminimal_version = good.clone();
         nonminimal_version.splice(2..3, [0x18, 0x01]);
-        assert_eq!(decode_security_event(&nonminimal_version), Err(EventCodecError::NonCanonical));
+        assert_eq!(
+            decode_security_event(&nonminimal_version),
+            Err(EventCodecError::NonCanonical)
+        );
         let mut unknown_field = good.clone();
         unknown_field[0] = 0xaa;
-        assert_eq!(decode_security_event(&unknown_field), Err(EventCodecError::InvalidLength));
+        assert_eq!(
+            decode_security_event(&unknown_field),
+            Err(EventCodecError::InvalidLength)
+        );
         let mut extra = good.clone();
         extra.push(0);
-        assert_eq!(decode_security_event(&extra), Err(EventCodecError::TrailingBytes));
+        assert_eq!(
+            decode_security_event(&extra),
+            Err(EventCodecError::TrailingBytes)
+        );
         let mut wrong_version = good.clone();
         wrong_version[2] = 2;
-        assert_eq!(decode_security_event(&wrong_version), Err(EventCodecError::UnsupportedVersion));
+        assert_eq!(
+            decode_security_event(&wrong_version),
+            Err(EventCodecError::UnsupportedVersion)
+        );
         let mut indefinite = good.clone();
         indefinite[0] = 0xbf;
-        assert_eq!(decode_security_event(&indefinite), Err(EventCodecError::NonCanonical));
+        assert_eq!(
+            decode_security_event(&indefinite),
+            Err(EventCodecError::NonCanonical)
+        );
         let mut tag = good.clone();
         tag[0] = 0xc9;
-        assert_eq!(decode_security_event(&tag), Err(EventCodecError::InvalidType));
+        assert_eq!(
+            decode_security_event(&tag),
+            Err(EventCodecError::InvalidType)
+        );
     }
 
     #[test]
     fn time_and_payload_limits_enforced() {
         let mut event = fixture();
         event.expires_at_ms = event.issued_at_ms;
-        assert_eq!(encode_security_event(&event), Err(EventCodecError::InvalidTimeRange));
+        assert_eq!(
+            encode_security_event(&event),
+            Err(EventCodecError::InvalidTimeRange)
+        );
         event.expires_at_ms += 1;
         event.payload = vec![0; MAX_EVENT_PAYLOAD_BYTES + 1];
-        assert_eq!(encode_security_event(&event), Err(EventCodecError::TooLarge));
+        assert_eq!(
+            encode_security_event(&event),
+            Err(EventCodecError::TooLarge)
+        );
         assert_eq!(
             decode_security_event(&vec![0; MAX_SECURITY_EVENT_BYTES + 1]),
             Err(EventCodecError::TooLarge)

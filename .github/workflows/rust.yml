@@ -23,6 +23,10 @@ jobs:
         run: cargo test --workspace --all-targets --locked
       - name: Lint all targets
         run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      - name: Cross-language wire candidate (Go)
+        run: go run ./test-vectors/wire-v1/check.go
+      - name: Cross-language wire candidate (Node.js)
+        run: node ./test-vectors/wire-v1/check.mjs
       - name: API documentation
         run: cargo doc --workspace --no-deps --locked
   dependency-policy:

@@ -39,7 +39,10 @@ pub(crate) fn encode_event(input: NewPolicyEvent<'_>) -> (u8, Vec<u8>) {
             evidence.extend_from_slice(&signed.signature);
             (KIND_CANCEL, evidence)
         }
-        NewPolicyEvent::Transfer { transfer, successor_manifest } => {
+        NewPolicyEvent::Transfer {
+            transfer,
+            successor_manifest,
+        } => {
             let mut evidence = owner_transfer_transcript(&transfer.transfer);
             evidence.extend_from_slice(&transfer.old_owner_signature);
             evidence.extend_from_slice(&transfer.next_owner_signature);
@@ -62,14 +65,21 @@ impl<'a> Cursor<'a> {
 
     fn take<const N: usize>(&mut self) -> Result<[u8; N], StoreError> {
         let end = self.offset.checked_add(N).ok_or(StoreError::Conflict)?;
-        let value: [u8; N] = self.bytes.get(self.offset..end)
-            .ok_or(StoreError::Conflict)?.try_into().map_err(|_| StoreError::Conflict)?;
+        let value: [u8; N] = self
+            .bytes
+            .get(self.offset..end)
+            .ok_or(StoreError::Conflict)?
+            .try_into()
+            .map_err(|_| StoreError::Conflict)?;
         self.offset = end;
         Ok(value)
     }
 
     fn expect(&mut self, expected: &[u8]) -> Result<(), StoreError> {
-        let end = self.offset.checked_add(expected.len()).ok_or(StoreError::Conflict)?;
+        let end = self
+            .offset
+            .checked_add(expected.len())
+            .ok_or(StoreError::Conflict)?;
         if self.bytes.get(self.offset..end) != Some(expected) {
             return Err(StoreError::Conflict);
         }
@@ -82,7 +92,11 @@ impl<'a> Cursor<'a> {
     }
 
     fn done(&self) -> Result<(), StoreError> {
-        if self.offset == self.bytes.len() { Ok(()) } else { Err(StoreError::Conflict) }
+        if self.offset == self.bytes.len() {
+            Ok(())
+        } else {
+            Err(StoreError::Conflict)
+        }
     }
 }
 
@@ -109,7 +123,10 @@ fn decode_cancel(bytes: &[u8]) -> Result<SignedDelegateCancellation, StoreError>
     if cancellation_transcript(&cancellation) != bytes[..bytes.len() - 64] {
         return Err(StoreError::Conflict);
     }
-    Ok(SignedDelegateCancellation { cancellation, signature })
+    Ok(SignedDelegateCancellation {
+        cancellation,
+        signature,
+    })
 }
 
 fn decode_transfer(
@@ -147,7 +164,9 @@ fn decode_transfer(
     let signature = r.take::<64>()?;
     r.done()?;
     let signed_transfer = DualSignedOwnerTransfer {
-        transfer, old_owner_signature, next_owner_signature,
+        transfer,
+        old_owner_signature,
+        next_owner_signature,
     };
     if !bytes.starts_with(&owner_transfer_transcript(&transfer)) {
         return Err(StoreError::Conflict);
@@ -159,8 +178,16 @@ fn decode_transfer(
     reconstructed.extend_from_slice(&next_owner_signature);
     reconstructed.extend_from_slice(&trust_manifest_transcript(&manifest));
     reconstructed.extend_from_slice(&signature);
-    if reconstructed != bytes { return Err(StoreError::Conflict); }
-    Ok((signed_transfer, SignedResourceTrust { manifest, signature }))
+    if reconstructed != bytes {
+        return Err(StoreError::Conflict);
+    }
+    Ok((
+        signed_transfer,
+        SignedResourceTrust {
+            manifest,
+            signature,
+        },
+    ))
 }
 
 /// Replay an event after all earlier policy operations have been validated.
@@ -177,22 +204,29 @@ pub(crate) fn replay_event(
     }
     match kind {
         KIND_REVOKE => {
-            let proof = replay_persisted_owner_revocation_for_spike(
-                &state.current_owner(), evidence,
-            ).map_err(|_| StoreError::Conflict)?;
-            state.apply_delegated_revocation(&proof).map_err(|_| StoreError::Conflict)
+            let proof =
+                replay_persisted_owner_revocation_for_spike(&state.current_owner(), evidence)
+                    .map_err(|_| StoreError::Conflict)?;
+            state
+                .apply_delegated_revocation(&proof)
+                .map_err(|_| StoreError::Conflict)
         }
         KIND_CANCEL => {
             let signed = decode_cancel(evidence)?;
-            state.cancel_delegate(&signed, signed.cancellation.issued_at_ms)
+            state
+                .cancel_delegate(&signed, signed.cancellation.issued_at_ms)
                 .map_err(|_| StoreError::Conflict)
         }
         KIND_TRANSFER => {
             let (transfer, signed_successor) = decode_transfer(evidence)?;
             let successor = verify_resource_trust_for_spike(
-                root_pin, &signed_successor, transfer.transfer.issued_at_ms,
-            ).map_err(|_| StoreError::Conflict)?;
-            state.transfer_owner(&transfer, successor, transfer.transfer.issued_at_ms)
+                root_pin,
+                &signed_successor,
+                transfer.transfer.issued_at_ms,
+            )
+            .map_err(|_| StoreError::Conflict)?;
+            state
+                .transfer_owner(&transfer, successor, transfer.transfer.issued_at_ms)
                 .map_err(|_| StoreError::Conflict)
         }
         _ => Err(StoreError::Conflict),

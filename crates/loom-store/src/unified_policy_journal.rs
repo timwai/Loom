@@ -8,8 +8,8 @@
 //! Synchronous APIs: call from a blocking pool, never on a Tokio runtime core.
 
 use crate::StoreError;
-use crate::policy_journal_codec::{MAX_EVIDENCE, encode_event, replay_event};
 pub use crate::policy_journal_codec::NewPolicyEvent;
+use crate::policy_journal_codec::{MAX_EVIDENCE, encode_event, replay_event};
 use loom_crypto::owner_lifecycle::ResourceOwnerLifecycle;
 use loom_crypto::space_trust::{ExternallyPinnedRootForSpike, VerifiedResourceTrust};
 use loom_types::{ResourceId, SpaceId};
@@ -68,8 +68,14 @@ impl UnifiedPolicyJournal {
             .name("loom-unified-policy-db".to_owned())
             .spawn(move || worker(path, receiver, ready_tx))
             .map_err(|_| StoreError::PersistenceFailure)?;
-        ready_rx.recv().map_err(|_| StoreError::PersistenceFailure)??;
-        Ok(Self { tx: Some(tx), join: Some(join), gate: Mutex::new(()) })
+        ready_rx
+            .recv()
+            .map_err(|_| StoreError::PersistenceFailure)??;
+        Ok(Self {
+            tx: Some(tx),
+            join: Some(join),
+            gate: Mutex::new(()),
+        })
     }
 
     /// Only a diagnostic snapshot; never a permission to access a resource.
@@ -78,10 +84,19 @@ impl UnifiedPolicyJournal {
         external_root: ExternallyPinnedRootForSpike,
         genesis: VerifiedResourceTrust,
     ) -> Result<JournalSnapshot, StoreError> {
-        let _barrier = self.gate.lock().map_err(|_| StoreError::PersistenceFailure)?;
+        let _barrier = self
+            .gate
+            .lock()
+            .map_err(|_| StoreError::PersistenceFailure)?;
         let (send, recv) = mpsc::channel();
-        self.tx.as_ref().ok_or(StoreError::PersistenceFailure)?
-            .send(Command::Inspect { root: external_root, genesis, done: send })
+        self.tx
+            .as_ref()
+            .ok_or(StoreError::PersistenceFailure)?
+            .send(Command::Inspect {
+                root: external_root,
+                genesis,
+                done: send,
+            })
             .map_err(|_| StoreError::PersistenceFailure)?;
         recv.recv().map_err(|_| StoreError::PersistenceFailure)?
     }
@@ -99,11 +114,20 @@ impl UnifiedPolicyJournal {
         if evidence.is_empty() || evidence.len() > MAX_EVIDENCE {
             return Err(StoreError::Conflict);
         }
-        let _barrier = self.gate.lock().map_err(|_| StoreError::PersistenceFailure)?;
+        let _barrier = self
+            .gate
+            .lock()
+            .map_err(|_| StoreError::PersistenceFailure)?;
         let (send, recv) = mpsc::channel();
-        self.tx.as_ref().ok_or(StoreError::PersistenceFailure)?
+        self.tx
+            .as_ref()
+            .ok_or(StoreError::PersistenceFailure)?
             .send(Command::Append {
-                root: external_root, genesis, kind, evidence, done: send,
+                root: external_root,
+                genesis,
+                kind,
+                evidence,
+                done: send,
             })
             .map_err(|_| StoreError::PersistenceFailure)?;
         recv.recv().map_err(|_| StoreError::PersistenceFailure)?
@@ -112,9 +136,14 @@ impl UnifiedPolicyJournal {
     /// Read-only: no ACK is allowed without authenticated remote durable
     /// receipt and a separate fairness/priority retransmission protocol.
     pub fn pending_outbox(&self) -> Result<Vec<CriticalPolicyOutbox>, StoreError> {
-        let _barrier = self.gate.lock().map_err(|_| StoreError::PersistenceFailure)?;
+        let _barrier = self
+            .gate
+            .lock()
+            .map_err(|_| StoreError::PersistenceFailure)?;
         let (send, recv) = mpsc::channel();
-        self.tx.as_ref().ok_or(StoreError::PersistenceFailure)?
+        self.tx
+            .as_ref()
+            .ok_or(StoreError::PersistenceFailure)?
             .send(Command::Pending(send))
             .map_err(|_| StoreError::PersistenceFailure)?;
         recv.recv().map_err(|_| StoreError::PersistenceFailure)?
@@ -124,26 +153,38 @@ impl UnifiedPolicyJournal {
 impl Drop for UnifiedPolicyJournal {
     fn drop(&mut self) {
         self.tx.take();
-        if let Some(join) = self.join.take() { let _ = join.join(); }
+        if let Some(join) = self.join.take() {
+            let _ = join.join();
+        }
     }
 }
 
-fn worker(
-    path: PathBuf,
-    rx: Receiver<Command>,
-    started: Sender<Result<(), StoreError>>,
-) {
+fn worker(path: PathBuf, rx: Receiver<Command>, started: Sender<Result<(), StoreError>>) {
     match initialize(&path) {
         Ok(mut connection) => {
             let _ = started.send(Ok(()));
             for command in rx {
                 match command {
-                    Command::Append { root, genesis, kind, evidence, done } => {
+                    Command::Append {
+                        root,
+                        genesis,
+                        kind,
+                        evidence,
+                        done,
+                    } => {
                         let _ = done.send(append_transaction(
-                            &mut connection, root, genesis, kind, &evidence,
+                            &mut connection,
+                            root,
+                            genesis,
+                            kind,
+                            &evidence,
                         ));
                     }
-                    Command::Inspect { root, genesis, done } => {
+                    Command::Inspect {
+                        root,
+                        genesis,
+                        done,
+                    } => {
                         let _ = done.send(inspect_db(&mut connection, root, genesis));
                     }
                     Command::Pending(done) => {
@@ -152,7 +193,9 @@ fn worker(
                 }
             }
         }
-        Err(error) => { let _ = started.send(Err(error)); }
+        Err(error) => {
+            let _ = started.send(Err(error));
+        }
     }
 }
 
@@ -199,7 +242,8 @@ fn initialize(path: &PathBuf) -> Result<Connection, StoreError> {
            policy_head BLOB NOT NULL CHECK(length(policy_head)=32),
            UNIQUE(space,resource,seq)
          ) STRICT;",
-    ).map_err(|_| StoreError::PersistenceFailure)?;
+    )
+    .map_err(|_| StoreError::PersistenceFailure)?;
     Ok(conn)
 }
 
@@ -235,21 +279,28 @@ fn replay(
 ) -> Result<ResourceOwnerLifecycle, StoreError> {
     verify_genesis(root, &genesis)?;
     let mut state = ResourceOwnerLifecycle::from_genesis(genesis);
-    let mut stmt = tx.prepare(
-        "SELECT seq,kind,evidence,policy_head
+    let mut stmt = tx
+        .prepare(
+            "SELECT seq,kind,evidence,policy_head
          FROM unified_policy_events
          WHERE space=?1 AND resource=?2 ORDER BY seq ASC",
-    ).map_err(|_| StoreError::PersistenceFailure)?;
-    let rows = stmt.query_map(
-        params![root.space.as_bytes().as_slice(), genesis.resource().as_bytes().as_slice()],
-        |row| {
-            let seq: i64 = row.get(0)?;
-            let kind: i64 = row.get(1)?;
-            let evidence: Vec<u8> = row.get(2)?;
-            let head: Vec<u8> = row.get(3)?;
-            Ok((seq,kind,evidence,head))
-        },
-    ).map_err(|_| StoreError::PersistenceFailure)?;
+        )
+        .map_err(|_| StoreError::PersistenceFailure)?;
+    let rows = stmt
+        .query_map(
+            params![
+                root.space.as_bytes().as_slice(),
+                genesis.resource().as_bytes().as_slice()
+            ],
+            |row| {
+                let seq: i64 = row.get(0)?;
+                let kind: i64 = row.get(1)?;
+                let evidence: Vec<u8> = row.get(2)?;
+                let head: Vec<u8> = row.get(3)?;
+                Ok((seq, kind, evidence, head))
+            },
+        )
+        .map_err(|_| StoreError::PersistenceFailure)?;
     for row in rows {
         let (seq, kind, evidence, head) = row.map_err(|_| StoreError::PersistenceFailure)?;
         let seq = u64::try_from(seq).map_err(|_| StoreError::Conflict)?;
@@ -262,12 +313,18 @@ fn replay(
             return Err(StoreError::Conflict);
         }
     }
-    let cursor: Option<(i64, Vec<u8>, Vec<u8>)> = tx.query_row(
-        "SELECT seq,policy_head,owner_manifest FROM unified_policy_cursor
+    let cursor: Option<(i64, Vec<u8>, Vec<u8>)> = tx
+        .query_row(
+            "SELECT seq,policy_head,owner_manifest FROM unified_policy_cursor
          WHERE space=?1 AND resource=?2",
-        params![root.space.as_bytes().as_slice(), genesis.resource().as_bytes().as_slice()],
-        |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
-    ).optional().map_err(|_| StoreError::PersistenceFailure)?;
+            params![
+                root.space.as_bytes().as_slice(),
+                genesis.resource().as_bytes().as_slice()
+            ],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        )
+        .optional()
+        .map_err(|_| StoreError::PersistenceFailure)?;
     match cursor {
         Some((seq, head, manifest)) => {
             let seq = u64::try_from(seq).map_err(|_| StoreError::Conflict)?;
@@ -289,7 +346,8 @@ fn inspect_db(
     root: ExternallyPinnedRootForSpike,
     genesis: VerifiedResourceTrust,
 ) -> Result<JournalSnapshot, StoreError> {
-    let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)
+    let tx = conn
+        .transaction_with_behavior(TransactionBehavior::Immediate)
         .map_err(|_| StoreError::PersistenceFailure)?;
     let state = replay(&tx, &root, genesis)?;
     let snapshot = snapshot(&state);
@@ -307,7 +365,8 @@ fn append_transaction(
     if evidence.is_empty() || evidence.len() > MAX_EVIDENCE {
         return Err(StoreError::Conflict);
     }
-    let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)
+    let tx = conn
+        .transaction_with_behavior(TransactionBehavior::Immediate)
         .map_err(|_| StoreError::PersistenceFailure)?;
     let mut state = replay(&tx, &root, genesis)?;
     replay_event(&mut state, &root, kind, evidence)?;
@@ -319,8 +378,9 @@ fn append_transaction(
     tx.execute(
         "INSERT INTO unified_policy_events(space,resource,seq,kind,evidence,policy_head)
          VALUES(?1,?2,?3,?4,?5,?6)",
-        params![space,resource,seq,kind,evidence,head.as_slice()],
-    ).map_err(|_| StoreError::PersistenceFailure)?;
+        params![space, resource, seq, kind, evidence, head.as_slice()],
+    )
+    .map_err(|_| StoreError::PersistenceFailure)?;
     tx.execute(
         "INSERT INTO unified_policy_cursor(space,resource,seq,policy_head,owner_manifest)
          VALUES(?1,?2,?3,?4,?5)
@@ -328,34 +388,42 @@ fn append_transaction(
            seq=excluded.seq,policy_head=excluded.policy_head,
            owner_manifest=excluded.owner_manifest",
         params![
-            space,resource,seq,head.as_slice(),
+            space,
+            resource,
+            seq,
+            head.as_slice(),
             state.current_trust().manifest_commitment().as_slice(),
         ],
-    ).map_err(|_| StoreError::PersistenceFailure)?;
+    )
+    .map_err(|_| StoreError::PersistenceFailure)?;
     tx.execute(
         "INSERT INTO unified_policy_outbox(space,resource,seq,kind,evidence)
          VALUES(?1,?2,?3,?4,?5)",
-        params![space,resource,seq,kind,evidence],
-    ).map_err(|_| StoreError::PersistenceFailure)?;
+        params![space, resource, seq, kind, evidence],
+    )
+    .map_err(|_| StoreError::PersistenceFailure)?;
     tx.execute(
         "INSERT INTO unified_policy_audit(space,resource,seq,kind,policy_head)
          VALUES(?1,?2,?3,?4,?5)",
-        params![space,resource,seq,kind,head.as_slice()],
-    ).map_err(|_| StoreError::PersistenceFailure)?;
+        params![space, resource, seq, kind, head.as_slice()],
+    )
+    .map_err(|_| StoreError::PersistenceFailure)?;
     tx.commit().map_err(|_| StoreError::PersistenceFailure)?;
     Ok(snapshot(&state))
 }
 
 fn read_outbox(conn: &Connection) -> Result<Vec<CriticalPolicyOutbox>, StoreError> {
-    let mut stmt = conn.prepare(
-        "SELECT seq,kind,evidence FROM unified_policy_outbox ORDER BY id ASC",
-    ).map_err(|_| StoreError::PersistenceFailure)?;
-    let rows = stmt.query_map([], |row| {
-        let seq: i64 = row.get(0)?;
-        let kind: i64 = row.get(1)?;
-        let evidence: Vec<u8> = row.get(2)?;
-        Ok((seq,kind,evidence))
-    }).map_err(|_| StoreError::PersistenceFailure)?;
+    let mut stmt = conn
+        .prepare("SELECT seq,kind,evidence FROM unified_policy_outbox ORDER BY id ASC")
+        .map_err(|_| StoreError::PersistenceFailure)?;
+    let rows = stmt
+        .query_map([], |row| {
+            let seq: i64 = row.get(0)?;
+            let kind: i64 = row.get(1)?;
+            let evidence: Vec<u8> = row.get(2)?;
+            Ok((seq, kind, evidence))
+        })
+        .map_err(|_| StoreError::PersistenceFailure)?;
     let mut outbox = Vec::new();
     for row in rows {
         let (seq, kind, evidence) = row.map_err(|_| StoreError::PersistenceFailure)?;
@@ -368,7 +436,6 @@ fn read_outbox(conn: &Connection) -> Result<Vec<CriticalPolicyOutbox>, StoreErro
     Ok(outbox)
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -379,8 +446,8 @@ mod tests {
         verify_owner_delegated_revocation_for_spike,
     };
     use loom_crypto::owner_lifecycle::{
-        DelegateCancellation, DualSignedOwnerTransfer, OwnerTransfer,
-        SignedDelegateCancellation, cancellation_transcript, owner_transfer_transcript,
+        DelegateCancellation, DualSignedOwnerTransfer, OwnerTransfer, SignedDelegateCancellation,
+        cancellation_transcript, owner_transfer_transcript,
     };
     use loom_crypto::space_trust::{
         ResourceTrustManifest, SignedResourceTrust, trust_manifest_transcript,
@@ -395,9 +462,13 @@ mod tests {
     struct TempDb(PathBuf);
     impl TempDb {
         fn new() -> Self {
-            let nanos = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+            let nanos = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos();
             Self(std::env::temp_dir().join(format!(
-                "loom-unified-{}-{nanos}.sqlite", std::process::id(),
+                "loom-unified-{}-{nanos}.sqlite",
+                std::process::id(),
             )))
         }
         fn open(&self) -> UnifiedPolicyJournal {
@@ -442,7 +513,9 @@ mod tests {
         };
         SignedResourceTrust {
             manifest,
-            signature: signer.sign(&trust_manifest_transcript(&manifest)).to_bytes(),
+            signature: signer
+                .sign(&trust_manifest_transcript(&manifest))
+                .to_bytes(),
         }
     }
 
@@ -496,9 +569,12 @@ mod tests {
             &grant_cbor,
             &signer.sign(&signing_input(&grant_cbor).unwrap()).to_bytes(),
             &revoke_cbor,
-            &delegate.sign(&signing_input(&revoke_cbor).unwrap()).to_bytes(),
+            &delegate
+                .sign(&signing_input(&revoke_cbor).unwrap())
+                .to_bytes(),
             150,
-        ).unwrap()
+        )
+        .unwrap()
     }
 
     fn signed_cancellation(seq: u64) -> SignedDelegateCancellation {
@@ -555,39 +631,67 @@ mod tests {
         let genesis = trusted_genesis();
         assert!(store.inspect(root_pin(), genesis).unwrap().admission_paused);
         let revocation = signed_revocation(1, 11, 3);
-        let first = store.append(root_pin(), genesis, NewPolicyEvent::Revoke(&revocation)).unwrap();
+        let first = store
+            .append(root_pin(), genesis, NewPolicyEvent::Revoke(&revocation))
+            .unwrap();
         assert_eq!(first.sequence, 1);
         let cancellation = signed_cancellation(2);
-        let second = store.append(root_pin(), genesis, NewPolicyEvent::Cancel(&cancellation)).unwrap();
+        let second = store
+            .append(root_pin(), genesis, NewPolicyEvent::Cancel(&cancellation))
+            .unwrap();
         assert_eq!(second.sequence, 2);
         assert_ne!(first.policy_head, second.policy_head);
         assert_eq!(
-            store.append(root_pin(), genesis, NewPolicyEvent::Revoke(&signed_revocation(3, 11, 3))),
+            store.append(
+                root_pin(),
+                genesis,
+                NewPolicyEvent::Revoke(&signed_revocation(3, 11, 3))
+            ),
             Err(StoreError::Conflict)
         );
         let successor = signed_manifest(33, 4);
         let transfer = signed_transfer(&genesis, &successor, 3);
-        let third = store.append(root_pin(), genesis, NewPolicyEvent::Transfer {
-            transfer: &transfer,
-            successor_manifest: &successor,
-        }).unwrap();
+        let third = store
+            .append(
+                root_pin(),
+                genesis,
+                NewPolicyEvent::Transfer {
+                    transfer: &transfer,
+                    successor_manifest: &successor,
+                },
+            )
+            .unwrap();
         assert_eq!(third.sequence, 3);
         assert_eq!(
-            store.append(root_pin(), genesis, NewPolicyEvent::Revoke(&signed_revocation(4, 11, 3))),
+            store.append(
+                root_pin(),
+                genesis,
+                NewPolicyEvent::Revoke(&signed_revocation(4, 11, 3))
+            ),
             Err(StoreError::Conflict)
         );
-        let last = store.append(root_pin(), genesis, NewPolicyEvent::Revoke(
-            &signed_revocation(4, 33, 4),
-        )).unwrap();
+        let last = store
+            .append(
+                root_pin(),
+                genesis,
+                NewPolicyEvent::Revoke(&signed_revocation(4, 33, 4)),
+            )
+            .unwrap();
         assert_eq!(last.sequence, 4);
-        assert_eq!(last.owner_public_key, SigningKey::from_bytes(&[33; 32])
-            .verifying_key().to_bytes());
+        assert_eq!(
+            last.owner_public_key,
+            SigningKey::from_bytes(&[33; 32]).verifying_key().to_bytes()
+        );
         assert!(last.admission_paused);
         let outbox = store.pending_outbox().unwrap();
-        assert_eq!(outbox.iter().map(|e| e.kind).collect::<Vec<_>>(),
-            vec![KIND_REVOKE, KIND_CANCEL, KIND_TRANSFER, KIND_REVOKE]);
-        assert_eq!(outbox.iter().map(|e| e.sequence).collect::<Vec<_>>(),
-            vec![1, 2, 3, 4]);
+        assert_eq!(
+            outbox.iter().map(|e| e.kind).collect::<Vec<_>>(),
+            vec![KIND_REVOKE, KIND_CANCEL, KIND_TRANSFER, KIND_REVOKE]
+        );
+        assert_eq!(
+            outbox.iter().map(|e| e.sequence).collect::<Vec<_>>(),
+            vec![1, 2, 3, 4]
+        );
         drop(store);
         let restored = db.open();
         assert_eq!(restored.inspect(root_pin(), genesis).unwrap(), last);
@@ -599,17 +703,25 @@ mod tests {
         let db = TempDb::new();
         let store = db.open();
         let genesis = trusted_genesis();
-        store.append(root_pin(), genesis, NewPolicyEvent::Revoke(
-            &signed_revocation(1, 11, 3),
-        )).unwrap();
+        store
+            .append(
+                root_pin(),
+                genesis,
+                NewPolicyEvent::Revoke(&signed_revocation(1, 11, 3)),
+            )
+            .unwrap();
         let cancellation = signed_cancellation(2);
-        store.append(root_pin(), genesis, NewPolicyEvent::Cancel(&cancellation)).unwrap();
+        store
+            .append(root_pin(), genesis, NewPolicyEvent::Cancel(&cancellation))
+            .unwrap();
         drop(store);
         let store = db.open();
         assert_eq!(
-            store.append(root_pin(), genesis, NewPolicyEvent::Revoke(
-                &signed_revocation(3, 11, 3),
-            )),
+            store.append(
+                root_pin(),
+                genesis,
+                NewPolicyEvent::Revoke(&signed_revocation(3, 11, 3),)
+            ),
             Err(StoreError::Conflict)
         );
         assert_eq!(store.inspect(root_pin(), genesis).unwrap().sequence, 2);
@@ -620,18 +732,26 @@ mod tests {
         let db = TempDb::new();
         let store = db.open();
         let genesis = trusted_genesis();
-        store.append(root_pin(), genesis, NewPolicyEvent::Revoke(
-            &signed_revocation(1, 11, 3),
-        )).unwrap();
+        store
+            .append(
+                root_pin(),
+                genesis,
+                NewPolicyEvent::Revoke(&signed_revocation(1, 11, 3)),
+            )
+            .unwrap();
         drop(store);
         let conn = Connection::open(&db.0).unwrap();
         conn.execute(
             "UPDATE unified_policy_events SET evidence=?1 WHERE seq=1",
             [b"valid BLOB type, invalid signatures".as_slice()],
-        ).unwrap();
+        )
+        .unwrap();
         drop(conn);
         let reopened = db.open();
-        assert_eq!(reopened.inspect(root_pin(), genesis), Err(StoreError::Conflict));
+        assert_eq!(
+            reopened.inspect(root_pin(), genesis),
+            Err(StoreError::Conflict)
+        );
     }
 
     #[test]
@@ -643,28 +763,44 @@ mod tests {
         conn.execute_batch(
             "CREATE TRIGGER reject_outbox BEFORE INSERT ON unified_policy_outbox
              BEGIN SELECT RAISE(ABORT, 'simulated-full-disk'); END;",
-        ).unwrap();
+        )
+        .unwrap();
         drop(conn);
         assert_eq!(
-            store.append(root_pin(), genesis, NewPolicyEvent::Revoke(
-                &signed_revocation(1, 11, 3),
-            )),
+            store.append(
+                root_pin(),
+                genesis,
+                NewPolicyEvent::Revoke(&signed_revocation(1, 11, 3),)
+            ),
             Err(StoreError::PersistenceFailure)
         );
         assert_eq!(store.inspect(root_pin(), genesis).unwrap().sequence, 0);
         assert!(store.pending_outbox().unwrap().is_empty());
         let conn = Connection::open(&db.0).unwrap();
-        for name in ["unified_policy_events", "unified_policy_cursor",
-                     "unified_policy_audit", "unified_policy_outbox"] {
+        for name in [
+            "unified_policy_events",
+            "unified_policy_cursor",
+            "unified_policy_audit",
+            "unified_policy_outbox",
+        ] {
             let sql = format!("SELECT COUNT(*) FROM {name}");
-            assert_eq!(conn.query_row(&sql, [], |row| row.get::<_, i64>(0)).unwrap(), 0);
+            assert_eq!(
+                conn.query_row(&sql, [], |row| row.get::<_, i64>(0))
+                    .unwrap(),
+                0
+            );
         }
         conn.execute_batch("DROP TRIGGER reject_outbox").unwrap();
         drop(conn);
         assert_eq!(
-            store.append(root_pin(), genesis, NewPolicyEvent::Revoke(
-                &signed_revocation(1, 11, 3),
-            )).unwrap().sequence,
+            store
+                .append(
+                    root_pin(),
+                    genesis,
+                    NewPolicyEvent::Revoke(&signed_revocation(1, 11, 3),)
+                )
+                .unwrap()
+                .sequence,
             1,
         );
     }
@@ -683,9 +819,18 @@ mod tests {
                 db.append(root_pin(), genesis, NewPolicyEvent::Revoke(&proof))
             }));
         }
-        let results: Vec<_> = handles.into_iter().map(|thread| thread.join().unwrap()).collect();
+        let results: Vec<_> = handles
+            .into_iter()
+            .map(|thread| thread.join().unwrap())
+            .collect();
         assert_eq!(results.iter().filter(|r| r.is_ok()).count(), 1);
-        assert_eq!(results.iter().filter(|r| **r == Err(StoreError::Conflict)).count(), 5);
+        assert_eq!(
+            results
+                .iter()
+                .filter(|r| **r == Err(StoreError::Conflict))
+                .count(),
+            5
+        );
         assert_eq!(store.pending_outbox().unwrap().len(), 1);
         assert_eq!(store.inspect(root_pin(), genesis).unwrap().sequence, 1);
     }
@@ -696,8 +841,7 @@ mod tests {
         let store = db.open();
         let genesis = trusted_genesis();
         let mut impostor = root_pin();
-        impostor.public_key = SigningKey::from_bytes(&[99; 32])
-            .verifying_key().to_bytes();
+        impostor.public_key = SigningKey::from_bytes(&[99; 32]).verifying_key().to_bytes();
         assert_eq!(store.inspect(impostor, genesis), Err(StoreError::Conflict));
         assert!(store.pending_outbox().unwrap().is_empty());
     }
@@ -712,9 +856,14 @@ mod tests {
         let mut forged = signed_manifest(33, 4);
         forged.signature[7] ^= 1;
         assert_eq!(
-            store.append(root_pin(), genesis, NewPolicyEvent::Transfer {
-                transfer: &transfer, successor_manifest: &forged,
-            }),
+            store.append(
+                root_pin(),
+                genesis,
+                NewPolicyEvent::Transfer {
+                    transfer: &transfer,
+                    successor_manifest: &forged,
+                }
+            ),
             Err(StoreError::Conflict)
         );
         assert_eq!(store.inspect(root_pin(), genesis).unwrap().sequence, 0);

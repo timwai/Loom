@@ -387,6 +387,16 @@ mod tests {
         let a = Fixture::new(1);
         let b = Fixture::new(4);
         let (left, right) = duplex(16384);
+        let client_ledger = StrictLedger {
+                peer: b.peer_id,
+                space: space(),
+                epoch: b.epoch,
+            };
+        let server_ledger = StrictLedger {
+                peer: a.peer_id,
+                space: space(),
+                epoch: a.epoch,
+            };
         let client = connect(
             left,
             a.identity(),
@@ -394,11 +404,7 @@ mod tests {
                 expected_remote: b.pinned(),
                 space_id: space(),
             },
-            &StrictLedger {
-                peer: b.peer_id,
-                space: space(),
-                epoch: b.epoch,
-            },
+            &client_ledger,
         );
         let server = accept(
             right,
@@ -407,11 +413,7 @@ mod tests {
                 expected_remote: a.pinned(),
                 space_id: space(),
             },
-            &StrictLedger {
-                peer: a.peer_id,
-                space: space(),
-                epoch: a.epoch,
-            },
+            &server_ledger,
         );
         let (client, server) = timeout(Duration::from_secs(5), async {
             tokio::join!(client, server)
@@ -437,6 +439,16 @@ mod tests {
         let a = Fixture::new(2);
         let b = Fixture::new(3);
         let (left, right) = duplex(16384);
+        let client_ledger = StrictLedger {
+                peer: b.peer_id,
+                space: space(),
+                epoch: b.epoch,
+            };
+        let server_ledger = StrictLedger {
+                peer: a.peer_id,
+                space: SpaceId::from_bytes([7; 16]),
+                epoch: a.epoch,
+            };
         let client = connect(
             left,
             a.identity(),
@@ -444,11 +456,7 @@ mod tests {
                 expected_remote: b.pinned(),
                 space_id: space(),
             },
-            &StrictLedger {
-                peer: b.peer_id,
-                space: space(),
-                epoch: b.epoch,
-            },
+            &client_ledger,
         );
         let server = accept(
             right,
@@ -457,11 +465,7 @@ mod tests {
                 expected_remote: a.pinned(),
                 space_id: SpaceId::from_bytes([7; 16]),
             },
-            &StrictLedger {
-                peer: a.peer_id,
-                space: SpaceId::from_bytes([7; 16]),
-                epoch: a.epoch,
-            },
+            &server_ledger,
         );
         let (client, server) = timeout(Duration::from_secs(5), async {
             tokio::join!(client, server)
@@ -478,6 +482,16 @@ mod tests {
         let b = Fixture::new(1);
         let impostor = Fixture::new(1);
         let (left, right) = duplex(16384);
+        let client_ledger = StrictLedger {
+                peer: b.peer_id,
+                space: space(),
+                epoch: b.epoch,
+            };
+        let server_ledger = StrictLedger {
+                peer: a.peer_id,
+                space: space(),
+                epoch: a.epoch,
+            };
         let client = connect(
             left,
             a.identity(),
@@ -485,11 +499,7 @@ mod tests {
                 expected_remote: b.pinned(),
                 space_id: space(),
             },
-            &StrictLedger {
-                peer: b.peer_id,
-                space: space(),
-                epoch: b.epoch,
-            },
+            &client_ledger,
         );
         let server = accept(
             right,
@@ -498,11 +508,7 @@ mod tests {
                 expected_remote: a.pinned(),
                 space_id: space(),
             },
-            &StrictLedger {
-                peer: a.peer_id,
-                space: space(),
-                epoch: a.epoch,
-            },
+            &server_ledger,
         );
         let (client, _) = timeout(Duration::from_secs(5), async {
             tokio::join!(client, server)
@@ -517,6 +523,16 @@ mod tests {
         let a = Fixture::new(1);
         let b = Fixture::new(4);
         let (left, right) = duplex(16384);
+        let client_ledger = StrictLedger {
+                peer: b.peer_id,
+                space: space(),
+                epoch: b.epoch + 1,
+            };
+        let server_ledger = StrictLedger {
+                peer: a.peer_id,
+                space: space(),
+                epoch: a.epoch,
+            };
         let client = connect(
             left,
             a.identity(),
@@ -524,11 +540,7 @@ mod tests {
                 expected_remote: b.pinned(),
                 space_id: space(),
             },
-            &StrictLedger {
-                peer: b.peer_id,
-                space: space(),
-                epoch: b.epoch + 1,
-            },
+            &client_ledger,
         );
         let server = accept(
             right,
@@ -537,11 +549,7 @@ mod tests {
                 expected_remote: a.pinned(),
                 space_id: space(),
             },
-            &StrictLedger {
-                peer: a.peer_id,
-                space: space(),
-                epoch: a.epoch,
-            },
+            &server_ledger,
         );
         let (client, _) = timeout(Duration::from_secs(5), async {
             tokio::join!(client, server)
@@ -585,6 +593,16 @@ mod tests {
             };
             tokio::join!(forward, reverse);
         });
+        let client_ledger = StrictLedger {
+                peer: b.peer_id,
+                space: space(),
+                epoch: b.epoch,
+            };
+        let server_ledger = StrictLedger {
+                peer: a.peer_id,
+                space: space(),
+                epoch: a.epoch,
+            };
         let client = connect(
             client_end,
             a.identity(),
@@ -592,11 +610,7 @@ mod tests {
                 expected_remote: b.pinned(),
                 space_id: space(),
             },
-            &StrictLedger {
-                peer: b.peer_id,
-                space: space(),
-                epoch: b.epoch,
-            },
+            &client_ledger,
         );
         let server = accept(
             server_end,
@@ -605,11 +619,7 @@ mod tests {
                 expected_remote: a.pinned(),
                 space_id: space(),
             },
-            &StrictLedger {
-                peer: a.peer_id,
-                space: space(),
-                epoch: a.epoch,
-            },
+            &server_ledger,
         );
         let (client, server) = timeout(Duration::from_secs(5), async {
             tokio::join!(client, server)

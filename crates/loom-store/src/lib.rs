@@ -70,3 +70,6 @@ pub mod unified_policy_anchor;
 
 /// Strict read-only audit of incompatible legacy revocation-only tables.
 pub mod legacy_migration;
+
+/// Read-only signed legacy evidence inspection; no automatic schema conversion.
+pub mod legacy_history_audit;

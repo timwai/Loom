@@ -12,6 +12,7 @@ pub use crate::policy_journal_codec::NewPolicyEvent;
 use crate::policy_journal_codec::{MAX_EVIDENCE, encode_event, replay_event};
 use loom_crypto::owner_lifecycle::ResourceOwnerLifecycle;
 use loom_crypto::space_trust::{ExternallyPinnedRootForSpike, VerifiedResourceTrust};
+#[cfg(test)]
 use loom_types::{ResourceId, SpaceId};
 use rusqlite::{Connection, OptionalExtension, Transaction, TransactionBehavior, params};
 use std::path::PathBuf;

@@ -172,3 +172,272 @@ pub fn audit_single_resource_legacy(
         requires_external_rewitness: true,
     })
 }
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ed25519_dalek::{Signer, SigningKey};
+    use loom_crypto::owner_authority::{
+        issuer_key_id, verify_owner_delegated_revocation_for_spike,
+    };
+    use loom_crypto::space_trust::{
+        ResourceTrustManifest, SignedResourceTrust, trust_manifest_transcript,
+        verify_resource_trust_for_spike,
+    };
+    use loom_wire::security_event::{
+        CanonicalSecurityEvent, EventKind, encode_security_event, signing_input,
+    };
+    use loom_types::{ResourceId, SpaceId};
+
+    fn trust() -> (ExternallyPinnedRootForSpike, VerifiedResourceTrust) {
+        let root_key = SigningKey::from_bytes(&[30; 32]);
+        let owner_key = SigningKey::from_bytes(&[11; 32]);
+        let witness_a = SigningKey::from_bytes(&[21; 32]);
+        let witness_b = SigningKey::from_bytes(&[22; 32]);
+        let root = ExternallyPinnedRootForSpike {
+            space: SpaceId::from_bytes([1; 16]),
+            public_key: root_key.verifying_key().to_bytes(),
+            key_epoch: 7,
+        };
+        let manifest = ResourceTrustManifest {
+            space: root.space,
+            resource: ResourceId::from_bytes([2; 16]),
+            owner_public_key: owner_key.verifying_key().to_bytes(),
+            owner_key_epoch: 3,
+            witness_public_keys: [
+                witness_a.verifying_key().to_bytes(),
+                witness_b.verifying_key().to_bytes(),
+            ],
+            writer_epoch: 1,
+            root_key_epoch: 7,
+            issued_at_ms: 100,
+            expires_at_ms: 300,
+        };
+        let signed = SignedResourceTrust {
+            manifest,
+            signature: root_key.sign(&trust_manifest_transcript(&manifest)).to_bytes(),
+        };
+        let verified = verify_resource_trust_for_spike(&root, &signed, 150).unwrap();
+        (root, verified)
+    }
+
+    fn signed_revoke(seq: u64) -> Vec<u8> {
+        let owner = SigningKey::from_bytes(&[11; 32]);
+        let delegate = SigningKey::from_bytes(&[12; 32]);
+        let delegate_pub = delegate.verifying_key().to_bytes();
+        let resource = ResourceId::from_bytes([2; 16]);
+        let space = SpaceId::from_bytes([1; 16]);
+        let mut grant_payload = resource.as_bytes().to_vec();
+        grant_payload.extend_from_slice(&delegate_pub);
+        grant_payload.extend_from_slice(&issuer_key_id(&delegate_pub));
+        grant_payload.push(1);
+        grant_payload.extend_from_slice(&4u64.to_be_bytes());
+        let grant = CanonicalSecurityEvent {
+            kind: EventKind::OwnerGrant,
+            space_id: *space.as_bytes(),
+            signer_key_id: issuer_key_id(&owner.verifying_key().to_bytes()),
+            issuer_epoch: 3,
+            issued_at_ms: 100,
+            expires_at_ms: 300,
+            seq: 1,
+            payload: grant_payload,
+        };
+        let mut revoke_payload = resource.as_bytes().to_vec();
+        revoke_payload.extend_from_slice(&[5; 32]);
+        revoke_payload.push(3);
+        let revoke = CanonicalSecurityEvent {
+            kind: EventKind::Revocation,
+            space_id: *space.as_bytes(),
+            signer_key_id: issuer_key_id(&delegate_pub),
+            issuer_epoch: 4,
+            issued_at_ms: 120,
+            expires_at_ms: 250,
+            seq,
+            payload: revoke_payload,
+        };
+        let grant_bytes = encode_security_event(&grant).unwrap();
+        let revoke_bytes = encode_security_event(&revoke).unwrap();
+        verify_owner_delegated_revocation_for_spike(
+            &trust().1.owner(),
+            &grant_bytes,
+            &owner.sign(&signing_input(&grant_bytes).unwrap()).to_bytes(),
+            &revoke_bytes,
+            &delegate.sign(&signing_input(&revoke_bytes).unwrap()).to_bytes(),
+            150,
+        ).unwrap().persistence_bytes()
+    }
+
+    fn legacy_db() -> Connection {
+        let connection = Connection::open_in_memory().unwrap();
+        connection.execute_batch(
+            "CREATE TABLE policy_versions(
+               space BLOB NOT NULL, resource BLOB NOT NULL, epoch INTEGER NOT NULL
+             );
+             CREATE TABLE revocations(
+               id INTEGER PRIMARY KEY,
+               space BLOB NOT NULL, resource BLOB NOT NULL,
+               epoch INTEGER NOT NULL, signed_event BLOB NOT NULL
+             );
+             CREATE TABLE critical_outbox(
+               id INTEGER PRIMARY KEY, revocation_id INTEGER NOT NULL,
+               epoch INTEGER NOT NULL, signed_event BLOB NOT NULL
+             );
+             CREATE TABLE security_audit(
+               id INTEGER PRIMARY KEY, revocation_id INTEGER NOT NULL, action TEXT NOT NULL
+             );",
+        ).unwrap();
+        connection
+    }
+
+    fn insert_one(conn: &Connection, seq: i64, evidence: &[u8]) {
+        conn.execute(
+            "INSERT INTO revocations(space,resource,epoch,signed_event)
+             VALUES(?1,?2,?3,?4)",
+            params![[1u8; 16].as_slice(), [2u8; 16].as_slice(), seq, evidence],
+        ).unwrap();
+        let id = conn.last_insert_rowid();
+        conn.execute(
+            "INSERT INTO critical_outbox(revocation_id,epoch,signed_event)
+             VALUES(?1,?2,?3)",
+            params![id, seq, evidence],
+        ).unwrap();
+        conn.execute(
+            "INSERT INTO security_audit(revocation_id,action) VALUES(?1,'revoke')",
+            params![id],
+        ).unwrap();
+    }
+
+    fn full_legacy() -> Connection {
+        let conn = legacy_db();
+        conn.execute(
+            "INSERT INTO policy_versions(space,resource,epoch)
+             VALUES(?1,?2,2)",
+            params![[1u8; 16].as_slice(), [2u8; 16].as_slice()],
+        ).unwrap();
+        insert_one(&conn, 1, &signed_revoke(1));
+        insert_one(&conn, 2, &signed_revoke(2));
+        conn
+    }
+
+    #[test]
+    fn two_signed_events_can_be_audited_but_cannot_authorize_migration() {
+        let mut conn = full_legacy();
+        let (root, genesis) = trust();
+        let before: i64 = conn.query_row(
+            "SELECT COUNT(*) FROM revocations", [], |row| row.get(0),
+        ).unwrap();
+        let report = audit_single_resource_legacy(&mut conn, &root, genesis).unwrap();
+        assert_eq!(report.legacy_epoch, 2);
+        assert!(report.requires_external_rewitness);
+        assert_eq!(report.legacy_revocation_root, report.candidate_unified_revocation_root);
+        assert_ne!(report.legacy_revocation_root, report.candidate_unified_policy_head);
+        let after: i64 = conn.query_row(
+            "SELECT COUNT(*) FROM revocations", [], |row| row.get(0),
+        ).unwrap();
+        assert_eq!(before, after);
+        let new_schema: i64 = conn.query_row(
+            "SELECT COUNT(*) FROM sqlite_master
+             WHERE type='table' AND name LIKE 'unified_policy_%'",
+            [], |row| row.get(0),
+        ).unwrap();
+        assert_eq!(new_schema, 0);
+    }
+
+    #[test]
+    fn wrong_root_or_owner_signed_evidence_blocks_audit() {
+        let mut conn = full_legacy();
+        let (mut root, genesis) = trust();
+        root.public_key = SigningKey::from_bytes(&[44; 32])
+            .verifying_key().to_bytes();
+        assert_eq!(
+            audit_single_resource_legacy(&mut conn, &root, genesis),
+            Err(StoreError::Conflict)
+        );
+        let (root, genesis) = trust();
+        conn.execute(
+            "UPDATE revocations SET signed_event=?1 WHERE epoch=2",
+            params![b"garbage".as_slice()],
+        ).unwrap();
+        conn.execute(
+            "UPDATE critical_outbox SET signed_event=?1 WHERE epoch=2",
+            params![b"garbage".as_slice()],
+        ).unwrap();
+        assert_eq!(
+            audit_single_resource_legacy(&mut conn, &root, genesis),
+            Err(StoreError::Conflict)
+        );
+    }
+
+    #[test]
+    fn audit_rejects_stale_outbox_and_missing_audit() {
+        let mut conn = full_legacy();
+        let (root, genesis) = trust();
+        conn.execute("UPDATE critical_outbox SET signed_event=?1 WHERE epoch=1",
+            params![b"wrong".as_slice()]).unwrap();
+        assert_eq!(
+            audit_single_resource_legacy(&mut conn, &root, genesis),
+            Err(StoreError::Conflict)
+        );
+        let mut conn = full_legacy();
+        conn.execute("DELETE FROM security_audit WHERE id=1", []).unwrap();
+        assert_eq!(
+            audit_single_resource_legacy(&mut conn, &root, genesis),
+            Err(StoreError::Conflict)
+        );
+    }
+
+    #[test]
+    fn sequence_gaps_rogue_resources_and_partial_schemas_refuse_audit() {
+        let (root, genesis) = trust();
+        let mut conn = full_legacy();
+        conn.execute("UPDATE revocations SET epoch=3 WHERE epoch=2", []).unwrap();
+        conn.execute("UPDATE critical_outbox SET epoch=3 WHERE epoch=2", []).unwrap();
+        assert_eq!(
+            audit_single_resource_legacy(&mut conn, &root, genesis),
+            Err(StoreError::Conflict)
+        );
+        let mut conn = full_legacy();
+        conn.execute(
+            "INSERT INTO policy_versions VALUES(?1,?2,1)",
+            params![[1u8; 16].as_slice(), [99u8; 16].as_slice()],
+        ).unwrap();
+        assert_eq!(
+            audit_single_resource_legacy(&mut conn, &root, genesis),
+            Err(StoreError::Conflict)
+        );
+        let mut conn = legacy_db();
+        conn.execute_batch("DROP TABLE security_audit").unwrap();
+        assert_eq!(
+            audit_single_resource_legacy(&mut conn, &root, genesis),
+            Err(StoreError::Conflict)
+        );
+    }
+
+    #[test]
+    fn nonempty_old_history_is_not_convertible_after_mixed_schema_creation() {
+        let (root, genesis) = trust();
+        let mut conn = full_legacy();
+        conn.execute_batch(
+            "CREATE TABLE unified_policy_events(dummy INTEGER);",
+        ).unwrap();
+        assert_eq!(
+            audit_single_resource_legacy(&mut conn, &root, genesis),
+            Err(StoreError::Conflict)
+        );
+    }
+
+    #[test]
+    fn legacy_zero_epoch_is_not_permission_to_reset_highwater() {
+        let (root, genesis) = trust();
+        let mut conn = legacy_db();
+        conn.execute(
+            "INSERT INTO policy_versions VALUES(?1,?2,0)",
+            params![[1u8; 16].as_slice(), [2u8; 16].as_slice()],
+        ).unwrap();
+        assert_eq!(
+            audit_single_resource_legacy(&mut conn, &root, genesis),
+            Err(StoreError::Conflict)
+        );
+    }
+}

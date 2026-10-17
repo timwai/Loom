@@ -11,6 +11,9 @@ use loom_crypto::owner_authority::{
 use loom_crypto::signed_revocation::VerifiedRevocation;
 use loom_crypto::space_trust::{VerifiedResourceTrust, verify_root_bound_witnesses};
 use loom_crypto::witness_checkpoint::SignedCheckpoint;
+use crate::rollback_anchor::{
+    HighWaterError, IndependentHighWaterAnchor, checked_high_water_update,
+};
 use loom_crypto::witness_checkpoint::{VerifiedWitnessCheckpoint, append_revocation_root};
 use loom_types::{ResourceId, SpaceId};
 use rusqlite::{Connection, OptionalExtension, TransactionBehavior, params};
@@ -229,6 +232,57 @@ impl SqliteRevocationStore {
             RecoveryAssessment::CandidateConsistent
         };
         Ok(assessment)
+    }
+
+    /// Extends Root/Owner/witness/history verification with an *external*
+    /// high-water comparison and atomic durable CAS. This still returns only
+    /// diagnostics and never creates a production admission permit.
+    pub fn inspect_root_recovery_with_anchor(
+        &self,
+        trust: &VerifiedResourceTrust,
+        receipts: &[SignedCheckpoint],
+        now_ms: u64,
+        anchor: &dyn IndependentHighWaterAnchor,
+    ) -> Result<RecoveryAssessment, StoreError> {
+        let mut gate = self.gate.lock().map_err(|_| StoreError::PersistenceFailure)?;
+        gate.pause();
+        let verified = verify_root_bound_witnesses(trust, receipts, now_ms)
+            .map_err(|_| StoreError::Conflict)?;
+        let cp = verified.checkpoint();
+        let (send, recv) = mpsc::channel();
+        self.tx.as_ref().ok_or(StoreError::PersistenceFailure)?
+            .send(Command::RootReplaySnapshot(
+                cp.space, cp.resource, trust.owner(), send,
+            ))
+            .map_err(|_| StoreError::PersistenceFailure)?;
+        let local = recv.recv().map_err(|_| StoreError::PersistenceFailure)??;
+        if local.seq < cp.seq {
+            return Ok(RecoveryAssessment::RollbackDetected);
+        }
+        if local.seq > cp.seq {
+            return Ok(RecoveryAssessment::WitnessBehind);
+        }
+        if local.root != cp.revocation_root || local.root != cp.head_hash {
+            return Ok(RecoveryAssessment::HistoryDiverged);
+        }
+
+        // An anchor can NEVER be silently initialized from this DB snapshot.
+        let previous = anchor.read(cp.space, cp.resource)
+            .map_err(|_| StoreError::PersistenceFailure)?;
+        let next = checked_high_water_update(trust, cp, previous, now_ms)
+            .map_err(|error| match error {
+                HighWaterError::Rollback
+                | HighWaterError::Divergence
+                | HighWaterError::RootOrManifestMismatch
+                | HighWaterError::EpochMismatch
+                | HighWaterError::ExpiredManifest => StoreError::Conflict,
+                _ => StoreError::PersistenceFailure,
+            })?;
+        // A failed/uncertain independent flush cannot be acknowledged as
+        // candidate-consistent. The admission lock is still held.
+        anchor.compare_and_advance(previous, next)
+            .map_err(|_| StoreError::PersistenceFailure)?;
+        Ok(RecoveryAssessment::CandidateConsistent)
     }
 
     #[cfg(test)]
@@ -979,6 +1033,90 @@ mod tests {
         })
     }
 
+    struct TestIndependentAnchor {
+        record: std::sync::Mutex<crate::rollback_anchor::HighWaterRecord>,
+        fail_write: bool,
+    }
+
+    impl crate::rollback_anchor::IndependentHighWaterAnchor for TestIndependentAnchor {
+        fn read(
+            &self,
+            _space: SpaceId,
+            _resource: ResourceId,
+        ) -> Result<crate::rollback_anchor::HighWaterRecord, crate::rollback_anchor::HighWaterError> {
+            Ok(*self.record.lock().unwrap())
+        }
+
+        fn compare_and_advance(
+            &self,
+            expected: crate::rollback_anchor::HighWaterRecord,
+            next: crate::rollback_anchor::HighWaterRecord,
+        ) -> Result<(), crate::rollback_anchor::HighWaterError> {
+            use crate::rollback_anchor::HighWaterError;
+            if self.fail_write {
+                return Err(HighWaterError::PersistenceUncertain);
+            }
+            let mut record = self.record.lock().unwrap();
+            if *record != expected {
+                return Err(HighWaterError::CompareAndSwapConflict);
+            }
+            *record = next;
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn anchor_storage_failure_never_returns_success_or_opens_access() {
+        use crate::rollback_anchor::HighWaterRecord;
+        let trust = root_trust_fixture();
+        let db = TempDb::new();
+        let store = db.open();
+        let witness = root_signed_receipts(&trust, 0, [0; 32]);
+        let anchor = TestIndependentAnchor {
+            record: std::sync::Mutex::new(HighWaterRecord::initial(&trust)),
+            fail_write: true,
+        };
+        assert_eq!(
+            store.inspect_root_recovery_with_anchor(&trust, &witness, 150, &anchor),
+            Err(StoreError::PersistenceFailure)
+        );
+        assert_eq!(store.admission_state(), AdmissionState::Paused);
+        assert_eq!(anchor.record.lock().unwrap().seq, 0);
+    }
+
+    #[test]
+    fn absent_external_anchor_fails_closed_even_with_empty_database() {
+        use crate::rollback_anchor::{
+            HighWaterError, HighWaterRecord, IndependentHighWaterAnchor,
+        };
+        struct Missing;
+        impl IndependentHighWaterAnchor for Missing {
+            fn read(
+                &self,
+                _space: SpaceId,
+                _resource: ResourceId,
+            ) -> Result<HighWaterRecord, HighWaterError> {
+                Err(HighWaterError::MissingIndependentAnchor)
+            }
+            fn compare_and_advance(
+                &self,
+                _expected: HighWaterRecord,
+                _next: HighWaterRecord,
+            ) -> Result<(), HighWaterError> {
+                Err(HighWaterError::Unavailable)
+            }
+        }
+        let trust = root_trust_fixture();
+        let db = TempDb::new();
+        let store = db.open();
+        let witness = root_signed_receipts(&trust, 0, [0; 32]);
+        assert_eq!(
+            store.inspect_root_recovery_with_anchor(&trust, &witness, 150, &Missing),
+            Err(StoreError::PersistenceFailure)
+        );
+        assert_eq!(store.admission_state(), AdmissionState::Paused);
+    }
+
     #[test]
     fn existing_unanchored_ingress_is_test_only_and_cannot_override_root() {
         let db = TempDb::new();
@@ -1124,6 +1262,17 @@ mod tests {
         assert_eq!(persisted[0].signed_event, proof.persistence_bytes());
         let root_hash = append_revocation_root([0; 32], 1, &proof.persistence_bytes()).unwrap();
         let receipts = root_signed_receipts(&trust, 1, root_hash);
+        let anchor = TestIndependentAnchor {
+            record: std::sync::Mutex::new(
+                crate::rollback_anchor::HighWaterRecord::initial(&trust),
+            ),
+            fail_write: false,
+        };
+        assert_eq!(
+            store.inspect_root_recovery_with_anchor(&trust, &receipts, 150, &anchor).unwrap(),
+            RecoveryAssessment::CandidateConsistent
+        );
+        assert_eq!(anchor.record.lock().unwrap().seq, 1);
         assert_eq!(
             store
                 .inspect_root_bound_recovery(&trust, &receipts, 150)

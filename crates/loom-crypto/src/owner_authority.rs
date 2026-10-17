@@ -65,6 +65,26 @@ impl OwnerVerifiedRevocation {
         self.revocation.revoked_peer()
     }
 
+    /// Return the verified grant's delegate key identity for checking against
+    /// an ordered revocation/ownership lifecycle. The proof alone cannot tell
+    /// whether the delegate has subsequently been canceled.
+    pub fn delegated_identity(&self) -> Result<([u8; 32], u64), OwnerChainError> {
+        let grant = decode_security_event(&self.signed_delegation)
+            .map_err(|_| OwnerChainError::BadDelegation)?;
+        if grant.kind != EventKind::OwnerGrant || grant.payload.len() != DELEGATION_LEN {
+            return Err(OwnerChainError::BadDelegation);
+        }
+        let key_id: [u8; 32] = grant.payload[48..80]
+            .try_into()
+            .map_err(|_| OwnerChainError::BadDelegation)?;
+        let epoch = u64::from_be_bytes(
+            grant.payload[81..89]
+                .try_into()
+                .map_err(|_| OwnerChainError::BadDelegation)?,
+        );
+        Ok((key_id, epoch))
+    }
+
     /// Replay-verifiable evidence: versioned domain, signed grant and signed
     /// revoke event. Replay still requires independently trusted Owner pin.
     pub fn persistence_bytes(&self) -> Vec<u8> {

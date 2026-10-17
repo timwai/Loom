@@ -1,4 +1,4 @@
-//! Authenticated transport boundary. No QUIC listener or TLS implementation yet.
+//! Authenticated transport boundary. The secure-channel module remains an experimental PoC.
 //! A transport cannot assert authenticity merely because it is connected.
 
 use loom_identity::PeerPrincipal;
@@ -34,3 +34,6 @@ mod tests {
         );
     }
 }
+
+/// Experimental inner TLS 1.3 channel independent of an untrusted Relay bearer.
+pub mod secure_channel;

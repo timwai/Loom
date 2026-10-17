@@ -13,6 +13,7 @@ After TLS succeeds, each endpoint sends an **encrypted 98-byte association frame
 - Reject attempted server certificate substitution.
 - Reject mismatched membership/key epoch.
 - Untrusted forwarding Relay observes TLS bytes but cannot find known application plaintext in captured ciphertext.
+- Active Relay corrupting a TLS handshake record must fail before any channel is admitted.
 
 The last test is a **basic confidentiality smoke test**, not a cryptographic security proof. Future validation must include active alteration, replay, truncation, downgrade, malicious authorized peer, certificate rollover, real QUIC/TCP integration, revocation races, memory/CPU/latency and 1000 concurrent streams.
 

@@ -49,43 +49,56 @@ pub fn audit_single_resource_legacy(
         return Err(StoreError::Conflict);
     }
 
-    let tx = conn.transaction_with_behavior(TransactionBehavior::Deferred)
+    let tx = conn
+        .transaction_with_behavior(TransactionBehavior::Deferred)
         .map_err(|_| StoreError::PersistenceFailure)?;
     for table in LEGACY_REQUIRED {
-        let found: Option<i64> = tx.query_row(
-            "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?1",
-            params![table],
-            |row| row.get(0),
-        ).optional().map_err(|_| StoreError::PersistenceFailure)?;
+        let found: Option<i64> = tx
+            .query_row(
+                "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?1",
+                params![table],
+                |row| row.get(0),
+            )
+            .optional()
+            .map_err(|_| StoreError::PersistenceFailure)?;
         if found.is_none() {
             return Err(StoreError::Conflict);
         }
     }
     // A half-completed or forged coexistence of the two schema generations
     // is not an acceptable input for this single-resource audit.
-    let unified: i64 = tx.query_row(
-        "SELECT COUNT(*) FROM sqlite_master
+    let unified: i64 = tx
+        .query_row(
+            "SELECT COUNT(*) FROM sqlite_master
          WHERE type='table' AND name LIKE 'unified_policy_%'",
-        [], |row| row.get(0),
-    ).map_err(|_| StoreError::PersistenceFailure)?;
+            [],
+            |row| row.get(0),
+        )
+        .map_err(|_| StoreError::PersistenceFailure)?;
     if unified != 0 {
         return Err(StoreError::Conflict);
     }
 
     let space_id = genesis.space();
     let resource_id = genesis.resource();
-    let scope = [space_id.as_bytes().as_slice(), resource_id.as_bytes().as_slice()];
-    let versions: i64 = tx.query_row(
-        "SELECT COUNT(*) FROM policy_versions", [], |row| row.get(0),
-    ).map_err(|_| StoreError::PersistenceFailure)?;
+    let scope = [
+        space_id.as_bytes().as_slice(),
+        resource_id.as_bytes().as_slice(),
+    ];
+    let versions: i64 = tx
+        .query_row("SELECT COUNT(*) FROM policy_versions", [], |row| row.get(0))
+        .map_err(|_| StoreError::PersistenceFailure)?;
     if versions != 1 {
         return Err(StoreError::Conflict);
     }
-    let current: Option<i64> = tx.query_row(
-        "SELECT epoch FROM policy_versions WHERE space=?1 AND resource=?2",
-        params![scope[0], scope[1]],
-        |row| row.get(0),
-    ).optional().map_err(|_| StoreError::PersistenceFailure)?;
+    let current: Option<i64> = tx
+        .query_row(
+            "SELECT epoch FROM policy_versions WHERE space=?1 AND resource=?2",
+            params![scope[0], scope[1]],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(|_| StoreError::PersistenceFailure)?;
     let current = current.ok_or(StoreError::Conflict)?;
     let epoch = u64::try_from(current).map_err(|_| StoreError::Conflict)?;
     if epoch == 0 || epoch > MAX_AUDIT_EVENTS {
@@ -100,57 +113,72 @@ pub fn audit_single_resource_legacy(
         ("security_audit", "SELECT COUNT(*) FROM security_audit"),
     ];
     for (_, query) in counts {
-        let n: i64 = tx.query_row(query, [], |row| row.get(0))
+        let n: i64 = tx
+            .query_row(query, [], |row| row.get(0))
             .map_err(|_| StoreError::PersistenceFailure)?;
         if u64::try_from(n).map_err(|_| StoreError::Conflict)? != epoch {
             return Err(StoreError::Conflict);
         }
     }
 
-    let mut stmt = tx.prepare(
-        "SELECT r.epoch,r.signed_event,o.epoch,o.signed_event,a.action
+    let mut stmt = tx
+        .prepare(
+            "SELECT r.epoch,r.signed_event,o.epoch,o.signed_event,a.action
          FROM revocations r
          LEFT JOIN critical_outbox o ON o.revocation_id=r.id
          LEFT JOIN security_audit a ON a.revocation_id=r.id
          WHERE r.space=?1 AND r.resource=?2
          ORDER BY r.epoch",
-    ).map_err(|_| StoreError::PersistenceFailure)?;
-    let rows = stmt.query_map(params![scope[0], scope[1]], |row| {
-        let rev_epoch: i64 = row.get(0)?;
-        let evidence: Vec<u8> = row.get(1)?;
-        let outbox_epoch: Option<i64> = row.get(2)?;
-        let outbox_evidence: Option<Vec<u8>> = row.get(3)?;
-        let audit_action: Option<String> = row.get(4)?;
-        Ok((rev_epoch,evidence,outbox_epoch,outbox_evidence,audit_action))
-    }).map_err(|_| StoreError::PersistenceFailure)?;
+        )
+        .map_err(|_| StoreError::PersistenceFailure)?;
+    let rows = stmt
+        .query_map(params![scope[0], scope[1]], |row| {
+            let rev_epoch: i64 = row.get(0)?;
+            let evidence: Vec<u8> = row.get(1)?;
+            let outbox_epoch: Option<i64> = row.get(2)?;
+            let outbox_evidence: Option<Vec<u8>> = row.get(3)?;
+            let audit_action: Option<String> = row.get(4)?;
+            Ok((
+                rev_epoch,
+                evidence,
+                outbox_epoch,
+                outbox_evidence,
+                audit_action,
+            ))
+        })
+        .map_err(|_| StoreError::PersistenceFailure)?;
 
     let mut state = ResourceOwnerLifecycle::from_genesis(genesis);
     let mut old_root = [0u8; 32];
     let mut new_revocation_root = [0u8; 32];
 
     for row in rows {
-        let (rev_epoch,evidence,out_epoch,out_event,action) =
+        let (rev_epoch, evidence, out_epoch, out_event, action) =
             row.map_err(|_| StoreError::PersistenceFailure)?;
         let seq = u64::try_from(rev_epoch).map_err(|_| StoreError::Conflict)?;
-        if seq != state.sequence().checked_add(1).ok_or(StoreError::Conflict)?
+        if seq
+            != state
+                .sequence()
+                .checked_add(1)
+                .ok_or(StoreError::Conflict)?
             || out_epoch != Some(rev_epoch)
             || out_event.as_deref() != Some(evidence.as_slice())
             || action.as_deref() != Some("revoke")
         {
             return Err(StoreError::Conflict);
         }
-        let proof = replay_persisted_owner_revocation_for_spike(
-            &state.current_owner(), &evidence,
-        ).map_err(|_| StoreError::Conflict)?;
+        let proof = replay_persisted_owner_revocation_for_spike(&state.current_owner(), &evidence)
+            .map_err(|_| StoreError::Conflict)?;
         if proof.seq() != seq
             || proof.space_id() != genesis.space()
             || proof.resource_id() != genesis.resource()
         {
             return Err(StoreError::Conflict);
         }
-        state.apply_delegated_revocation(&proof).map_err(|_| StoreError::Conflict)?;
-        old_root = append_revocation_root(old_root, seq, &evidence)
-            .ok_or(StoreError::Conflict)?;
+        state
+            .apply_delegated_revocation(&proof)
+            .map_err(|_| StoreError::Conflict)?;
+        old_root = append_revocation_root(old_root, seq, &evidence).ok_or(StoreError::Conflict)?;
         // A new policy chain has a different hash domain. The legacy epoch
         // is not itself a signed unified policy checkpoint.
         new_revocation_root = append_revocation_root(new_revocation_root, seq, &evidence)
@@ -173,7 +201,6 @@ pub fn audit_single_resource_legacy(
     })
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -185,10 +212,10 @@ mod tests {
         ResourceTrustManifest, SignedResourceTrust, trust_manifest_transcript,
         verify_resource_trust_for_spike,
     };
+    use loom_types::{ResourceId, SpaceId};
     use loom_wire::security_event::{
         CanonicalSecurityEvent, EventKind, encode_security_event, signing_input,
     };
-    use loom_types::{ResourceId, SpaceId};
 
     fn trust() -> (ExternallyPinnedRootForSpike, VerifiedResourceTrust) {
         let root_key = SigningKey::from_bytes(&[30; 32]);
@@ -216,7 +243,9 @@ mod tests {
         };
         let signed = SignedResourceTrust {
             manifest,
-            signature: root_key.sign(&trust_manifest_transcript(&manifest)).to_bytes(),
+            signature: root_key
+                .sign(&trust_manifest_transcript(&manifest))
+                .to_bytes(),
         };
         let verified = verify_resource_trust_for_spike(&root, &signed, 150).unwrap();
         (root, verified)
@@ -263,15 +292,20 @@ mod tests {
             &grant_bytes,
             &owner.sign(&signing_input(&grant_bytes).unwrap()).to_bytes(),
             &revoke_bytes,
-            &delegate.sign(&signing_input(&revoke_bytes).unwrap()).to_bytes(),
+            &delegate
+                .sign(&signing_input(&revoke_bytes).unwrap())
+                .to_bytes(),
             150,
-        ).unwrap().persistence_bytes()
+        )
+        .unwrap()
+        .persistence_bytes()
     }
 
     fn legacy_db() -> Connection {
         let connection = Connection::open_in_memory().unwrap();
-        connection.execute_batch(
-            "CREATE TABLE policy_versions(
+        connection
+            .execute_batch(
+                "CREATE TABLE policy_versions(
                space BLOB NOT NULL, resource BLOB NOT NULL, epoch INTEGER NOT NULL
              );
              CREATE TABLE revocations(
@@ -286,7 +320,8 @@ mod tests {
              CREATE TABLE security_audit(
                id INTEGER PRIMARY KEY, revocation_id INTEGER NOT NULL, action TEXT NOT NULL
              );",
-        ).unwrap();
+            )
+            .unwrap();
         connection
     }
 
@@ -295,17 +330,20 @@ mod tests {
             "INSERT INTO revocations(space,resource,epoch,signed_event)
              VALUES(?1,?2,?3,?4)",
             params![[1u8; 16].as_slice(), [2u8; 16].as_slice(), seq, evidence],
-        ).unwrap();
+        )
+        .unwrap();
         let id = conn.last_insert_rowid();
         conn.execute(
             "INSERT INTO critical_outbox(revocation_id,epoch,signed_event)
              VALUES(?1,?2,?3)",
             params![id, seq, evidence],
-        ).unwrap();
+        )
+        .unwrap();
         conn.execute(
             "INSERT INTO security_audit(revocation_id,action) VALUES(?1,'revoke')",
             params![id],
-        ).unwrap();
+        )
+        .unwrap();
     }
 
     fn full_legacy() -> Connection {
@@ -314,7 +352,8 @@ mod tests {
             "INSERT INTO policy_versions(space,resource,epoch)
              VALUES(?1,?2,2)",
             params![[1u8; 16].as_slice(), [2u8; 16].as_slice()],
-        ).unwrap();
+        )
+        .unwrap();
         insert_one(&conn, 1, &signed_revoke(1));
         insert_one(&conn, 2, &signed_revoke(2));
         conn
@@ -324,23 +363,32 @@ mod tests {
     fn two_signed_events_can_be_audited_but_cannot_authorize_migration() {
         let mut conn = full_legacy();
         let (root, genesis) = trust();
-        let before: i64 = conn.query_row(
-            "SELECT COUNT(*) FROM revocations", [], |row| row.get(0),
-        ).unwrap();
+        let before: i64 = conn
+            .query_row("SELECT COUNT(*) FROM revocations", [], |row| row.get(0))
+            .unwrap();
         let report = audit_single_resource_legacy(&mut conn, &root, genesis).unwrap();
         assert_eq!(report.legacy_epoch, 2);
         assert!(report.requires_external_rewitness);
-        assert_eq!(report.legacy_revocation_root, report.candidate_unified_revocation_root);
-        assert_ne!(report.legacy_revocation_root, report.candidate_unified_policy_head);
-        let after: i64 = conn.query_row(
-            "SELECT COUNT(*) FROM revocations", [], |row| row.get(0),
-        ).unwrap();
+        assert_eq!(
+            report.legacy_revocation_root,
+            report.candidate_unified_revocation_root
+        );
+        assert_ne!(
+            report.legacy_revocation_root,
+            report.candidate_unified_policy_head
+        );
+        let after: i64 = conn
+            .query_row("SELECT COUNT(*) FROM revocations", [], |row| row.get(0))
+            .unwrap();
         assert_eq!(before, after);
-        let new_schema: i64 = conn.query_row(
-            "SELECT COUNT(*) FROM sqlite_master
+        let new_schema: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_master
              WHERE type='table' AND name LIKE 'unified_policy_%'",
-            [], |row| row.get(0),
-        ).unwrap();
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
         assert_eq!(new_schema, 0);
     }
 
@@ -348,8 +396,7 @@ mod tests {
     fn wrong_root_or_owner_signed_evidence_blocks_audit() {
         let mut conn = full_legacy();
         let (mut root, genesis) = trust();
-        root.public_key = SigningKey::from_bytes(&[44; 32])
-            .verifying_key().to_bytes();
+        root.public_key = SigningKey::from_bytes(&[44; 32]).verifying_key().to_bytes();
         assert_eq!(
             audit_single_resource_legacy(&mut conn, &root, genesis),
             Err(StoreError::Conflict)
@@ -358,11 +405,13 @@ mod tests {
         conn.execute(
             "UPDATE revocations SET signed_event=?1 WHERE epoch=2",
             params![b"garbage".as_slice()],
-        ).unwrap();
+        )
+        .unwrap();
         conn.execute(
             "UPDATE critical_outbox SET signed_event=?1 WHERE epoch=2",
             params![b"garbage".as_slice()],
-        ).unwrap();
+        )
+        .unwrap();
         assert_eq!(
             audit_single_resource_legacy(&mut conn, &root, genesis),
             Err(StoreError::Conflict)
@@ -373,14 +422,18 @@ mod tests {
     fn audit_rejects_stale_outbox_and_missing_audit() {
         let mut conn = full_legacy();
         let (root, genesis) = trust();
-        conn.execute("UPDATE critical_outbox SET signed_event=?1 WHERE epoch=1",
-            params![b"wrong".as_slice()]).unwrap();
+        conn.execute(
+            "UPDATE critical_outbox SET signed_event=?1 WHERE epoch=1",
+            params![b"wrong".as_slice()],
+        )
+        .unwrap();
         assert_eq!(
             audit_single_resource_legacy(&mut conn, &root, genesis),
             Err(StoreError::Conflict)
         );
         let mut conn = full_legacy();
-        conn.execute("DELETE FROM security_audit WHERE id=1", []).unwrap();
+        conn.execute("DELETE FROM security_audit WHERE id=1", [])
+            .unwrap();
         assert_eq!(
             audit_single_resource_legacy(&mut conn, &root, genesis),
             Err(StoreError::Conflict)
@@ -391,8 +444,10 @@ mod tests {
     fn sequence_gaps_rogue_resources_and_partial_schemas_refuse_audit() {
         let (root, genesis) = trust();
         let mut conn = full_legacy();
-        conn.execute("UPDATE revocations SET epoch=3 WHERE epoch=2", []).unwrap();
-        conn.execute("UPDATE critical_outbox SET epoch=3 WHERE epoch=2", []).unwrap();
+        conn.execute("UPDATE revocations SET epoch=3 WHERE epoch=2", [])
+            .unwrap();
+        conn.execute("UPDATE critical_outbox SET epoch=3 WHERE epoch=2", [])
+            .unwrap();
         assert_eq!(
             audit_single_resource_legacy(&mut conn, &root, genesis),
             Err(StoreError::Conflict)
@@ -401,7 +456,8 @@ mod tests {
         conn.execute(
             "INSERT INTO policy_versions VALUES(?1,?2,1)",
             params![[1u8; 16].as_slice(), [99u8; 16].as_slice()],
-        ).unwrap();
+        )
+        .unwrap();
         assert_eq!(
             audit_single_resource_legacy(&mut conn, &root, genesis),
             Err(StoreError::Conflict)
@@ -418,9 +474,8 @@ mod tests {
     fn nonempty_old_history_is_not_convertible_after_mixed_schema_creation() {
         let (root, genesis) = trust();
         let mut conn = full_legacy();
-        conn.execute_batch(
-            "CREATE TABLE unified_policy_events(dummy INTEGER);",
-        ).unwrap();
+        conn.execute_batch("CREATE TABLE unified_policy_events(dummy INTEGER);")
+            .unwrap();
         assert_eq!(
             audit_single_resource_legacy(&mut conn, &root, genesis),
             Err(StoreError::Conflict)
@@ -434,7 +489,8 @@ mod tests {
         conn.execute(
             "INSERT INTO policy_versions VALUES(?1,?2,0)",
             params![[1u8; 16].as_slice(), [2u8; 16].as_slice()],
-        ).unwrap();
+        )
+        .unwrap();
         assert_eq!(
             audit_single_resource_legacy(&mut conn, &root, genesis),
             Err(StoreError::Conflict)

@@ -1,9 +1,9 @@
 //! L-001C experimental revocation persistence. No production ServiceOpen.
 //! The only admission helpers are test-only. ADR-20/21 are not yet accepted.
 
-use crate::{PolicyVersion, StoreError};
 #[cfg(test)]
 use crate::SecurityEventStore;
+use crate::{PolicyVersion, StoreError};
 use loom_crypto::signed_revocation::VerifiedRevocation;
 use loom_types::{ResourceId, SpaceId};
 use rusqlite::{Connection, OptionalExtension, TransactionBehavior, params};
@@ -191,11 +191,7 @@ impl SqliteRevocationStore {
     }
 
     /// Private commit primitive: callers cannot bypass signature verification.
-    fn commit_internal(
-        &self,
-        v: PolicyVersion,
-        event: &[u8],
-    ) -> Result<PolicyVersion, StoreError> {
+    fn commit_internal(&self, v: PolicyVersion, event: &[u8]) -> Result<PolicyVersion, StoreError> {
         if event.is_empty() || event.len() > MAX_EVENT_BYTES {
             return Err(StoreError::PersistenceFailure);
         }
@@ -593,7 +589,7 @@ mod tests {
     fn signed_revocation_must_match_expected_resource_and_sequence() {
         use ed25519_dalek::{Signer, SigningKey};
         use loom_crypto::signed_revocation::{
-            PinnedIssuerForSpike, verify_revocation_for_spike, VerifyEventError,
+            PinnedIssuerForSpike, VerifyEventError, verify_revocation_for_spike,
         };
         use loom_wire::security_event::{
             CanonicalSecurityEvent, EventKind, encode_security_event, signing_input,
@@ -620,8 +616,7 @@ mod tests {
         };
         let cbor = encode_security_event(&event).unwrap();
         let signature = signer.sign(&signing_input(&cbor).unwrap()).to_bytes();
-        let checked =
-            verify_revocation_for_spike(&cbor, &signature, &issuer, 150).unwrap();
+        let checked = verify_revocation_for_spike(&cbor, &signature, &issuer, 150).unwrap();
         assert_eq!(checked.seq(), 1);
         assert_eq!(
             verify_revocation_for_spike(&cbor, &signature, &issuer, 250).unwrap_err(),

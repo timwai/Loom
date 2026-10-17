@@ -160,16 +160,14 @@ pub fn verify_revocation_for_spike(
 mod tests {
     use super::*;
     use ed25519_dalek::{Signer, SigningKey};
-    use loom_wire::security_event::{encode_security_event, EventKind};
+    use loom_wire::security_event::{EventKind, encode_security_event};
 
     fn hex(content: &str) -> Vec<u8> {
         content
             .trim()
             .as_bytes()
             .chunks_exact(2)
-            .map(|pair| {
-                u8::from_str_radix(std::str::from_utf8(pair).unwrap(), 16).unwrap()
-            })
+            .map(|pair| u8::from_str_radix(std::str::from_utf8(pair).unwrap(), 16).unwrap())
             .collect()
     }
 

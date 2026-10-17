@@ -62,3 +62,6 @@ pub mod space_trust;
 
 /// Experimental two-key Root rollover; never a ServiceOpen authorization.
 pub mod root_rotation;
+
+/// Candidate ordered Owner transfer/delegation cancellation verifier (no ServiceOpen).
+pub mod owner_lifecycle;

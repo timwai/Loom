@@ -72,10 +72,9 @@ pub fn audit_single_resource_legacy(
         return Err(StoreError::Conflict);
     }
 
-    let scope = [
-        genesis.space().as_bytes().as_slice(),
-        genesis.resource().as_bytes().as_slice(),
-    ];
+    let space_id = genesis.space();
+    let resource_id = genesis.resource();
+    let scope = [space_id.as_bytes().as_slice(), resource_id.as_bytes().as_slice()];
     let versions: i64 = tx.query_row(
         "SELECT COUNT(*) FROM policy_versions", [], |row| row.get(0),
     ).map_err(|_| StoreError::PersistenceFailure)?;

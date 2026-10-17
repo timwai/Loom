@@ -603,7 +603,6 @@ mod tests {
         assert!(store.gate.lock().unwrap().permits.is_empty());
     }
 
-
     #[test]
     fn owner_delegated_revocation_must_match_db_resource_and_remain_paused_on_restart() {
         use ed25519_dalek::{Signer, SigningKey};
@@ -654,7 +653,9 @@ mod tests {
         let grant_bytes = encode_security_event(&grant).unwrap();
         let revoke_bytes = encode_security_event(&revoke).unwrap();
         let grant_sig = owner.sign(&signing_input(&grant_bytes).unwrap()).to_bytes();
-        let revoke_sig = delegate.sign(&signing_input(&revoke_bytes).unwrap()).to_bytes();
+        let revoke_sig = delegate
+            .sign(&signing_input(&revoke_bytes).unwrap())
+            .to_bytes();
         let proof = verify_owner_delegated_revocation_for_spike(
             &provisioned,
             &grant_bytes,
@@ -690,7 +691,10 @@ mod tests {
         let store = db.open();
         assert_eq!(store.admission_state(), AdmissionState::Paused);
         assert_eq!(store.persisted_epoch(v0()).unwrap(), 1);
-        assert_eq!(store.pending_outbox().unwrap()[0].signed_event, proof.persistence_bytes());
+        assert_eq!(
+            store.pending_outbox().unwrap()[0].signed_event,
+            proof.persistence_bytes()
+        );
     }
 
     #[test]
@@ -748,7 +752,9 @@ mod tests {
             store.commit_spike_revocation_for_test(wrong_seq, &checked),
             Err(StoreError::Conflict)
         );
-        let next = store.commit_spike_revocation_for_test(v0(), &checked).unwrap();
+        let next = store
+            .commit_spike_revocation_for_test(v0(), &checked)
+            .unwrap();
         assert_eq!(next.epoch, 1);
         let entries = store.pending_outbox().unwrap();
         assert_eq!(entries.len(), 1);

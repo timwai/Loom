@@ -241,6 +241,7 @@ dependencies = [
  "ed25519-dalek",
  "loom-types",
  "loom-wire",
+ "sha2",
 ]
 
 [[package]]

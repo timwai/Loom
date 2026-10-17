@@ -1,8 +1,8 @@
 //! Resource Owner -> signed revoke-only delegate -> signed revocation chain.
- //!
- //! SECURITY: the Owner anchor here is provisioned by a caller, not derived from
- //! an authenticated Space genesis / witness. This is an isolated PoC and
- //! NEVER creates a network permission or marks SQLite admission ready.
+//!
+//! SECURITY: the Owner anchor here is provisioned by a caller, not derived from
+//! an authenticated Space genesis / witness. This is an isolated PoC and
+//! NEVER creates a network permission or marks SQLite admission ready.
 
 use ed25519_dalek::{Signature, VerifyingKey};
 use loom_types::{PeerId, ResourceId, SpaceId};
@@ -109,8 +109,8 @@ pub fn verify_owner_delegated_revocation_for_spike(
     if owner.current_key_epoch == 0 {
         return Err(OwnerChainError::StaleOwnerKey);
     }
-    let event = decode_security_event(delegation_cbor)
-        .map_err(|_| OwnerChainError::BadDelegation)?;
+    let event =
+        decode_security_event(delegation_cbor).map_err(|_| OwnerChainError::BadDelegation)?;
     if event.kind != EventKind::OwnerGrant || event.seq == 0 {
         return Err(OwnerChainError::BadDelegation);
     }
@@ -181,13 +181,8 @@ pub fn verify_owner_delegated_revocation_for_spike(
     {
         return Err(OwnerChainError::DelegationExpired);
     }
-    let revocation = verify_revocation_for_spike(
-        revoke_cbor,
-        revoke_signature,
-        &delegate,
-        now_ms,
-    )
-    .map_err(OwnerChainError::BadRevocation)?;
+    let revocation = verify_revocation_for_spike(revoke_cbor, revoke_signature, &delegate, now_ms)
+        .map_err(OwnerChainError::BadRevocation)?;
     if revocation.resource_id() != owner.resource_id {
         return Err(OwnerChainError::ScopeMismatch);
     }
@@ -256,21 +251,35 @@ mod tests {
                 seq: 1,
                 payload,
             };
-            Self { owner, delegate, anchor, grant, revoke }
+            Self {
+                owner,
+                delegate,
+                anchor,
+                grant,
+                revoke,
+            }
         }
 
         fn signed(&self) -> (Vec<u8>, [u8; 64], Vec<u8>, [u8; 64]) {
             let grant = encode_security_event(&self.grant).unwrap();
             let revoke = encode_security_event(&self.revoke).unwrap();
             let gs = self.owner.sign(&signing_input(&grant).unwrap()).to_bytes();
-            let rs = self.delegate.sign(&signing_input(&revoke).unwrap()).to_bytes();
+            let rs = self
+                .delegate
+                .sign(&signing_input(&revoke).unwrap())
+                .to_bytes();
             (grant, gs, revoke, rs)
         }
 
         fn verify(&self) -> Result<OwnerVerifiedRevocation, OwnerChainError> {
             let (grant, gs, revoke, rs) = self.signed();
             verify_owner_delegated_revocation_for_spike(
-                &self.anchor, &grant, &gs, &revoke, &rs, 150,
+                &self.anchor,
+                &grant,
+                &gs,
+                &revoke,
+                &rs,
+                150,
             )
         }
     }
@@ -293,7 +302,12 @@ mod tests {
         gs[1] ^= 1;
         assert_eq!(
             verify_owner_delegated_revocation_for_spike(
-                &fixture.anchor, &grant, &gs, &revoke, &rs, 150,
+                &fixture.anchor,
+                &grant,
+                &gs,
+                &revoke,
+                &rs,
+                150,
             )
             .unwrap_err(),
             OwnerChainError::BadOwnerSignature
@@ -306,13 +320,22 @@ mod tests {
     fn cannot_increase_delegation_rights_or_cross_resource() {
         let mut fixture = Fixture::new();
         fixture.grant.payload[80] = 2;
-        assert_eq!(fixture.verify().unwrap_err(), OwnerChainError::UnauthorizedOperation);
+        assert_eq!(
+            fixture.verify().unwrap_err(),
+            OwnerChainError::UnauthorizedOperation
+        );
         let mut fixture = Fixture::new();
         fixture.revoke.payload[..16].copy_from_slice(&[8; 16]);
-        assert_eq!(fixture.verify().unwrap_err(), OwnerChainError::ScopeMismatch);
+        assert_eq!(
+            fixture.verify().unwrap_err(),
+            OwnerChainError::ScopeMismatch
+        );
         let mut fixture = Fixture::new();
         fixture.anchor.resource_id = ResourceId::from_bytes([9; 16]);
-        assert_eq!(fixture.verify().unwrap_err(), OwnerChainError::ScopeMismatch);
+        assert_eq!(
+            fixture.verify().unwrap_err(),
+            OwnerChainError::ScopeMismatch
+        );
     }
 
     #[test]
@@ -321,7 +344,12 @@ mod tests {
         let (grant, gs, revoke, rs) = fixture.signed();
         assert_eq!(
             verify_owner_delegated_revocation_for_spike(
-                &fixture.anchor, &grant, &gs, &revoke, &rs, 301,
+                &fixture.anchor,
+                &grant,
+                &gs,
+                &revoke,
+                &rs,
+                301,
             )
             .unwrap_err(),
             OwnerChainError::DelegationExpired
@@ -337,34 +365,55 @@ mod tests {
         );
         let mut fixture = Fixture::new();
         fixture.revoke.issuer_epoch = 5;
-        assert_eq!(fixture.verify().unwrap_err(), OwnerChainError::WrongDelegate);
+        assert_eq!(
+            fixture.verify().unwrap_err(),
+            OwnerChainError::WrongDelegate
+        );
         let mut fixture = Fixture::new();
         fixture.revoke.expires_at_ms = 400;
-        assert_eq!(fixture.verify().unwrap_err(), OwnerChainError::DelegationExpired);
+        assert_eq!(
+            fixture.verify().unwrap_err(),
+            OwnerChainError::DelegationExpired
+        );
     }
 
     #[test]
     fn grant_not_signed_for_different_space_or_key_id() {
         let mut fixture = Fixture::new();
         fixture.grant.space_id = [3; 16];
-        assert_eq!(fixture.verify().unwrap_err(), OwnerChainError::ScopeMismatch);
+        assert_eq!(
+            fixture.verify().unwrap_err(),
+            OwnerChainError::ScopeMismatch
+        );
         let mut fixture = Fixture::new();
         fixture.grant.signer_key_id = [6; 32];
-        assert_eq!(fixture.verify().unwrap_err(), OwnerChainError::BadOwnerSignature);
+        assert_eq!(
+            fixture.verify().unwrap_err(),
+            OwnerChainError::BadOwnerSignature
+        );
         let mut fixture = Fixture::new();
         fixture.grant.payload[48] ^= 1;
-        assert_eq!(fixture.verify().unwrap_err(), OwnerChainError::WrongDelegate);
+        assert_eq!(
+            fixture.verify().unwrap_err(),
+            OwnerChainError::WrongDelegate
+        );
     }
 
     #[test]
     fn no_replay_as_different_event_type() {
         let mut fixture = Fixture::new();
         fixture.grant.kind = EventKind::MembershipGrant;
-        assert_eq!(fixture.verify().unwrap_err(), OwnerChainError::BadDelegation);
+        assert_eq!(
+            fixture.verify().unwrap_err(),
+            OwnerChainError::BadDelegation
+        );
         let mut fixture = Fixture::new();
         fixture.revoke.kind = EventKind::OwnerGrant;
         assert!(matches!(
-            fixture.verify(), Err(OwnerChainError::BadRevocation(VerifyEventError::WrongEventKind))
+            fixture.verify(),
+            Err(OwnerChainError::BadRevocation(
+                VerifyEventError::WrongEventKind
+            ))
         ));
     }
 }

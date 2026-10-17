@@ -5,9 +5,9 @@
 use crate::SecurityEventStore;
 use crate::{PolicyVersion, StoreError};
 use loom_crypto::owner_authority::OwnerVerifiedRevocation;
-use loom_crypto::witness_checkpoint::{VerifiedWitnessCheckpoint, append_revocation_root};
 #[cfg(test)]
 use loom_crypto::signed_revocation::VerifiedRevocation;
+use loom_crypto::witness_checkpoint::{VerifiedWitnessCheckpoint, append_revocation_root};
 use loom_types::{ResourceId, SpaceId};
 use rusqlite::{Connection, OptionalExtension, TransactionBehavior, params};
 use std::collections::HashMap;
@@ -156,10 +156,15 @@ impl SqliteRevocationStore {
         verified: &VerifiedWitnessCheckpoint,
     ) -> Result<RecoveryAssessment, StoreError> {
         let cp = verified.checkpoint();
-        let mut gate = self.gate.lock().map_err(|_| StoreError::PersistenceFailure)?;
+        let mut gate = self
+            .gate
+            .lock()
+            .map_err(|_| StoreError::PersistenceFailure)?;
         gate.pause();
         let (send, recv) = mpsc::channel();
-        self.tx.as_ref().ok_or(StoreError::PersistenceFailure)?
+        self.tx
+            .as_ref()
+            .ok_or(StoreError::PersistenceFailure)?
             .send(Command::Snapshot(cp.space, cp.resource, send))
             .map_err(|_| StoreError::PersistenceFailure)?;
         let local = recv.recv().map_err(|_| StoreError::PersistenceFailure)??;
@@ -512,25 +517,31 @@ fn read_chain_snapshot(
     space: SpaceId,
     resource: ResourceId,
 ) -> Result<LocalChainSnapshot, StoreError> {
-    let epoch: Option<i64> = db.query_row(
-        "SELECT epoch FROM policy_versions WHERE space=?1 AND resource=?2",
-        params![space.as_bytes().as_slice(), resource.as_bytes().as_slice()],
-        |row| row.get(0),
-    ).optional().map_err(|_| StoreError::PersistenceFailure)?;
-    let epoch = u64::try_from(epoch.unwrap_or(0))
+    let epoch: Option<i64> = db
+        .query_row(
+            "SELECT epoch FROM policy_versions WHERE space=?1 AND resource=?2",
+            params![space.as_bytes().as_slice(), resource.as_bytes().as_slice()],
+            |row| row.get(0),
+        )
+        .optional()
         .map_err(|_| StoreError::PersistenceFailure)?;
-    let mut stmt = db.prepare(
-        "SELECT epoch,signed_event FROM revocations
+    let epoch = u64::try_from(epoch.unwrap_or(0)).map_err(|_| StoreError::PersistenceFailure)?;
+    let mut stmt = db
+        .prepare(
+            "SELECT epoch,signed_event FROM revocations
          WHERE space=?1 AND resource=?2 ORDER BY epoch",
-    ).map_err(|_| StoreError::PersistenceFailure)?;
-    let rows = stmt.query_map(
-        params![space.as_bytes().as_slice(), resource.as_bytes().as_slice()],
-        |row| {
-            let seq: i64 = row.get(0)?;
-            let event: Vec<u8> = row.get(1)?;
-            Ok((seq, event))
-        },
-    ).map_err(|_| StoreError::PersistenceFailure)?;
+        )
+        .map_err(|_| StoreError::PersistenceFailure)?;
+    let rows = stmt
+        .query_map(
+            params![space.as_bytes().as_slice(), resource.as_bytes().as_slice()],
+            |row| {
+                let seq: i64 = row.get(0)?;
+                let event: Vec<u8> = row.get(1)?;
+                Ok((seq, event))
+            },
+        )
+        .map_err(|_| StoreError::PersistenceFailure)?;
     let mut root = [0_u8; 32];
     let mut previous = 0_u64;
     for row in rows {
@@ -695,14 +706,11 @@ mod tests {
         assert!(store.gate.lock().unwrap().permits.is_empty());
     }
 
-    fn checkpoint_fixture(
-        seq: u64,
-        root: [u8; 32],
-    ) -> VerifiedWitnessCheckpoint {
+    fn checkpoint_fixture(seq: u64, root: [u8; 32]) -> VerifiedWitnessCheckpoint {
         use ed25519_dalek::{Signer, SigningKey};
         use loom_crypto::witness_checkpoint::{
-            Checkpoint, SignedCheckpoint, TrustedWitnessForSpike,
-            checkpoint_transcript, verify_two_witnesses,
+            Checkpoint, SignedCheckpoint, TrustedWitnessForSpike, checkpoint_transcript,
+            verify_two_witnesses,
         };
         let first = SigningKey::from_bytes(&[21; 32]);
         let second = SigningKey::from_bytes(&[22; 32]);
@@ -731,13 +739,7 @@ mod tests {
                 signature: second.sign(&transcript).to_bytes(),
             },
         ];
-        verify_two_witnesses(
-            &[a, b],
-            &signed,
-            checkpoint.space,
-            checkpoint.resource,
-            150,
-        ).unwrap()
+        verify_two_witnesses(&[a, b], &signed, checkpoint.space, checkpoint.resource, 150).unwrap()
     }
 
     #[test]
@@ -772,15 +774,16 @@ mod tests {
         let store = db.open();
         store.recover_fixture(&[(v0(), 0)]).unwrap();
         store.commit_revocation(v0(), b"original").unwrap();
-        let witness = checkpoint_fixture(
-            1, append_revocation_root([0; 32], 1, b"original").unwrap(),
-        );
+        let witness =
+            checkpoint_fixture(1, append_revocation_root([0; 32], 1, b"original").unwrap());
         drop(store);
         let connection = Connection::open(&db.0).unwrap();
-        connection.execute(
-            "UPDATE revocations SET signed_event=?1 WHERE epoch=1",
-            ["substituted"],
-        ).unwrap();
+        connection
+            .execute(
+                "UPDATE revocations SET signed_event=?1 WHERE epoch=1",
+                ["substituted"],
+            )
+            .unwrap();
         drop(connection);
         let restored = db.open();
         assert_eq!(
@@ -812,12 +815,13 @@ mod tests {
         store.commit_revocation(v0(), b"revoke-1").unwrap();
         drop(store);
         let connection = Connection::open(&db.0).unwrap();
-        connection.execute("UPDATE policy_versions SET epoch=2", []).unwrap();
+        connection
+            .execute("UPDATE policy_versions SET epoch=2", [])
+            .unwrap();
         drop(connection);
         let restored = db.open();
-        let witness = checkpoint_fixture(
-            1, append_revocation_root([0; 32], 1, b"revoke-1").unwrap(),
-        );
+        let witness =
+            checkpoint_fixture(1, append_revocation_root([0; 32], 1, b"revoke-1").unwrap());
         assert_eq!(
             restored.inspect_witnessed_recovery(&witness),
             Err(StoreError::Conflict)

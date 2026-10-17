@@ -128,9 +128,9 @@ pub fn verify_two_witnesses(
         || signed.len() != 2
         || trusted[0].public_key == trusted[1].public_key
         || trusted[0].key_id == trusted[1].key_id
-        || trusted.iter().any(|w| {
-            TrustedWitnessForSpike::from_public_key(w.public_key).key_id != w.key_id
-        })
+        || trusted
+            .iter()
+            .any(|w| TrustedWitnessForSpike::from_public_key(w.public_key).key_id != w.key_id)
     {
         return Err(WitnessError::MissingOrDuplicateWitness);
     }
@@ -257,16 +257,28 @@ mod tests {
     fn tampering_wrong_scope_and_expiry_rejected() {
         let (pins, mut signed) = fixture(2, [8; 32]);
         signed[0].signature[5] ^= 1;
-        assert_eq!(verify(&pins, &signed).unwrap_err(), WitnessError::InvalidSignature);
+        assert_eq!(
+            verify(&pins, &signed).unwrap_err(),
+            WitnessError::InvalidSignature
+        );
 
         let (pins, mut signed) = fixture(2, [8; 32]);
         signed[0].checkpoint.space = SpaceId::from_bytes([55; 16]);
-        assert_eq!(verify(&pins, &signed).unwrap_err(), WitnessError::InvalidScope);
+        assert_eq!(
+            verify(&pins, &signed).unwrap_err(),
+            WitnessError::InvalidScope
+        );
 
         let (pins, signed) = fixture(2, [8; 32]);
         assert_eq!(
-            verify_two_witnesses(&pins, &signed, signed[0].checkpoint.space,
-                signed[0].checkpoint.resource, 301).unwrap_err(),
+            verify_two_witnesses(
+                &pins,
+                &signed,
+                signed[0].checkpoint.space,
+                signed[0].checkpoint.resource,
+                301
+            )
+            .unwrap_err(),
             WitnessError::StaleEvidence
         );
     }
@@ -276,8 +288,13 @@ mod tests {
         let (pins, mut signed) = fixture(2, [8; 32]);
         let b = SigningKey::from_bytes(&[22; 32]);
         signed[1].checkpoint.seq = 3;
-        signed[1].signature = b.sign(&checkpoint_transcript(&signed[1].checkpoint)).to_bytes();
-        assert_eq!(verify(&pins, &signed).unwrap_err(), WitnessError::CheckpointConflict);
+        signed[1].signature = b
+            .sign(&checkpoint_transcript(&signed[1].checkpoint))
+            .to_bytes();
+        assert_eq!(
+            verify(&pins, &signed).unwrap_err(),
+            WitnessError::CheckpointConflict
+        );
     }
 
     #[test]
@@ -295,7 +312,10 @@ mod tests {
         let one = append_revocation_root([0; 32], 1, b"event-one").unwrap();
         let two = append_revocation_root(one, 2, b"event-two").unwrap();
         assert_ne!(one, two);
-        assert_ne!(one, append_revocation_root([0; 32], 2, b"event-one").unwrap());
+        assert_ne!(
+            one,
+            append_revocation_root([0; 32], 2, b"event-one").unwrap()
+        );
         assert!(append_revocation_root([0; 32], 0, b"event").is_none());
         assert!(append_revocation_root([0; 32], 1, b"").is_none());
     }

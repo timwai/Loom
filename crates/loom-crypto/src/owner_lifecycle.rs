@@ -6,14 +6,13 @@
 //! Consequently a later revocation signed under that key cannot be made valid
 //! by backdating its wall-clock timestamp or replaying an earlier grant.
 
-use std::collections::HashSet;
 use ed25519_dalek::{Signature, VerifyingKey};
 use loom_types::{ResourceId, SpaceId};
 use sha2::{Digest, Sha256};
+use std::collections::HashSet;
 
 use crate::owner_authority::{
-    OwnerVerifiedRevocation, ProvisionedOwnerForSpike,
-    replay_persisted_owner_revocation_for_spike,
+    OwnerVerifiedRevocation, ProvisionedOwnerForSpike, replay_persisted_owner_revocation_for_spike,
 };
 use crate::space_trust::VerifiedResourceTrust;
 
@@ -113,13 +112,11 @@ fn valid_time(issued: u64, expires: u64, now: u64) -> bool {
     issued <= now && now < expires && issued < expires
 }
 
-fn check_signature(
-    key: [u8; 32],
-    signed: &[u8],
-    signature: &[u8; 64],
-) -> bool {
+fn check_signature(key: [u8; 32], signed: &[u8], signature: &[u8; 64]) -> bool {
     VerifyingKey::from_bytes(&key).is_ok_and(|verifier| {
-        verifier.verify_strict(signed, &Signature::from_bytes(signature)).is_ok()
+        verifier
+            .verify_strict(signed, &Signature::from_bytes(signature))
+            .is_ok()
     })
 }
 
@@ -225,24 +222,23 @@ impl ResourceOwnerLifecycle {
         if c.space != current.space_id || c.resource != current.resource_id {
             return Err(LifecycleError::ScopeMismatch);
         }
-        if c.owner_public_key != current.public_key
-            || c.owner_epoch != current.current_key_epoch
-        {
+        if c.owner_public_key != current.public_key || c.owner_epoch != current.current_key_epoch {
             return Err(LifecycleError::OwnerNotCurrent);
         }
         if c.delegate_epoch == 0 || c.delegate_key_id == [0; 32] {
             return Err(LifecycleError::InvalidDelegate);
         }
-        if !valid_time(c.issued_at_ms, c.expires_at_ms, now_ms)
-            || !self.trust.valid_at(now_ms)
-        {
+        if !valid_time(c.issued_at_ms, c.expires_at_ms, now_ms) || !self.trust.valid_at(now_ms) {
             return Err(LifecycleError::InvalidTime);
         }
         let transcript = cancellation_transcript(&c);
         if !check_signature(current.public_key, &transcript, &signed.signature) {
             return Err(LifecycleError::InvalidOwnerSignature);
         }
-        if self.canceled.contains(&(c.delegate_key_id, c.delegate_epoch)) {
+        if self
+            .canceled
+            .contains(&(c.delegate_key_id, c.delegate_epoch))
+        {
             return Err(LifecycleError::DelegationCanceled);
         }
         let mut evidence = transcript;
@@ -306,7 +302,11 @@ impl ResourceOwnerLifecycle {
         if !check_signature(current.public_key, &transcript, &signed.old_owner_signature) {
             return Err(LifecycleError::InvalidOwnerSignature);
         }
-        if !check_signature(next_owner.public_key, &transcript, &signed.next_owner_signature) {
+        if !check_signature(
+            next_owner.public_key,
+            &transcript,
+            &signed.next_owner_signature,
+        ) {
             return Err(LifecycleError::InvalidSuccessorSignature);
         }
         let mut evidence = transcript;
@@ -324,14 +324,14 @@ impl ResourceOwnerLifecycle {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ed25519_dalek::{Signer, SigningKey};
-    use loom_wire::security_event::{
-        CanonicalSecurityEvent, EventKind, encode_security_event, signing_input,
-    };
     use crate::owner_authority::{issuer_key_id, verify_owner_delegated_revocation_for_spike};
     use crate::space_trust::{
         ExternallyPinnedRootForSpike, ResourceTrustManifest, SignedResourceTrust,
         trust_manifest_transcript, verify_resource_trust_for_spike,
+    };
+    use ed25519_dalek::{Signer, SigningKey};
+    use loom_wire::security_event::{
+        CanonicalSecurityEvent, EventKind, encode_security_event, signing_input,
     };
 
     fn trust(owner_seed: u8, owner_epoch: u64) -> VerifiedResourceTrust {
@@ -407,7 +407,9 @@ mod tests {
         let grant_cbor = encode_security_event(&grant).unwrap();
         let revoke_cbor = encode_security_event(&revoke).unwrap();
         let gs = owner.sign(&signing_input(&grant_cbor).unwrap()).to_bytes();
-        let rs = delegate.sign(&signing_input(&revoke_cbor).unwrap()).to_bytes();
+        let rs = delegate
+            .sign(&signing_input(&revoke_cbor).unwrap())
+            .to_bytes();
         verify_owner_delegated_revocation_for_spike(
             &ProvisionedOwnerForSpike {
                 space_id: space,
@@ -475,7 +477,9 @@ mod tests {
     #[test]
     fn cancellation_consumes_sequence_and_blocks_backdated_valid_signature() {
         let mut state = ResourceOwnerLifecycle::from_genesis(trust(11, 3));
-        state.apply_delegated_revocation(&delegate_proof(11, 3, 12, 1)).unwrap();
+        state
+            .apply_delegated_revocation(&delegate_proof(11, 3, 12, 1))
+            .unwrap();
         let first_head = state.policy_head();
         state.cancel_delegate(&canceled(12, 2), 150).unwrap();
         assert_eq!(state.sequence(), 2);
@@ -494,9 +498,13 @@ mod tests {
     #[test]
     fn other_valid_delegate_can_still_revoke_after_cancel() {
         let mut state = ResourceOwnerLifecycle::from_genesis(trust(11, 3));
-        state.apply_delegated_revocation(&delegate_proof(11, 3, 12, 1)).unwrap();
+        state
+            .apply_delegated_revocation(&delegate_proof(11, 3, 12, 1))
+            .unwrap();
         state.cancel_delegate(&canceled(12, 2), 150).unwrap();
-        state.apply_delegated_revocation(&delegate_proof(11, 3, 13, 3)).unwrap();
+        state
+            .apply_delegated_revocation(&delegate_proof(11, 3, 13, 3))
+            .unwrap();
         assert_eq!(state.sequence(), 3);
     }
 
@@ -505,18 +513,33 @@ mod tests {
         let mut state = ResourceOwnerLifecycle::from_genesis(trust(11, 3));
         let mut bad = canceled(12, 1);
         bad.signature[0] ^= 1;
-        assert_eq!(state.cancel_delegate(&bad, 150), Err(LifecycleError::InvalidOwnerSignature));
+        assert_eq!(
+            state.cancel_delegate(&bad, 150),
+            Err(LifecycleError::InvalidOwnerSignature)
+        );
         let mut bad = canceled(12, 1);
         bad.cancellation.resource = ResourceId::from_bytes([8; 16]);
-        assert_eq!(state.cancel_delegate(&bad, 150), Err(LifecycleError::ScopeMismatch));
+        assert_eq!(
+            state.cancel_delegate(&bad, 150),
+            Err(LifecycleError::ScopeMismatch)
+        );
         let mut bad = canceled(12, 1);
         bad.cancellation.owner_epoch = 2;
-        assert_eq!(state.cancel_delegate(&bad, 150), Err(LifecycleError::OwnerNotCurrent));
+        assert_eq!(
+            state.cancel_delegate(&bad, 150),
+            Err(LifecycleError::OwnerNotCurrent)
+        );
         let mut bad = canceled(12, 2);
-        assert_eq!(state.cancel_delegate(&bad, 150), Err(LifecycleError::StaleOrOutOfOrder));
+        assert_eq!(
+            state.cancel_delegate(&bad, 150),
+            Err(LifecycleError::StaleOrOutOfOrder)
+        );
         state.cancel_delegate(&canceled(12, 1), 150).unwrap();
         bad = canceled(12, 2);
-        assert_eq!(state.cancel_delegate(&bad, 150), Err(LifecycleError::DelegationCanceled));
+        assert_eq!(
+            state.cancel_delegate(&bad, 150),
+            Err(LifecycleError::DelegationCanceled)
+        );
         assert_eq!(state.sequence(), 1);
     }
 
@@ -529,12 +552,17 @@ mod tests {
         state.transfer_owner(&signed, successor, 150).unwrap();
         assert_eq!(state.sequence(), 1);
         assert_eq!(state.current_owner().current_key_epoch, 4);
-        assert_eq!(state.current_owner().public_key, SigningKey::from_bytes(&[33; 32]).verifying_key().to_bytes());
+        assert_eq!(
+            state.current_owner().public_key,
+            SigningKey::from_bytes(&[33; 32]).verifying_key().to_bytes()
+        );
         assert_eq!(
             state.apply_delegated_revocation(&delegate_proof(11, 3, 12, 2)),
             Err(LifecycleError::InvalidEvidence)
         );
-        state.apply_delegated_revocation(&delegate_proof(33, 4, 14, 2)).unwrap();
+        state
+            .apply_delegated_revocation(&delegate_proof(33, 4, 14, 2))
+            .unwrap();
         assert_eq!(state.sequence(), 2);
     }
 
@@ -558,7 +586,9 @@ mod tests {
             state.transfer_owner(&bad, successor, 150),
             Err(LifecycleError::InvalidSuccessorSignature)
         );
-        state.transfer_owner(&transfer(&prior, &successor, 1), successor, 150).unwrap();
+        state
+            .transfer_owner(&transfer(&prior, &successor, 1), successor, 150)
+            .unwrap();
         assert_eq!(
             state.transfer_owner(&transfer(&prior, &successor, 1), successor, 150),
             Err(LifecycleError::StaleOrOutOfOrder)
@@ -589,10 +619,14 @@ mod tests {
     fn resource_policy_head_commits_to_control_and_data_order() {
         let mut first = ResourceOwnerLifecycle::from_genesis(trust(11, 3));
         let mut second = ResourceOwnerLifecycle::from_genesis(trust(11, 3));
-        first.apply_delegated_revocation(&delegate_proof(11, 3, 12, 1)).unwrap();
+        first
+            .apply_delegated_revocation(&delegate_proof(11, 3, 12, 1))
+            .unwrap();
         first.cancel_delegate(&canceled(13, 2), 150).unwrap();
         second.cancel_delegate(&canceled(13, 1), 150).unwrap();
-        second.apply_delegated_revocation(&delegate_proof(11, 3, 12, 2)).unwrap();
+        second
+            .apply_delegated_revocation(&delegate_proof(11, 3, 12, 2))
+            .unwrap();
         assert_ne!(first.policy_head(), second.policy_head());
     }
 }

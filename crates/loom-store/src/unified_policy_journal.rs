@@ -8,12 +8,19 @@
 //! Synchronous APIs: call from a blocking pool, never on a Tokio runtime core.
 
 use crate::StoreError;
+use crate::policy_journal_codec::KIND_REVOKE;
+use crate::unified_policy_anchor::{
+    IndependentUnifiedPolicyAnchor, UnifiedAnchorError, checked_unified_promotion,
+};
+use loom_crypto::space_trust::verify_root_bound_witnesses;
+use loom_crypto::witness_checkpoint::{SignedCheckpoint, append_revocation_root};
 pub use crate::policy_journal_codec::NewPolicyEvent;
 use crate::policy_journal_codec::{MAX_EVIDENCE, encode_event, replay_event};
 use loom_crypto::owner_lifecycle::ResourceOwnerLifecycle;
 use loom_crypto::space_trust::{ExternallyPinnedRootForSpike, VerifiedResourceTrust};
+use loom_types::ResourceId;
 #[cfg(test)]
-use loom_types::{ResourceId, SpaceId};
+use loom_types::SpaceId;
 use rusqlite::{Connection, OptionalExtension, Transaction, TransactionBehavior, params};
 use std::path::PathBuf;
 use std::sync::Mutex;
@@ -28,6 +35,21 @@ pub struct JournalSnapshot {
     pub owner_public_key: [u8; 32],
     /// A diagnostic only. In this PoC no ServiceOpen is ever admitted.
     pub admission_paused: bool,
+}
+
+/// Recovery assessment only. None of these outcomes enables ServiceOpen.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum UnifiedRecoveryAssessment {
+    CandidateConsistent,
+    LocalBehind,
+    WitnessBehind,
+    HistoryConflict,
+}
+
+struct JournalCheckpointState {
+    snapshot: JournalSnapshot,
+    revocation_root: [u8; 32],
+    current_trust: VerifiedResourceTrust,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -51,6 +73,11 @@ enum Command {
         done: Sender<Result<JournalSnapshot, StoreError>>,
     },
     Pending(Sender<Result<Vec<CriticalPolicyOutbox>, StoreError>>),
+    InspectWitness {
+        root: ExternallyPinnedRootForSpike,
+        genesis: VerifiedResourceTrust,
+        done: Sender<Result<JournalCheckpointState, StoreError>>,
+    },
 }
 
 /// Append-only SQLite actor, separate from the old L-001C revocation-only
@@ -134,6 +161,73 @@ impl UnifiedPolicyJournal {
         recv.recv().map_err(|_| StoreError::PersistenceFailure)?
     }
 
+    /// Verify two Root-selected signed checkpoints against a fully replayed,
+    /// mixed control+revocation policy chain, then compare and atomically
+    /// advance an independently trusted high-water record.
+    ///
+    /// The signature and storage interfaces do not prove actual external
+    /// witness independence or hardware-backed monotonic persistence.
+    /// ALWAYS diagnostic only: this API never returns an admission permit.
+    pub fn inspect_witnessed_recovery(
+        &self,
+        external_root: ExternallyPinnedRootForSpike,
+        genesis: VerifiedResourceTrust,
+        receipts: &[SignedCheckpoint],
+        now_ms: u64,
+        anchor: &dyn IndependentUnifiedPolicyAnchor,
+    ) -> Result<UnifiedRecoveryAssessment, StoreError> {
+        // The same gate serializes diagnostic witness inspection against
+        // append. It cannot mark any session Ready.
+        let _barrier = self.gate.lock().map_err(|_| StoreError::PersistenceFailure)?;
+        let cp = verify_root_bound_witnesses(&genesis, receipts, now_ms)
+            .map_err(|_| StoreError::Conflict)?
+            .checkpoint();
+        let (send, recv) = mpsc::channel();
+        self.tx.as_ref().ok_or(StoreError::PersistenceFailure)?
+            .send(Command::InspectWitness {
+                root: external_root, genesis, done: send,
+            })
+            .map_err(|_| StoreError::PersistenceFailure)?;
+        let local = recv.recv().map_err(|_| StoreError::PersistenceFailure)??;
+        // Witness identity/writer rotation requires a separate signed
+        // migration. The Owner may change, but witness pair may not here.
+        let old_witnesses = genesis.witnesses();
+        let new_witnesses = local.current_trust.witnesses();
+        if old_witnesses[0].public_key != new_witnesses[0].public_key
+            || old_witnesses[1].public_key != new_witnesses[1].public_key
+        {
+            return Err(StoreError::Conflict);
+        }
+        if local.snapshot.sequence < cp.seq {
+            return Ok(UnifiedRecoveryAssessment::LocalBehind);
+        }
+        if local.snapshot.sequence > cp.seq {
+            return Ok(UnifiedRecoveryAssessment::WitnessBehind);
+        }
+        if local.snapshot.policy_head != cp.head_hash
+            || local.revocation_root != cp.revocation_root
+        {
+            return Ok(UnifiedRecoveryAssessment::HistoryConflict);
+        }
+        // Comparing a matching local journal with a stale *signed*
+        // checkpoint is not enough: consult external high-water even at
+        // equal version, and never initialize it from SQLite contents.
+        let previous = anchor.read(cp.space, cp.resource)
+            .map_err(|_| StoreError::PersistenceFailure)?;
+        let next = checked_unified_promotion(
+            &genesis, &local.current_trust, cp, previous, now_ms,
+        ).map_err(|error| match error {
+            UnifiedAnchorError::StaleState
+            | UnifiedAnchorError::ConflictingHistory
+            | UnifiedAnchorError::IdentityOrManifestMismatch
+            | UnifiedAnchorError::InvalidEpochOrTime => StoreError::Conflict,
+            _ => StoreError::PersistenceFailure,
+        })?;
+        anchor.compare_and_advance(previous, next)
+            .map_err(|_| StoreError::PersistenceFailure)?;
+        Ok(UnifiedRecoveryAssessment::CandidateConsistent)
+    }
+
     /// Read-only: no ACK is allowed without authenticated remote durable
     /// receipt and a separate fairness/priority retransmission protocol.
     pub fn pending_outbox(&self) -> Result<Vec<CriticalPolicyOutbox>, StoreError> {
@@ -190,6 +284,9 @@ fn worker(path: PathBuf, rx: Receiver<Command>, started: Sender<Result<(), Store
                     }
                     Command::Pending(done) => {
                         let _ = done.send(read_outbox(&connection));
+                    }
+                    Command::InspectWitness { root, genesis, done } => {
+                        let _ = done.send(inspect_checkpoint_db(&mut connection, root, genesis));
                     }
                 }
             }
@@ -354,6 +451,58 @@ fn inspect_db(
     let snapshot = snapshot(&state);
     tx.commit().map_err(|_| StoreError::PersistenceFailure)?;
     Ok(snapshot)
+}
+
+/// The revocation-only accumulator is deliberately distinct from the unified
+/// policy head. Delegate cancellation and Owner transfer change policy_head
+/// but do NOT append into this revocation-only chain.
+fn revocation_root_for_journal(
+    tx: &Transaction<'_>,
+    root: &ExternallyPinnedRootForSpike,
+    resource: ResourceId,
+) -> Result<[u8; 32], StoreError> {
+    let mut stmt = tx.prepare(
+        "SELECT seq,evidence FROM unified_policy_events
+         WHERE space=?1 AND resource=?2 AND kind=?3 ORDER BY seq ASC",
+    ).map_err(|_| StoreError::PersistenceFailure)?;
+    let rows = stmt.query_map(
+        params![
+            root.space.as_bytes().as_slice(),
+            resource.as_bytes().as_slice(),
+            i64::from(KIND_REVOKE),
+        ],
+        |row| {
+            let seq: i64 = row.get(0)?;
+            let bytes: Vec<u8> = row.get(1)?;
+            Ok((seq, bytes))
+        },
+    ).map_err(|_| StoreError::PersistenceFailure)?;
+    let mut hash = [0u8; 32];
+    for row in rows {
+        let (seq, evidence) = row.map_err(|_| StoreError::PersistenceFailure)?;
+        let seq = u64::try_from(seq).map_err(|_| StoreError::Conflict)?;
+        hash = append_revocation_root(hash, seq, &evidence)
+            .ok_or(StoreError::Conflict)?;
+    }
+    Ok(hash)
+}
+
+fn inspect_checkpoint_db(
+    conn: &mut Connection,
+    root: ExternallyPinnedRootForSpike,
+    genesis: VerifiedResourceTrust,
+) -> Result<JournalCheckpointState, StoreError> {
+    let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)
+        .map_err(|_| StoreError::PersistenceFailure)?;
+    let verified = replay(&tx, &root, genesis)?;
+    let revocation_root = revocation_root_for_journal(&tx, &root, genesis.resource())?;
+    let result = JournalCheckpointState {
+        snapshot: snapshot(&verified),
+        revocation_root,
+        current_trust: verified.current_trust(),
+    };
+    tx.commit().map_err(|_| StoreError::PersistenceFailure)?;
+    Ok(result)
 }
 
 fn append_transaction(

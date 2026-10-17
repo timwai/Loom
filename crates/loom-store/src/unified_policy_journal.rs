@@ -9,15 +9,15 @@
 
 use crate::StoreError;
 use crate::policy_journal_codec::KIND_REVOKE;
+pub use crate::policy_journal_codec::NewPolicyEvent;
+use crate::policy_journal_codec::{MAX_EVIDENCE, encode_event, replay_event};
 use crate::unified_policy_anchor::{
     IndependentUnifiedPolicyAnchor, UnifiedAnchorError, checked_unified_promotion,
 };
-use loom_crypto::space_trust::verify_root_bound_witnesses;
-use loom_crypto::witness_checkpoint::{SignedCheckpoint, append_revocation_root};
-pub use crate::policy_journal_codec::NewPolicyEvent;
-use crate::policy_journal_codec::{MAX_EVIDENCE, encode_event, replay_event};
 use loom_crypto::owner_lifecycle::ResourceOwnerLifecycle;
+use loom_crypto::space_trust::verify_root_bound_witnesses;
 use loom_crypto::space_trust::{ExternallyPinnedRootForSpike, VerifiedResourceTrust};
+use loom_crypto::witness_checkpoint::{SignedCheckpoint, append_revocation_root};
 use loom_types::ResourceId;
 #[cfg(test)]
 use loom_types::SpaceId;
@@ -178,14 +178,21 @@ impl UnifiedPolicyJournal {
     ) -> Result<UnifiedRecoveryAssessment, StoreError> {
         // The same gate serializes diagnostic witness inspection against
         // append. It cannot mark any session Ready.
-        let _barrier = self.gate.lock().map_err(|_| StoreError::PersistenceFailure)?;
+        let _barrier = self
+            .gate
+            .lock()
+            .map_err(|_| StoreError::PersistenceFailure)?;
         let cp = verify_root_bound_witnesses(&genesis, receipts, now_ms)
             .map_err(|_| StoreError::Conflict)?
             .checkpoint();
         let (send, recv) = mpsc::channel();
-        self.tx.as_ref().ok_or(StoreError::PersistenceFailure)?
+        self.tx
+            .as_ref()
+            .ok_or(StoreError::PersistenceFailure)?
             .send(Command::InspectWitness {
-                root: external_root, genesis, done: send,
+                root: external_root,
+                genesis,
+                done: send,
             })
             .map_err(|_| StoreError::PersistenceFailure)?;
         let local = recv.recv().map_err(|_| StoreError::PersistenceFailure)??;
@@ -204,26 +211,26 @@ impl UnifiedPolicyJournal {
         if local.snapshot.sequence > cp.seq {
             return Ok(UnifiedRecoveryAssessment::WitnessBehind);
         }
-        if local.snapshot.policy_head != cp.head_hash
-            || local.revocation_root != cp.revocation_root
+        if local.snapshot.policy_head != cp.head_hash || local.revocation_root != cp.revocation_root
         {
             return Ok(UnifiedRecoveryAssessment::HistoryConflict);
         }
         // Comparing a matching local journal with a stale *signed*
         // checkpoint is not enough: consult external high-water even at
         // equal version, and never initialize it from SQLite contents.
-        let previous = anchor.read(cp.space, cp.resource)
+        let previous = anchor
+            .read(cp.space, cp.resource)
             .map_err(|_| StoreError::PersistenceFailure)?;
-        let next = checked_unified_promotion(
-            &genesis, &local.current_trust, cp, previous, now_ms,
-        ).map_err(|error| match error {
-            UnifiedAnchorError::StaleState
-            | UnifiedAnchorError::ConflictingHistory
-            | UnifiedAnchorError::IdentityOrManifestMismatch
-            | UnifiedAnchorError::InvalidEpochOrTime => StoreError::Conflict,
-            _ => StoreError::PersistenceFailure,
-        })?;
-        anchor.compare_and_advance(previous, next)
+        let next = checked_unified_promotion(&genesis, &local.current_trust, cp, previous, now_ms)
+            .map_err(|error| match error {
+                UnifiedAnchorError::StaleState
+                | UnifiedAnchorError::ConflictingHistory
+                | UnifiedAnchorError::IdentityOrManifestMismatch
+                | UnifiedAnchorError::InvalidEpochOrTime => StoreError::Conflict,
+                _ => StoreError::PersistenceFailure,
+            })?;
+        anchor
+            .compare_and_advance(previous, next)
             .map_err(|_| StoreError::PersistenceFailure)?;
         Ok(UnifiedRecoveryAssessment::CandidateConsistent)
     }
@@ -285,7 +292,11 @@ fn worker(path: PathBuf, rx: Receiver<Command>, started: Sender<Result<(), Store
                     Command::Pending(done) => {
                         let _ = done.send(read_outbox(&connection));
                     }
-                    Command::InspectWitness { root, genesis, done } => {
+                    Command::InspectWitness {
+                        root,
+                        genesis,
+                        done,
+                    } => {
                         let _ = done.send(inspect_checkpoint_db(&mut connection, root, genesis));
                     }
                 }
@@ -461,28 +472,31 @@ fn revocation_root_for_journal(
     root: &ExternallyPinnedRootForSpike,
     resource: ResourceId,
 ) -> Result<[u8; 32], StoreError> {
-    let mut stmt = tx.prepare(
-        "SELECT seq,evidence FROM unified_policy_events
+    let mut stmt = tx
+        .prepare(
+            "SELECT seq,evidence FROM unified_policy_events
          WHERE space=?1 AND resource=?2 AND kind=?3 ORDER BY seq ASC",
-    ).map_err(|_| StoreError::PersistenceFailure)?;
-    let rows = stmt.query_map(
-        params![
-            root.space.as_bytes().as_slice(),
-            resource.as_bytes().as_slice(),
-            i64::from(KIND_REVOKE),
-        ],
-        |row| {
-            let seq: i64 = row.get(0)?;
-            let bytes: Vec<u8> = row.get(1)?;
-            Ok((seq, bytes))
-        },
-    ).map_err(|_| StoreError::PersistenceFailure)?;
+        )
+        .map_err(|_| StoreError::PersistenceFailure)?;
+    let rows = stmt
+        .query_map(
+            params![
+                root.space.as_bytes().as_slice(),
+                resource.as_bytes().as_slice(),
+                i64::from(KIND_REVOKE),
+            ],
+            |row| {
+                let seq: i64 = row.get(0)?;
+                let bytes: Vec<u8> = row.get(1)?;
+                Ok((seq, bytes))
+            },
+        )
+        .map_err(|_| StoreError::PersistenceFailure)?;
     let mut hash = [0u8; 32];
     for row in rows {
         let (seq, evidence) = row.map_err(|_| StoreError::PersistenceFailure)?;
         let seq = u64::try_from(seq).map_err(|_| StoreError::Conflict)?;
-        hash = append_revocation_root(hash, seq, &evidence)
-            .ok_or(StoreError::Conflict)?;
+        hash = append_revocation_root(hash, seq, &evidence).ok_or(StoreError::Conflict)?;
     }
     Ok(hash)
 }
@@ -492,7 +506,8 @@ fn inspect_checkpoint_db(
     root: ExternallyPinnedRootForSpike,
     genesis: VerifiedResourceTrust,
 ) -> Result<JournalCheckpointState, StoreError> {
-    let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)
+    let tx = conn
+        .transaction_with_behavior(TransactionBehavior::Immediate)
         .map_err(|_| StoreError::PersistenceFailure)?;
     let verified = replay(&tx, &root, genesis)?;
     let revocation_root = revocation_root_for_journal(&tx, &root, genesis.resource())?;
@@ -1068,7 +1083,9 @@ mod tests {
 
     fn fake_anchor(genesis: &VerifiedResourceTrust) -> FakeExternalAnchor {
         FakeExternalAnchor {
-            state: Mutex::new(crate::unified_policy_anchor::UnifiedPolicyHighWater::initial(genesis)),
+            state: Mutex::new(
+                crate::unified_policy_anchor::UnifiedPolicyHighWater::initial(genesis),
+            ),
             missing: false,
             fail_cas: false,
         }
@@ -1097,9 +1114,8 @@ mod tests {
         };
         let transcript = checkpoint_transcript(&checkpoint);
         [first, second].map(|key| SignedCheckpoint {
-            witness_key_id: TrustedWitnessForSpike::from_public_key(
-                key.verifying_key().to_bytes(),
-            ).key_id,
+            witness_key_id: TrustedWitnessForSpike::from_public_key(key.verifying_key().to_bytes())
+                .key_id,
             checkpoint,
             signature: key.sign(&transcript).to_bytes(),
         })
@@ -1120,10 +1136,14 @@ mod tests {
         let store = db.open();
         let genesis = trusted_genesis();
         let proof = signed_revocation(1, 11, 3);
-        let first = store.append(root_pin(), genesis, NewPolicyEvent::Revoke(&proof)).unwrap();
+        let first = store
+            .append(root_pin(), genesis, NewPolicyEvent::Revoke(&proof))
+            .unwrap();
         let revoke_root = append_revocation_root([0; 32], 1, &proof.persistence_bytes()).unwrap();
         let canceled = signed_cancellation(2);
-        let second = store.append(root_pin(), genesis, NewPolicyEvent::Cancel(&canceled)).unwrap();
+        let second = store
+            .append(root_pin(), genesis, NewPolicyEvent::Cancel(&canceled))
+            .unwrap();
         assert_ne!(first.policy_head, second.policy_head);
         let receipts = witness_receipts(2, second.policy_head, revoke_root);
         let anchor = fake_anchor(&genesis);
@@ -1142,7 +1162,12 @@ mod tests {
             witnessed(&restored, genesis, &receipts, &anchor),
             Ok(UnifiedRecoveryAssessment::CandidateConsistent)
         );
-        assert!(restored.inspect(root_pin(), genesis).unwrap().admission_paused);
+        assert!(
+            restored
+                .inspect(root_pin(), genesis)
+                .unwrap()
+                .admission_paused
+        );
     }
 
     #[test]
@@ -1151,24 +1176,40 @@ mod tests {
         let db = TempDb::new();
         let store = db.open();
         let proof = signed_revocation(1, 11, 3);
-        let first = store.append(root_pin(), genesis, NewPolicyEvent::Revoke(&proof)).unwrap();
+        let first = store
+            .append(root_pin(), genesis, NewPolicyEvent::Revoke(&proof))
+            .unwrap();
         let rev_root = append_revocation_root([0; 32], 1, &proof.persistence_bytes()).unwrap();
         let cancel = signed_cancellation(2);
-        let second = store.append(root_pin(), genesis, NewPolicyEvent::Cancel(&cancel)).unwrap();
+        let second = store
+            .append(root_pin(), genesis, NewPolicyEvent::Cancel(&cancel))
+            .unwrap();
         let anchor = fake_anchor(&genesis);
         assert_eq!(
-            witnessed(&store, genesis, &witness_receipts(2, second.policy_head, rev_root), &anchor),
+            witnessed(
+                &store,
+                genesis,
+                &witness_receipts(2, second.policy_head, rev_root),
+                &anchor
+            ),
             Ok(UnifiedRecoveryAssessment::CandidateConsistent)
         );
         let old_db = TempDb::new();
         let old_store = old_db.open();
-        old_store.append(root_pin(), genesis, NewPolicyEvent::Revoke(&proof)).unwrap();
+        old_store
+            .append(root_pin(), genesis, NewPolicyEvent::Revoke(&proof))
+            .unwrap();
         let old_receipts = witness_receipts(1, first.policy_head, rev_root);
         assert_eq!(
             witnessed(&old_store, genesis, &old_receipts, &anchor),
             Err(StoreError::Conflict)
         );
-        assert!(old_store.inspect(root_pin(), genesis).unwrap().admission_paused);
+        assert!(
+            old_store
+                .inspect(root_pin(), genesis)
+                .unwrap()
+                .admission_paused
+        );
         assert_eq!(anchor.state.lock().unwrap().policy_sequence, 2);
     }
 
@@ -1178,9 +1219,13 @@ mod tests {
         let db = TempDb::new();
         let store = db.open();
         let proof = signed_revocation(1, 11, 3);
-        store.append(root_pin(), genesis, NewPolicyEvent::Revoke(&proof)).unwrap();
+        store
+            .append(root_pin(), genesis, NewPolicyEvent::Revoke(&proof))
+            .unwrap();
         let cancel = signed_cancellation(2);
-        let second = store.append(root_pin(), genesis, NewPolicyEvent::Cancel(&cancel)).unwrap();
+        let second = store
+            .append(root_pin(), genesis, NewPolicyEvent::Cancel(&cancel))
+            .unwrap();
         let revoke_root = append_revocation_root([0; 32], 1, &proof.persistence_bytes()).unwrap();
         let forged = witness_receipts(2, [89; 32], revoke_root);
         assert_eq!(
@@ -1248,10 +1293,16 @@ mod tests {
         let store = db.open();
         let successor = signed_manifest(33, 4);
         let transfer = signed_transfer(&genesis, &successor, 1);
-        let after = store.append(root_pin(), genesis, NewPolicyEvent::Transfer {
-            transfer: &transfer,
-            successor_manifest: &successor,
-        }).unwrap();
+        let after = store
+            .append(
+                root_pin(),
+                genesis,
+                NewPolicyEvent::Transfer {
+                    transfer: &transfer,
+                    successor_manifest: &successor,
+                },
+            )
+            .unwrap();
         let anchor = fake_anchor(&genesis);
         let cp = witness_receipts(1, after.policy_head, [0; 32]);
         assert_eq!(
@@ -1271,21 +1322,35 @@ mod tests {
         let db = TempDb::new();
         let store = db.open();
         let proof = signed_revocation(1, 11, 3);
-        let first = store.append(root_pin(), genesis, NewPolicyEvent::Revoke(&proof)).unwrap();
+        let first = store
+            .append(root_pin(), genesis, NewPolicyEvent::Revoke(&proof))
+            .unwrap();
         let root = append_revocation_root([0; 32], 1, &proof.persistence_bytes()).unwrap();
         assert_eq!(
-            witnessed(&store, genesis, &witness_receipts(2, [9; 32], root),
-                &fake_anchor(&genesis)),
+            witnessed(
+                &store,
+                genesis,
+                &witness_receipts(2, [9; 32], root),
+                &fake_anchor(&genesis)
+            ),
             Ok(UnifiedRecoveryAssessment::LocalBehind)
         );
         assert_eq!(
-            witnessed(&store, genesis, &witness_receipts(0, [0; 32], [0; 32]),
-                &fake_anchor(&genesis)),
+            witnessed(
+                &store,
+                genesis,
+                &witness_receipts(0, [0; 32], [0; 32]),
+                &fake_anchor(&genesis)
+            ),
             Ok(UnifiedRecoveryAssessment::WitnessBehind)
         );
         assert_eq!(
-            witnessed(&store, genesis, &witness_receipts(1, first.policy_head, [99; 32]),
-                &fake_anchor(&genesis)),
+            witnessed(
+                &store,
+                genesis,
+                &witness_receipts(1, first.policy_head, [99; 32]),
+                &fake_anchor(&genesis)
+            ),
             Ok(UnifiedRecoveryAssessment::HistoryConflict)
         );
     }

@@ -3,6 +3,9 @@
 
 #[cfg(test)]
 use crate::SecurityEventStore;
+use crate::rollback_anchor::{
+    HighWaterError, IndependentHighWaterAnchor, checked_high_water_update,
+};
 use crate::{PolicyVersion, StoreError};
 use loom_crypto::owner_authority::{
     OwnerVerifiedRevocation, ProvisionedOwnerForSpike, replay_persisted_owner_revocation_for_spike,
@@ -11,9 +14,6 @@ use loom_crypto::owner_authority::{
 use loom_crypto::signed_revocation::VerifiedRevocation;
 use loom_crypto::space_trust::{VerifiedResourceTrust, verify_root_bound_witnesses};
 use loom_crypto::witness_checkpoint::SignedCheckpoint;
-use crate::rollback_anchor::{
-    HighWaterError, IndependentHighWaterAnchor, checked_high_water_update,
-};
 use loom_crypto::witness_checkpoint::{VerifiedWitnessCheckpoint, append_revocation_root};
 use loom_types::{ResourceId, SpaceId};
 use rusqlite::{Connection, OptionalExtension, TransactionBehavior, params};
@@ -244,15 +244,23 @@ impl SqliteRevocationStore {
         now_ms: u64,
         anchor: &dyn IndependentHighWaterAnchor,
     ) -> Result<RecoveryAssessment, StoreError> {
-        let mut gate = self.gate.lock().map_err(|_| StoreError::PersistenceFailure)?;
+        let mut gate = self
+            .gate
+            .lock()
+            .map_err(|_| StoreError::PersistenceFailure)?;
         gate.pause();
         let verified = verify_root_bound_witnesses(trust, receipts, now_ms)
             .map_err(|_| StoreError::Conflict)?;
         let cp = verified.checkpoint();
         let (send, recv) = mpsc::channel();
-        self.tx.as_ref().ok_or(StoreError::PersistenceFailure)?
+        self.tx
+            .as_ref()
+            .ok_or(StoreError::PersistenceFailure)?
             .send(Command::RootReplaySnapshot(
-                cp.space, cp.resource, trust.owner(), send,
+                cp.space,
+                cp.resource,
+                trust.owner(),
+                send,
             ))
             .map_err(|_| StoreError::PersistenceFailure)?;
         let local = recv.recv().map_err(|_| StoreError::PersistenceFailure)??;
@@ -267,20 +275,24 @@ impl SqliteRevocationStore {
         }
 
         // An anchor can NEVER be silently initialized from this DB snapshot.
-        let previous = anchor.read(cp.space, cp.resource)
+        let previous = anchor
+            .read(cp.space, cp.resource)
             .map_err(|_| StoreError::PersistenceFailure)?;
-        let next = checked_high_water_update(trust, cp, previous, now_ms)
-            .map_err(|error| match error {
-                HighWaterError::Rollback
-                | HighWaterError::Divergence
-                | HighWaterError::RootOrManifestMismatch
-                | HighWaterError::EpochMismatch
-                | HighWaterError::ExpiredManifest => StoreError::Conflict,
-                _ => StoreError::PersistenceFailure,
-            })?;
+        let next =
+            checked_high_water_update(trust, cp, previous, now_ms).map_err(
+                |error| match error {
+                    HighWaterError::Rollback
+                    | HighWaterError::Divergence
+                    | HighWaterError::RootOrManifestMismatch
+                    | HighWaterError::EpochMismatch
+                    | HighWaterError::ExpiredManifest => StoreError::Conflict,
+                    _ => StoreError::PersistenceFailure,
+                },
+            )?;
         // A failed/uncertain independent flush cannot be acknowledged as
         // candidate-consistent. The admission lock is still held.
-        anchor.compare_and_advance(previous, next)
+        anchor
+            .compare_and_advance(previous, next)
             .map_err(|_| StoreError::PersistenceFailure)?;
         Ok(RecoveryAssessment::CandidateConsistent)
     }
@@ -1043,7 +1055,8 @@ mod tests {
             &self,
             _space: SpaceId,
             _resource: ResourceId,
-        ) -> Result<crate::rollback_anchor::HighWaterRecord, crate::rollback_anchor::HighWaterError> {
+        ) -> Result<crate::rollback_anchor::HighWaterRecord, crate::rollback_anchor::HighWaterError>
+        {
             Ok(*self.record.lock().unwrap())
         }
 
@@ -1086,9 +1099,7 @@ mod tests {
 
     #[test]
     fn absent_external_anchor_fails_closed_even_with_empty_database() {
-        use crate::rollback_anchor::{
-            HighWaterError, HighWaterRecord, IndependentHighWaterAnchor,
-        };
+        use crate::rollback_anchor::{HighWaterError, HighWaterRecord, IndependentHighWaterAnchor};
         struct Missing;
         impl IndependentHighWaterAnchor for Missing {
             fn read(
@@ -1263,13 +1274,13 @@ mod tests {
         let root_hash = append_revocation_root([0; 32], 1, &proof.persistence_bytes()).unwrap();
         let receipts = root_signed_receipts(&trust, 1, root_hash);
         let anchor = TestIndependentAnchor {
-            record: std::sync::Mutex::new(
-                crate::rollback_anchor::HighWaterRecord::initial(&trust),
-            ),
+            record: std::sync::Mutex::new(crate::rollback_anchor::HighWaterRecord::initial(&trust)),
             fail_write: false,
         };
         assert_eq!(
-            store.inspect_root_recovery_with_anchor(&trust, &receipts, 150, &anchor).unwrap(),
+            store
+                .inspect_root_recovery_with_anchor(&trust, &receipts, 150, &anchor)
+                .unwrap(),
             RecoveryAssessment::CandidateConsistent
         );
         assert_eq!(anchor.record.lock().unwrap().seq, 1);

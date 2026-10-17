@@ -71,10 +71,7 @@ pub fn verify_root_rotation_for_spike(
     if r.previous_key == r.next_key {
         return Err(RootRotationError::ReusedKey);
     }
-    if r.issued_at_ms > now_ms
-        || now_ms >= r.expires_at_ms
-        || r.issued_at_ms >= r.expires_at_ms
-    {
+    if r.issued_at_ms > now_ms || now_ms >= r.expires_at_ms || r.issued_at_ms >= r.expires_at_ms {
         return Err(RootRotationError::Expired);
     }
     let previous = VerifyingKey::from_bytes(&r.previous_key)
@@ -88,8 +85,11 @@ pub fn verify_root_rotation_for_spike(
             &Signature::from_bytes(&proposal.previous_signature),
         )
         .map_err(|_| RootRotationError::InvalidPreviousSignature)?;
-    next.verify_strict(&transcript, &Signature::from_bytes(&proposal.next_signature))
-        .map_err(|_| RootRotationError::InvalidNextSignature)?;
+    next.verify_strict(
+        &transcript,
+        &Signature::from_bytes(&proposal.next_signature),
+    )
+    .map_err(|_| RootRotationError::InvalidNextSignature)?;
     Ok(ExternallyPinnedRootForSpike {
         space: r.space,
         public_key: r.next_key,
@@ -120,11 +120,14 @@ mod tests {
             expires_at_ms: 300,
         };
         let transcript = rotation_transcript(&rotation);
-        (trusted, DualSignedRootRotation {
-            rotation,
-            previous_signature: old_key.sign(&transcript).to_bytes(),
-            next_signature: new_key.sign(&transcript).to_bytes(),
-        })
+        (
+            trusted,
+            DualSignedRootRotation {
+                rotation,
+                previous_signature: old_key.sign(&transcript).to_bytes(),
+                next_signature: new_key.sign(&transcript).to_bytes(),
+            },
+        )
     }
 
     #[test]
@@ -195,9 +198,7 @@ mod tests {
     #[test]
     fn substituted_previously_pinned_key_is_not_accepted() {
         let (mut trusted, proposal) = fixture();
-        trusted.public_key = SigningKey::from_bytes(&[42; 32])
-            .verifying_key()
-            .to_bytes();
+        trusted.public_key = SigningKey::from_bytes(&[42; 32]).verifying_key().to_bytes();
         assert_eq!(
             verify_root_rotation_for_spike(&trusted, &proposal, 150).unwrap_err(),
             RootRotationError::WrongSpaceOrRoot

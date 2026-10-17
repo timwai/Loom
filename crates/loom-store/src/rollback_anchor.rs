@@ -53,11 +53,8 @@ impl HighWaterRecord {
 /// of the SQLite snapshot, an atomic CAS + durable flush, and rollback
 /// resistance. The interface alone provides NONE of those guarantees.
 pub trait IndependentHighWaterAnchor: Send + Sync {
-    fn read(
-        &self,
-        space: SpaceId,
-        resource: ResourceId,
-    ) -> Result<HighWaterRecord, HighWaterError>;
+    fn read(&self, space: SpaceId, resource: ResourceId)
+    -> Result<HighWaterRecord, HighWaterError>;
 
     fn compare_and_advance(
         &self,
@@ -92,9 +89,7 @@ pub fn checked_high_water_update(
         // a separate signed and atomically persisted migration is defined.
         return Err(HighWaterError::RootOrManifestMismatch);
     }
-    if cp.writer_epoch != trust.writer_epoch()
-        || current.writer_epoch != trust.writer_epoch()
-    {
+    if cp.writer_epoch != trust.writer_epoch() || current.writer_epoch != trust.writer_epoch() {
         return Err(HighWaterError::EpochMismatch);
     }
     if cp.seq == 0 && (cp.head_hash != [0; 32] || cp.revocation_root != [0; 32]) {
@@ -200,8 +195,7 @@ mod tests {
         let trust = trust();
         let store = TestAnchor(Mutex::new(HighWaterRecord::initial(&trust)));
         let old = store.read(trust.space(), trust.resource()).unwrap();
-        let next = checked_high_water_update(&trust, cp(&trust, 1, [4; 32]), old, 150)
-            .unwrap();
+        let next = checked_high_water_update(&trust, cp(&trust, 1, [4; 32]), old, 150).unwrap();
         store.compare_and_advance(old, next).unwrap();
         assert_eq!(
             checked_high_water_update(&trust, cp(&trust, 0, [0; 32]), next, 150),
@@ -218,8 +212,7 @@ mod tests {
         let trust = trust();
         let store = TestAnchor(Mutex::new(HighWaterRecord::initial(&trust)));
         let old = store.read(trust.space(), trust.resource()).unwrap();
-        let next = checked_high_water_update(&trust, cp(&trust, 1, [4; 32]), old, 150)
-            .unwrap();
+        let next = checked_high_water_update(&trust, cp(&trust, 1, [4; 32]), old, 150).unwrap();
         store.compare_and_advance(old, next).unwrap();
         assert_eq!(
             store.compare_and_advance(old, old),

@@ -781,7 +781,7 @@ mod tests {
         connection
             .execute(
                 "UPDATE revocations SET signed_event=?1 WHERE epoch=1",
-                ["substituted"],
+                [b"substituted".as_slice()],
             )
             .unwrap();
         drop(connection);

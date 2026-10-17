@@ -50,3 +50,6 @@ mod tests {
 
 /// Experimental Ed25519 verification of candidate CBOR security events.
 pub mod signed_revocation;
+
+/// Candidate Owner-anchored revoke-only delegation proof (not production trust).
+pub mod owner_authority;

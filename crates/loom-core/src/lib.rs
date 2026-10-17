@@ -1,8 +1,8 @@
 //! Loom peer orchestrator. L-000 scaffolding has no network or resource access.
 
+use loom_identity::PeerPrincipal;
 use loom_policy::{Decision, DenyAllPolicy, PolicyState, ResourceAuthorizer};
 use loom_types::{Action, ResourceId};
-use loom_identity::PeerPrincipal;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum RuntimeState {
@@ -30,7 +30,12 @@ impl PeerCore {
         false
     }
 
-    pub fn authorize(&self, principal: &PeerPrincipal, resource: ResourceId, action: Action) -> Decision {
+    pub fn authorize(
+        &self,
+        principal: &PeerPrincipal,
+        resource: ResourceId,
+        action: Action,
+    ) -> Decision {
         self.authorizer.authorize(principal, resource, action)
     }
 

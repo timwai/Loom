@@ -1,0 +1,22 @@
+review_id,priority,design_section,required_tests,status,remaining_evidence
+R01,P0,12.4 / ADR19,E2EE-01,design_addressed,Relay adversary PoC
+R02,P0,8.4 / ADR20,AUTHZ-RACE-01;AUTHZ-CRASH-02,design_addressed,DB crash/race tests
+R03,P0,10.5 / ADR07,WIRE-01,candidate_only,Cross-language bytes/parsing vectors
+R04,P0,7.5 / ADR21,ROLLBACK-01,design_addressed,Independent anchor proof
+R05,P0,7.4,ROLE-01,design_addressed,Role/delegation negative tests
+R06,P0,11.4,TLS-ID-01,design_addressed,mTLS/Space/key rotation tests
+R07,P0,18.5 / ADR22,IPC-01,design_addressed,Local adversarial IPC tests
+R08,P0,20.1 / ADR23,PLATFORM-ANDROID-01;PLATFORM-WIN-01;PLATFORM-MAC-01,plan_only,Device PoC on target OS
+R09,P1,9.4,LEDGER-FORK-01,design_addressed,DB evidence branch tests
+R10,P1,9.4,ACK-GC-01,design_addressed,50 peer offline/ack-GC tests
+R11,P1,12.4,CTRL-QOS-01,design_addressed,Transport QoS proof
+R12,P1,11.4 / 18.5,SPACE-LEAK-01,design_addressed,Cross-space privacy tests
+R13,P1,13.4,DNS-LEAK-01,design_addressed,DNS/QUIC/DoH leak lab
+R14,P1,14.4,FILE-RACE-01,design_addressed,Path handle multi-OS tests
+R15,P1,15.2,RDP-IP-01,design_addressed,Relay observed-IP proof
+R16,P1,16.2,BROWSER-BRIDGE-01,design_addressed,Native Messaging/loopback attacks
+R17,P1,22.4,LEGACY-01,design_addressed,Legacy coexistence tests
+R18,P2,4,WORKSPACE-01,existing_design,First 8 crates without cycles
+R19,P2,18.5,LOCAL-EVENTS-01,design_addressed,Cursor resume and space isolation
+R20,P2,12.4 / 24.4,PERF-GO-01,design_addressed,Same network Rust vs Go
+R21,P2,25.2,MILESTONE-01,design_addressed,Signed evidence per release gate

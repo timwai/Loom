@@ -11,8 +11,12 @@ pub enum CryptoError {
 }
 
 pub trait SignatureVerifier: Send + Sync {
-    fn verify(&self, claimed_signer: PeerId, payload: &[u8], signature: &[u8])
-        -> Result<(), CryptoError>;
+    fn verify(
+        &self,
+        claimed_signer: PeerId,
+        payload: &[u8],
+        signature: &[u8],
+    ) -> Result<(), CryptoError>;
 }
 
 /// Deliberately rejects all signatures until the audited implementation lands.

@@ -28,6 +28,9 @@ mod tests {
 
     #[test]
     fn transport_is_not_implicitly_trusted() {
-        assert_eq!(DisabledTransport.dial(), Err(TransportError::NoVerifiedChannel));
+        assert_eq!(
+            DisabledTransport.dial(),
+            Err(TransportError::NoVerifiedChannel)
+        );
     }
 }

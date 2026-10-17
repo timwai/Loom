@@ -49,7 +49,12 @@ impl Default for DenyAllPolicy {
 }
 
 impl ResourceAuthorizer for DenyAllPolicy {
-    fn authorize(&self, _caller: &PeerPrincipal, _resource: ResourceId, _action: Action) -> Decision {
+    fn authorize(
+        &self,
+        _caller: &PeerPrincipal,
+        _resource: ResourceId,
+        _action: Action,
+    ) -> Decision {
         let reason = match self.state {
             PolicyState::PolicyStale => DenyReason::StalePolicy,
             PolicyState::SyncConflict => DenyReason::ConflictingPolicy,
@@ -79,9 +84,18 @@ mod tests {
             PolicyState::SyncConflict,
             PolicyState::SafeReadOnly,
         ] {
-            for action in [Action::Read, Action::Write, Action::Connect, Action::Administer] {
+            for action in [
+                Action::Read,
+                Action::Write,
+                Action::Connect,
+                Action::Administer,
+            ] {
                 assert!(matches!(
-                    DenyAllPolicy::new(state).authorize(&principal, ResourceId::from_bytes([3; 16]), action),
+                    DenyAllPolicy::new(state).authorize(
+                        &principal,
+                        ResourceId::from_bytes([3; 16]),
+                        action
+                    ),
                     Decision::Deny(_)
                 ));
             }

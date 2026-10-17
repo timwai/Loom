@@ -56,3 +56,6 @@ pub mod owner_authority;
 
 /// Candidate dual-signed independent checkpoint verifier (no production admission).
 pub mod witness_checkpoint;
+
+/// Root-signed Resource Owner and independent witness binding (candidate only).
+pub mod space_trust;

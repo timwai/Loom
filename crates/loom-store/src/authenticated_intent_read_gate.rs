@@ -9,8 +9,8 @@ use crate::authenticated_intent_record::{
     ExternalReplayFence, ExternalSignerPin, RecordError, VerifiedIntentRecord, verify_signed_record,
 };
 use crate::tpm_counter_binding::{
-    BindingError, CandidateIntentStore, CandidateMonotonicCounter, Committed, PinnedCounterIdentity,
-    Prepared, StoredBinding,
+    BindingError, CandidateIntentStore, CandidateMonotonicCounter, Committed,
+    PinnedCounterIdentity, Prepared, StoredBinding,
 };
 use std::sync::Arc;
 
@@ -65,8 +65,8 @@ impl AuthenticatedReadOnlyIntent {
         }
         let frame1 = self.signed_media.read_frame()?;
         let count1 = self.counter.read()?;
-        let verified = verify_signed_record(&frame1, &trust1.0, trust1.1, count1)
-            .map_err(record_error)?;
+        let verified =
+            verify_signed_record(&frame1, &trust1.0, trust1.1, count1).map_err(record_error)?;
 
         // Re-observe *all* dependencies. A change is uncertain, not a new
         // enrollment, and must not be silently adopted for this read.
@@ -282,7 +282,10 @@ mod tests {
             after_revocation_root: [88; 32],
             after_manifest: f.bound.policy.current_manifest,
         };
-        assert_eq!(gate.prepare(f.bound, next), Err(BindingError::PersistenceUncertain));
+        assert_eq!(
+            gate.prepare(f.bound, next),
+            Err(BindingError::PersistenceUncertain)
+        );
         assert_eq!(gate.finalize(next), Err(BindingError::PersistenceUncertain));
         assert_eq!(*f.counter.value.lock().unwrap(), 9);
     }
@@ -346,7 +349,10 @@ mod tests {
             Diagnostic::IncrementNeedsSignedRecheck
         );
         assert_eq!(f.gate().load(), Ok(StoredBinding::Prepared(prepared)));
-        assert_eq!(f.gate().finalize(prepared), Err(BindingError::PersistenceUncertain));
+        assert_eq!(
+            f.gate().finalize(prepared),
+            Err(BindingError::PersistenceUncertain)
+        );
     }
 
     #[test]

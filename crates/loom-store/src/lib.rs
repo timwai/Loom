@@ -82,3 +82,7 @@ pub mod linux_tpm2_probe;
 
 /// Experimental signed policy-to-monotonic-counter crash protocol, no TPM writes.
 pub mod tpm_counter_binding;
+
+/// L-001S simulated independently durable Prepared-intent + NV crash boundary model.
+/// Deterministic test media only; never actual TPM or persistent trusted storage.
+pub mod durable_intent_simulator;

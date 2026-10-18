@@ -1,20 +1,42 @@
-# Loom v1.1 实施前检查清单
+# Loom v1.1 — implementation and release acceptance gates
 
-## 固定事实
+> Updated 2026-10-18. **L-001 NOT COMPLETE.** The current `main` branch contains the bootstrap README; implemented Rust code is on stacked, unmerged **Draft** branches. A green PR workflow is not security-release approval. Source of truth: [status](STATUS.md), [machine-readable milestone](acceptance/l001.json), and [verification script](../scripts/l001_gate.py).
 
-- 原始设计和评审来源均属于已生成的本地 Markdown 文档；Loom 当前项目尚未声明已经具备 Rust 代码或协议实现。
-- RelayProxy 源码对照 commit 为 `e4254c81ed678198c948272c22981fd16c19be9a`；其模块存在与调用链证据来自此前静态核对，不代表完整 AST 图谱/性能验证。
-- 所有新增安全子格式、最短编码、锁顺序、证书绑定、撤销 SLO 为**设计候选**，需经过 P0 PoC 与安全审查。
+## Fixed provenance and scope
 
-## 建议首批 PR
+- RelayProxy comparison baseline: `timwai/RelayProxy main@e4254c81ed678198c948272c22981fd16c19be9a`. Loom is a new Rust-first project, not a drop-in Go wire-compatible agent.
+- Existing Rust security work includes eight library crates and disabled `loomd`, signed Owner/Root/dual-Witness journal models, independent rollback and crash simulations, and isolated Peer mTLS experiments. These are **not** a usable Mesh service.
+- Never assume a signed frame, persistent SQLite record, volatile CAS mutex, numeric NV value or unverified Witness pair is sufficient for production authorization.
 
-| PR | 目标 | 必须可执行的验收 |
+## L-001 acceptance is conjunctive
+
+| Gate | Required executable, independently reviewed result | Current outcome |
 |---|---|---|
-| L-000 | Cargo Workspace 8 crates + cargo fmt/clippy/test/deny/fuzz starter + ADR 模板 | CI 真实运行、依赖许可和漏洞扫描 |
-| L-001A | SecurePeerChannel + 双端 ID + 恶意 relay PoC | E2EE-01、TLS-ID-01 |
-| L-001B | CBOR/protobuf Spike、canonical validator、向量导出 | WIRE-01 across Rust/Go/Kotlin/JS |
-| L-001C | SQLite admission barrier、持久 outbox、rollback anchors | AUTHZ-RACE-01、AUTHZ-CRASH-02、ROLLBACK-01 |
-| L-001D | Android/Windows/macOS 真实 OS Socket/driver PoC | PLATFORM-* tests |
-| L-002 | 2 Peer LAN File read, Owner ACL, revoke | without RelayProxy Server, revoked peer cannot access |
+| **L-001A / E2EE-01** | Real two-Peer encrypted channel through hostile relay/direct bearer; adversarial replay, tamper, substitution, key-rotation, resource limits; live daemon session tests | **PARTIAL:** isolated TLS 1.3 certificate-pinned PoC and malicious bearer tests, no live service |
+| **L-001A / TLS-ID-01** | TLS peer cert/SPKI proof tied to current signed membership, Root/Space, authenticated key epoch, expiry, revocation and authorized Owner resource decision | **PARTIAL:** certificate + Space/Peer/epoch binding only, no production trust provisioning |
+| **L-001B / WIRE-01** | Frozen canonical typed security event schema and signing input, Rust/Go/Kotlin/JS golden vectors, malformed/fuzz/differential interop, protocol version negotiation | **PARTIAL:** four-language 3-vector canonical CBOR/signing transcript CI, not final typed payload/fuzz/interoperability sign-off |
+| **L-001C / AUTHZ-RACE-01** | No stale policy/Owner or two-Peer revoke bypass; real admission-to-session atomicity and cross-process writer coherence | **PARTIAL:** signed journal/recovery and in-memory reservation models; no production ServiceOpen |
+| **L-001C / AUTHZ-CRASH-02** | Verified actual power-loss and restart around durable Prepared, independent replay fence, hardware NV, signed recovery/repair | **PARTIAL:** deterministic crash simulators only |
+| **L-001C / ROLLBACK-01** | Root/device enrolled nonrollbackable anchor, provenance of signer/fence, TPM reset and backup-rollback acceptance across processes and hosts | **PARTIAL:** abstract/verifier/model only |
+| **L-001D / PLATFORM-ANDROID-01** | Android VpnService lifecycle/permissions on real target, traffic/no-leak, driver/device failure and reboot | **BLOCKED:** no Android device or app integration |
+| **L-001D / PLATFORM-WIN-01** | Windows filter/driver/socket real-host path, privileges, signed deployment, crash/reboot, fail-closed traffic behavior | **BLOCKED:** Windows-hosted Rust tests do not test drivers |
+| **L-001D / PLATFORM-MAC-01** | macOS Network/System Extension real-host entitlement, user consent, traffic, crash/reboot and signed deployment | **BLOCKED:** macOS-hosted Rust tests do not test extensions |
 
-**No-Go**：直接发布 WAN Relay、启用网络全局拦截、用自报 RDP 来源 IP 自动封禁、把旧数据库恢复成无审查新权限、声称 Rust 性能已优于 Go。
+**All nine** gates must be marked passed with independently reviewed, repository-attached evidence; required security, hardware, wire-interop and platform sign-offs must also be complete. Only then may `docs/acceptance/l001.json` be changed to `state=complete`, and `python3 scripts/l001_gate.py --require-complete` may return zero.
+
+## Current evidence, not release approval
+
+- L-001A / Draft #7 and reintegration #36: isolated mTLS Peer channel, malicious bearer and identity-bound tests.
+- L-001B / Draft #35: independent strict Rust, Go, JavaScript, Kotlin golden CBOR/signing-input test runners executed in GitHub Actions.
+- L-001C / Draft #8–#34: signed journal replay, outbox/Audit, Root/Owner/Witness, counter/intent, signed record and recovery state models. No physical trusted durable CAS.
+- L-001D / post-#36 host portability smoke: GitHub Windows/macOS Rust workspace testing only; **PLATFORM-*** remains blocked.
+
+See the actual CI results in PRs and `docs/STATUS.md`. Do not label an accepted model test as physical hardware proof, nor merge stacked leaf Draft PRs directly into the README-only `main`.
+
+## Next development and no-go
+
+Engineering can advance the original L-001A/B/C/D code, but real TPM sacrificial hardware, Windows/macOS extension or filter deployment, and Android VpnService cannot be attested by in-memory GitHub runners. Owner authorization, revocation-to-open-session termination and independently pinned freshness must also be integrated into `loomd` before ServiceOpen is considered.
+
+**No-Go:** public WAN relay, traffic interception without OS approval, auto-ban of self-reported RDP IP, automatic trust restoration from legacy databases, unverifiable signer/witness credentials, claimed Rust performance superiority without measurement, or any production ServiceOpen before nine-gate and human release sign-off.
+
+L-002 (separate milestone) targets two-Peer LAN file read with Owner ACL and revocation; it does not relax L-001 prerequisites.

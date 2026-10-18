@@ -76,3 +76,6 @@ pub mod legacy_history_audit;
 
 /// L-001M behavioral adapter probe; never physical device certification.
 pub mod anchor_conformance;
+
+/// Linux TPM2 read-only capability experiment (no NV writes or trusted anchor).
+pub mod linux_tpm2_probe;

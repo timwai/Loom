@@ -18,7 +18,8 @@ use crate::tpm_counter_binding::{
     reconcile_candidate_advance,
 };
 use crate::unified_policy_anchor::{
-    IndependentUnifiedPolicyAnchor, UnifiedAnchorError, UnifiedPolicyHighWater, checked_unified_promotion,
+    IndependentUnifiedPolicyAnchor, UnifiedAnchorError, UnifiedPolicyHighWater,
+    checked_unified_promotion,
 };
 use loom_crypto::owner_lifecycle::ResourceOwnerLifecycle;
 use loom_crypto::space_trust::verify_root_bound_witnesses;
@@ -793,9 +794,8 @@ fn verify_signed_policy_prefix(
             return Err(StoreError::Conflict);
         }
         if kind == KIND_REVOKE {
-            revocation_root =
-                append_revocation_root(revocation_root, seq, &evidence)
-                    .ok_or(StoreError::Conflict)?;
+            revocation_root = append_revocation_root(revocation_root, seq, &evidence)
+                .ok_or(StoreError::Conflict)?;
         }
     }
     if state.sequence() != prior.policy_sequence
@@ -2621,13 +2621,7 @@ mod tests {
             (revoke_root, [63; 32]),
         ] {
             let (counter, intent, pin) = model_counter_io(&genesis);
-            set_committed_prefix(
-                &intent,
-                1,
-                earlier.policy_head,
-                prior_root,
-                prior_manifest,
-            );
+            set_committed_prefix(&intent, 1, earlier.policy_head, prior_root, prior_manifest);
             assert_eq!(
                 bound_counter(
                     &store,
@@ -2857,5 +2851,4 @@ mod tests {
         );
         assert_eq!(*counter.number.lock().unwrap(), 11);
     }
-
 }

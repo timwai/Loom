@@ -1,6 +1,6 @@
 # Loom — implementation status and security gates
 
-> Updated: **2026-10-18**, through Draft PR #25 (L-001R). Source of truth: repository branches, pull requests and GitHub Actions. This file describes the **stacked unmerged development branches**, not released features or the default branch.
+> Updated: **2026-10-18**, through proposed L-001S Draft PR (on PR #25). Source of truth: repository branches, pull requests and GitHub Actions. This file describes the **stacked unmerged development branches**, not released features or the default branch.
 
 ## Executive status
 
@@ -9,7 +9,7 @@
 - `main` remains the one-README bootstrap commit. No Rust code is merged there.
 - The active stack through **L-001O / Draft PR #22** has eight Rust library crates, a `loomd` binary that does not start a service, signed protocol/Owner-lifecycle verifiers, SQLite policy journals, witness/rollback models and a **read-only** Linux TPM2 probe.
 - Latest L-001O branch head `4683c432dd4b2530fcd4bd8db39c6bf03b5a3945` passed GitHub Actions (Rust fmt, workspace tests, Clippy with `-D warnings`, docs, dependency policy); see [run 39083991175](https://github.com/timwai/Loom/actions/runs/39083991175).
-- **L-001P / PR #23** restored L-001J mirror-integrity checks omitted from PRs #17–#22; L-001Q / PR #24 bound the journal to the candidate counter model; both have passing final-head GitHub CI. **L-001R** additionally requires the prior counter policy to match an authenticated signed *history prefix*, not merely the current Witness checkpoint.
+- **L-001P / PR #23** restored L-001J mirror-integrity checks; L-001Q / PR #24 tied SQLite signed journal replay to candidate counter steps; L-001R / PR #25 requires the prior committed policy to match the actual signed historical prefix. **L-001S** adds a deterministic simulated durable Prepared-intent medium with eight power-cut points, boot-bound handles and signed journal integration tests.
 - A green test suite verifies isolated PoCs only. There is no production-admission authorization, usable Mesh service, production TPM anchor, deployment or hardware security certificate.
 
 ## What exists on development branches
@@ -27,15 +27,17 @@
 | L-001P, PR #23 | Reintegrate missing journal mirror-integrity checks and adversarial tests | Final-head CI passed; unmerged Draft |
 | L-001Q, PR #24 | Bind fully replayed SQLite policy, signed witness checkpoint and candidate counter stages under a single model transaction | Seven new adversarial tests; model only, no trusted NV writes |
 | L-001R, PR #25 | Verify prior committed policy root, revocation root and Owner manifest as an exact *signed journal prefix* before candidate counter mutation | Six new adversarial crash/forgery tests; no durable intent or TPM writer |
+| L-001S, proposed PR | Model independent Prepared-intent sync boundaries, irreversible NV count, reboot, stale handles and signed journal recovery | 4 model + 3 integration tests; purely volatile simulator; no TPM writer |
 
 **Branch topology caveat:** PRs #6 (wire), #7 (channel) and #16 (mirror integrity) branch from earlier ancestors; they are not all ancestors of PR #22. Count of open Draft PRs is not a count of integrated features. Do not merge leaf PRs into `main` out of order. Review and reconcile branches explicitly.
 
-## Current P0 update after L-001R
+## Current P0 update after L-001S
 
 - The L-001P integration (#23) succeeded in the final commit CI, and L-001Q (#24) now tests a journal-bound counter transition with matching dual witness receipts, full signed-history replay, mirror parity, current Owner manifest and a SQLite transaction barrier. Both remain **unmerged Draft PRs**.
 - A matching counter/manifest pair is only a **diagnostic** result. No real independently protected TPM anchor, attested device binding, authenticated durable Prepared store or physical power-loss verification exists; ServiceOpen stays disabled.
 - L-001R checks that a counter's earlier high-water record matches a replayed **signed historical prefix** (sequence, head, revocation root and then-current Owner manifest) before any modeled increment. A matching latest witness alone is not enough. These proofs depend on trusted external enrollment and retained signed journal history; physical and global freshness are still not guaranteed.
-- Production design must remove long-running external hardware I/O from SQLite write transactions. Independently authenticated durable Prepared intent, TPM provisioning, real power-loss and cross-process/host adversarial acceptance remain blockers.
+- L-001S explicitly models unacknowledged volatile writes vs. acknowledged simulated durable writes and all eight Prepare/Increment/Finalize cut points. A reboot preserves the simulated NV counter and acknowledged intent image but invalidates old handles. Those are *model semantics*, NOT physical persistence or anti-rollback protection.
+- Production design must remove long-running external hardware I/O from SQLite write transactions. Independently authenticated real durable Prepared intent, TPM provisioning, real power-loss and cross-process/host adversarial acceptance remain blockers.
 
 ## Critical release blockers (P0)
 
@@ -47,8 +49,8 @@
 
 ## Next execution gates
 
-- **Current (L-001R):** require counter/intent's old high-water policy to be a true signed prefix of the same fully replayed journal, including the historical Owner manifest and revocation-only root. Pass Rust CI and preserve NO-SERVICE-OPEN.
-- **Next (L-001S):** add a fault-injection simulator for the separately authenticated durable Prepared-intent protocol; cover crashes around stage, increment, finalize and restart without relying on the same SQLite DB as anti-rollback storage. Still **no production TPM writes**.
+- **Current (L-001S):** exercise model durability boundaries and complete eight-cut failure matrix with full signed journal + two-Witness checkpoint integration; preserve NO-SERVICE-OPEN.
+- **Next (L-001T):** specify versioned canonical authenticated intent record framing and prove key/identity/manifest binding and mutation rejection using a separately provisioned authentication key assumption (still not a trusted real storage provider).
 - **Platform validation:** independently evaluate hardware enrollment, monotonic NV semantics, attestation, reset/wear/quotas, and legacy signed-history migration (sacrificial TPM target only after review). Unsupported targets remain explicit NO-GO.
 - **Vertical slice:** isolated two-Peer LAN read with Owner ACL and revoke-kills-session test **only after** production admission prerequisites pass.
 - **Release:** threat-model sign-off, coverage across all intended OS targets, security review, reproducible builds, migration/rollback drills, support and license gates.

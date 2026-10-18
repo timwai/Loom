@@ -62,12 +62,14 @@ private fun reject(label:String,value:ByteArray) {
 }
 fun main(args:Array<String>) {
     val root=args.firstOrNull()?:"."
-    val event=hexFile(root,"event-01.cbor.hex")
-    val expected=hexFile(root,"event-01.signing.hex")
-    Cursor(event).validate()
     val domain="LOOM:SECURITY-EVENT:V1".toByteArray()+byteArrayOf(0)
-    val length=ByteBuffer.allocate(4).putInt(event.size).array()
-    check((domain+length+event).contentEquals(expected))
+    for (name in listOf("event-01","event-02","event-03")) {
+        val candidate=hexFile(root,"$name.cbor.hex")
+        Cursor(candidate).validate()
+        val size=ByteBuffer.allocate(4).putInt(candidate.size).array()
+        check((domain+size+candidate).contentEquals(hexFile(root,"$name.signing.hex")))
+    }
+    val event=hexFile(root,"event-01.cbor.hex")
     for (n in 0 until event.size) reject("truncation",event.copyOfRange(0,n))
     val samples=mutableListOf<ByteArray>()
     fun flip(i:Int,v:Int){samples.add(event.copyOf().also{it[i]=v.toByte()})}

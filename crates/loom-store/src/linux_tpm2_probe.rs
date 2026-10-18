@@ -95,7 +95,7 @@ fn parse_response(
     expected_cap: u32,
     max_count: u32,
 ) -> Result<CapabilityPage, TpmProbeError> {
-    if bytes.len() < 19 || bytes.len() > MAX_REPLY {
+    if bytes.len() < 10 || bytes.len() > MAX_REPLY {
         return Err(TpmProbeError::MalformedResponse);
     }
     let u16_at = |i: usize| u16::from_be_bytes([bytes[i], bytes[i + 1]]);
@@ -106,6 +106,11 @@ fn parse_response(
     let code = u32_at(6);
     if code != 0 {
         return Err(TpmProbeError::TpmRejected(code));
+    }
+    // A TPM failure response contains just its 10-byte header. A successful
+    // GetCapability must also contain the capability payload and count.
+    if bytes.len() < 19 {
+        return Err(TpmProbeError::MalformedResponse);
     }
     if bytes[10] > 1 {
         return Err(TpmProbeError::MalformedResponse);
@@ -403,6 +408,18 @@ mod tests {
         error[6..10].copy_from_slice(&0x922u32.to_be_bytes());
         assert_eq!(
             parse_response(&error, TPM_CAP_HANDLES, 32).err(),
+            Some(TpmProbeError::TpmRejected(0x922))
+        );
+    }
+
+    #[test]
+    fn standard_ten_byte_tpm_error_header_is_reported_as_rejection() {
+        let mut response = Vec::new();
+        response.extend_from_slice(&TPM_ST_NO_SESSIONS.to_be_bytes());
+        response.extend_from_slice(&10u32.to_be_bytes());
+        response.extend_from_slice(&0x0000_0922u32.to_be_bytes());
+        assert_eq!(
+            parse_response(&response, TPM_CAP_PROPERTIES, 1).err(),
             Some(TpmProbeError::TpmRejected(0x922))
         );
     }

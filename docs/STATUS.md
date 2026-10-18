@@ -1,6 +1,6 @@
 # Loom — implementation status and security gates
 
-> Updated: **2026-10-18**. Source of truth for this report: the GitHub repository branches, pull requests and Actions runs. This file describes the **stacked Draft development branch**, not released features or the default branch.
+> Updated: **2026-10-18**, through Draft PR #24 (L-001Q). Source of truth: repository branches, pull requests and GitHub Actions. This file describes the **stacked unmerged development branches**, not released features or the default branch.
 
 ## Executive status
 
@@ -24,9 +24,16 @@
 | L-001J, PR #16 | Signed-event vs. Outbox/Audit parity, transaction-scoped pending queue | Separate branch, **not inherited by #22**; being integrated by L-001P |
 | L-001J–L, PRs #17–#19 | Dual-witness policy high-water, crash reconciliation, legacy signed-history preflight | Diagnostic PoCs; no automatic migration or live authority |
 | L-001M–O, PRs #20–#22 | Anchor behavioral conformance, read-only TPM2 capability probe, counter/intent crash-state model | Abstract or nonmutating models, **no trusted TPM NV writer** |
-| L-001P, current branch | Reconcile missing local mirror safety checks and tests into latest stack | Implementation submitted; independently revalidate CI |
+| L-001P, PR #23 | Reintegrate missing journal mirror-integrity checks and adversarial tests | Final-head CI passed; unmerged Draft |
+| L-001Q, PR #24 | Bind fully replayed SQLite policy, signed witness checkpoint and candidate counter stages under a single model transaction | Seven new adversarial tests; model only, no trusted NV writes |
 
 **Branch topology caveat:** PRs #6 (wire), #7 (channel) and #16 (mirror integrity) branch from earlier ancestors; they are not all ancestors of PR #22. Count of open Draft PRs is not a count of integrated features. Do not merge leaf PRs into `main` out of order. Review and reconcile branches explicitly.
+
+## Current P0 update after L-001Q
+
+- The L-001P integration (#23) succeeded in the final commit CI, and L-001Q (#24) now tests a journal-bound counter transition with matching dual witness receipts, full signed-history replay, mirror parity, current Owner manifest and a SQLite transaction barrier. Both remain **unmerged Draft PRs**.
+- A matching counter/manifest pair is only a **diagnostic** result. No real independently protected TPM anchor, attested device binding, authenticated durable Prepared store or physical power-loss verification exists; ServiceOpen stays disabled.
+- Production design must remove long-running external hardware I/O from SQLite write transactions and prove the prior anchor's policy is an authentic replayed history prefix. Real hardware and cross-process/host adversarial acceptance remain blockers.
 
 ## Critical release blockers (P0)
 

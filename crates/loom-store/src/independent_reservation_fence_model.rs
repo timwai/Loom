@@ -442,7 +442,9 @@ mod tests {
             assert_eq!(model.handle().unwrap().observe(), Ok(survived));
             let expected_generation = match cut {
                 FenceCrash::ReserveBefore => 0,
-                FenceCrash::ReserveAfter | FenceCrash::PrepareBefore | FenceCrash::AppendBefore => 1,
+                FenceCrash::ReserveAfter | FenceCrash::PrepareBefore | FenceCrash::AppendBefore => {
+                    1
+                }
                 FenceCrash::PrepareAfter | FenceCrash::AppendAfter => 2,
             };
             assert_eq!(survived.generation, expected_generation);

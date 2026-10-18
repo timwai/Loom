@@ -292,23 +292,17 @@ mod tests {
         let f = Fixture::new();
         f.media.bytes.lock().unwrap()[75] ^= 0x80;
         assert_eq!(f.gate().load(), Err(BindingError::BrokenIntent));
-        let old = frame(&f.signer, 0, StoredBinding::Committed(f.bound));
-        // Sequence zero itself is invalid, so a restored signed predecessor
-        // is represented by a different positive sequence below the fence.
+        // A restored signed predecessor is below the independently held
+        // sequence floor, even when its original signature remains valid.
         let older = frame(&f.signer, 1, StoredBinding::Committed(f.bound));
         let new = frame(&f.signer, 2, StoredBinding::Committed(f.bound));
-        *f.media.bytes.lock().unwrap() = new.clone();
-        *f.trust.current.lock().unwrap() = (
-            f.trust.current.lock().unwrap_or_else(|p| p.into_inner()).0,
-            ExternalReplayFence {
-                minimum_record_sequence: 2,
-                minimum_counter: 9,
-                last_record_digest: signed_record_digest(&new),
-            },
-        );
+        {
+            let mut trusted = f.trust.current.lock().unwrap();
+            trusted.1.minimum_record_sequence = 2;
+            trusted.1.last_record_digest = signed_record_digest(&new);
+        }
         *f.media.bytes.lock().unwrap() = older;
         assert_eq!(f.gate().load(), Err(BindingError::BrokenIntent));
-        let _ = old;
     }
 
     #[test]

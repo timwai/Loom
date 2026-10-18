@@ -79,3 +79,6 @@ pub mod anchor_conformance;
 
 /// Linux TPM2 read-only capability experiment (no NV writes or trusted anchor).
 pub mod linux_tpm2_probe;
+
+/// Experimental signed policy-to-monotonic-counter crash protocol, no TPM writes.
+pub mod tpm_counter_binding;

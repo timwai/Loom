@@ -1104,7 +1104,7 @@ mod tests {
 
     #[test]
     fn old_signed_frame_and_reset_device_never_reenroll_rotated_key() {
-        let (model, old, _) = fixture();
+        let (model, _old, _) = fixture();
         let saved_frame = model.image().unwrap().signed_frame;
         model
             .rotate_signer_for_test(rotation_approval(&model), successor())

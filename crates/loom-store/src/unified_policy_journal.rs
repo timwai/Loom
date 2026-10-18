@@ -599,12 +599,33 @@ impl UnifiedPolicyJournal {
             return Err(StoreError::Conflict);
         }
         let result = model_publish(prepared);
-        // If the CAS may have persisted Prepared before returning an error,
-        // quarantine the candidate until signed independent re-observation.
+        // A publisher may have changed the independent intent medium even
+        // when it reports a timeout. Always burn this one-shot ticket and
+        // quarantine potential Prepared before examining its result.
         barrier.prepared_unreconciled = true;
         barrier.advance_generation()?;
         result?;
-        Ok(rechecked.snapshot())
+
+        // L-001Z: an unrelated journal actor / direct SQLite writer can
+        // bypass this instance's local mutex DURING the model publisher.
+        // Replaying AGAIN catches changes already visible by callback
+        // return. A changed signed history or broken mirror parity MUST
+        // never produce a successful diagnostic. This cannot roll back
+        // Prepared, or close a race AFTER this final observation.
+        let final_proof = self.preflight_candidate_journal(
+            request.root,
+            request.genesis,
+            request.receipts,
+            request.now_ms,
+            request.prior,
+        );
+        match final_proof {
+            Ok(actual) if actual == rechecked => Ok(rechecked.snapshot()),
+            _ => {
+                barrier.stale_prepared = true;
+                Err(StoreError::Conflict)
+            }
+        }
     }
 
     /// Cancel only the exact outstanding ticket; no external media changes.

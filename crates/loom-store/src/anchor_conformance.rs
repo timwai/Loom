@@ -56,7 +56,9 @@ fn exact(
     expected: UnifiedPolicyHighWater,
     at: Check,
 ) -> Result<(), ProbeError> {
-    let current = rig.open().map_err(ProbeError::Adapter)?
+    let current = rig
+        .open()
+        .map_err(ProbeError::Adapter)?
         .read(expected.space, expected.resource)
         .map_err(ProbeError::Adapter)?;
     if current != expected {
@@ -65,11 +67,7 @@ fn exact(
     Ok(())
 }
 
-fn next(
-    previous: UnifiedPolicyHighWater,
-    seq: u64,
-    byte: u8,
-) -> UnifiedPolicyHighWater {
+fn next(previous: UnifiedPolicyHighWater, seq: u64, byte: u8) -> UnifiedPolicyHighWater {
     UnifiedPolicyHighWater {
         policy_sequence: seq,
         policy_head: [byte; 32],
@@ -98,15 +96,21 @@ pub fn run_behavioral_probe(
     }
 
     let one = next(initial, 1, 11);
-    provider.compare_and_advance(initial, one).map_err(ProbeError::Adapter)?;
+    provider
+        .compare_and_advance(initial, one)
+        .map_err(ProbeError::Adapter)?;
     exact(rig, one, Check::Advance)?;
 
-    if provider.compare_and_advance(initial, next(initial, 2, 99)).is_ok() {
+    if provider
+        .compare_and_advance(initial, next(initial, 2, 99))
+        .is_ok()
+    {
         return Err(ProbeError::Failed(Check::StaleCas));
     }
     exact(rig, one, Check::StaleCas)?;
 
-    rig.restore_application_snapshot().map_err(ProbeError::Adapter)?;
+    rig.restore_application_snapshot()
+        .map_err(ProbeError::Adapter)?;
     exact(rig, one, Check::SnapshotRollback)?;
 
     if provider.compare_and_advance(one, next(one, 1, 77)).is_ok() {
@@ -115,14 +119,16 @@ pub fn run_behavioral_probe(
     exact(rig, one, Check::EqualSequenceDivergence)?;
 
     let two = next(one, 2, 22);
-    rig.inject_fault(Fault::BeforeCommit).map_err(ProbeError::Adapter)?;
+    rig.inject_fault(Fault::BeforeCommit)
+        .map_err(ProbeError::Adapter)?;
     if provider.compare_and_advance(one, two).is_ok() {
         return Err(ProbeError::Failed(Check::FailedBeforeCommit));
     }
     rig.inject_fault(Fault::None).map_err(ProbeError::Adapter)?;
     exact(rig, one, Check::FailedBeforeCommit)?;
 
-    rig.inject_fault(Fault::CommitButUnknownAck).map_err(ProbeError::Adapter)?;
+    rig.inject_fault(Fault::CommitButUnknownAck)
+        .map_err(ProbeError::Adapter)?;
     if provider.compare_and_advance(one, two).is_ok() {
         return Err(ProbeError::Failed(Check::CommittedWithoutAck));
     }
@@ -130,16 +136,23 @@ pub fn run_behavioral_probe(
     // Reopen: an ambiguous ACK must NOT erase the already committed value.
     exact(rig, two, Check::CommittedWithoutAck)?;
 
-    rig.inject_fault(Fault::ReadUnavailable).map_err(ProbeError::Adapter)?;
-    if rig.open().map_err(ProbeError::Adapter)?
-        .read(initial.space, initial.resource).is_ok()
+    rig.inject_fault(Fault::ReadUnavailable)
+        .map_err(ProbeError::Adapter)?;
+    if rig
+        .open()
+        .map_err(ProbeError::Adapter)?
+        .read(initial.space, initial.resource)
+        .is_ok()
     {
         return Err(ProbeError::Failed(Check::Unavailable));
     }
     rig.inject_fault(Fault::None).map_err(ProbeError::Adapter)?;
     exact(rig, two, Check::Unavailable)?;
 
-    Ok(ProbeReport { checks_passed: 9, physically_certified: false })
+    Ok(ProbeReport {
+        checks_passed: 9,
+        physically_certified: false,
+    })
 }
 
 #[cfg(test)]
@@ -161,9 +174,11 @@ mod tests {
         allows_divergence: bool,
     }
     impl IndependentUnifiedPolicyAnchor for Adapter {
-        fn read(&self, space: SpaceId, resource: ResourceId)
-            -> Result<UnifiedPolicyHighWater, UnifiedAnchorError>
-        {
+        fn read(
+            &self,
+            space: SpaceId,
+            resource: ResourceId,
+        ) -> Result<UnifiedPolicyHighWater, UnifiedAnchorError> {
             if *self.fault.lock().unwrap() == Fault::ReadUnavailable {
                 return Err(UnifiedAnchorError::MissingOrUntrusted);
             }
@@ -179,7 +194,9 @@ mod tests {
             proposal: UnifiedPolicyHighWater,
         ) -> Result<(), UnifiedAnchorError> {
             let mut value = self.state.lock().unwrap();
-            if *value != expected { return Err(UnifiedAnchorError::ConcurrentUpdate); }
+            if *value != expected {
+                return Err(UnifiedAnchorError::ConcurrentUpdate);
+            }
             if proposal.space != value.space
                 || proposal.resource != value.resource
                 || proposal.root_public_key != value.root_public_key
@@ -190,7 +207,8 @@ mod tests {
             {
                 return Err(UnifiedAnchorError::StaleState);
             }
-            if !self.allows_divergence && proposal.policy_sequence == value.policy_sequence
+            if !self.allows_divergence
+                && proposal.policy_sequence == value.policy_sequence
                 && proposal != *value
             {
                 return Err(UnifiedAnchorError::ConflictingHistory);
@@ -202,7 +220,10 @@ mod tests {
                     Err(UnifiedAnchorError::PersistenceUncertain)
                 }
                 Fault::ReadUnavailable => Err(UnifiedAnchorError::MissingOrUntrusted),
-                Fault::None => { *value = proposal; Ok(()) }
+                Fault::None => {
+                    *value = proposal;
+                    Ok(())
+                }
             }
         }
     }
@@ -225,9 +246,7 @@ mod tests {
             Ok(())
         }
     }
-    fn fixture(rolls_back_anchor: bool, allows_divergence: bool)
-        -> (Rig, UnifiedPolicyHighWater)
-    {
+    fn fixture(rolls_back_anchor: bool, allows_divergence: bool) -> (Rig, UnifiedPolicyHighWater) {
         let initial = UnifiedPolicyHighWater {
             space: SpaceId::from_bytes([1; 16]),
             resource: ResourceId::from_bytes([2; 16]),
@@ -240,20 +259,26 @@ mod tests {
             policy_head: [0; 32],
             revocation_root: [0; 32],
         };
-        (Rig {
-            state: Arc::new(Mutex::new(initial)),
-            snapshot: initial,
-            fault: Arc::new(Mutex::new(Fault::None)),
-            rolls_back_anchor,
-            allows_divergence,
-        }, initial)
+        (
+            Rig {
+                state: Arc::new(Mutex::new(initial)),
+                snapshot: initial,
+                fault: Arc::new(Mutex::new(Fault::None)),
+                rolls_back_anchor,
+                allows_divergence,
+            },
+            initial,
+        )
     }
     #[test]
     fn behavioral_model_passes_but_physical_certification_stays_false() {
         let (rig, initial) = fixture(false, false);
         assert_eq!(
             run_behavioral_probe(&rig, initial),
-            Ok(ProbeReport { checks_passed: 9, physically_certified: false })
+            Ok(ProbeReport {
+                checks_passed: 9,
+                physically_certified: false
+            })
         );
         assert_eq!(rig.state.lock().unwrap().policy_sequence, 2);
     }

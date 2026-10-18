@@ -269,6 +269,7 @@ dependencies = [
  "loom-types",
  "loom-wire",
  "rusqlite",
+ "sha2",
 ]
 
 [[package]]

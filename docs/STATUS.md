@@ -47,9 +47,9 @@
 
 ## Next execution gates
 
-- **Now (L-001P):** integrate local mirror integrity with current unified journal and pass full CI; retain no-ServiceOpen behavior. Document why Outbox reads remain diagnostic only.
-- **Next:** build a *journal-bound* witness/counter verification adapter that consumes an independently replayed, authenticated snapshot under one coordination barrier; fail closed on torn snapshots. First use a deterministic fake with adversarial tests, not a hardware writer.
-- **Then:** decide on and independently validate platform anti-rollback support (starting with sacrificial Linux TPM test hardware) and an authenticated legacy migration protocol; record explicit NO-GO on unsupported targets.
+- **Current (L-001R):** require counter/intent's old high-water policy to be a true signed prefix of the same fully replayed journal, including the historical Owner manifest and revocation-only root. Pass Rust CI and preserve NO-SERVICE-OPEN.
+- **Next (L-001S):** add a fault-injection simulator for the separately authenticated durable Prepared-intent protocol; cover crashes around stage, increment, finalize and restart without relying on the same SQLite DB as anti-rollback storage. Still **no production TPM writes**.
+- **Platform validation:** independently evaluate hardware enrollment, monotonic NV semantics, attestation, reset/wear/quotas, and legacy signed-history migration (sacrificial TPM target only after review). Unsupported targets remain explicit NO-GO.
 - **Vertical slice:** isolated two-Peer LAN read with Owner ACL and revoke-kills-session test **only after** production admission prerequisites pass.
 - **Release:** threat-model sign-off, coverage across all intended OS targets, security review, reproducible builds, migration/rollback drills, support and license gates.
 

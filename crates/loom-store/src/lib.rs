@@ -97,3 +97,7 @@ pub mod authenticated_intent_read_gate;
 
 /// L-001V signed write/replay-fence CAS **simulation**. No real durable writer.
 pub mod authenticated_intent_write_model;
+
+/// L-001AA logical restart-retained journal reservation CAS simulator.
+/// No real durable independent fence or TPM NV hardware is implemented.
+pub mod independent_reservation_fence_model;

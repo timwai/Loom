@@ -3186,12 +3186,8 @@ mod tests {
                 },
             )),
         });
-        let adapter = AuthenticatedReadOnlyIntent::new(
-            pin,
-            counter.clone(),
-            source.clone(),
-            trust.clone(),
-        );
+        let adapter =
+            AuthenticatedReadOnlyIntent::new(pin, counter.clone(), source.clone(), trust.clone());
         (
             CandidateCounterIo {
                 pin,
@@ -3213,8 +3209,7 @@ mod tests {
         let snapshot = store
             .append(root_pin(), genesis, NewPolicyEvent::Revoke(&revoke))
             .unwrap();
-        let revoke_root =
-            append_revocation_root([0; 32], 1, &revoke.persistence_bytes()).unwrap();
+        let revoke_root = append_revocation_root([0; 32], 1, &revoke.persistence_bytes()).unwrap();
         let receipts = witness_receipts(1, snapshot.policy_head, revoke_root);
         let (counter, _, pin) = model_counter_io(&genesis);
         let committed = Committed {
@@ -3286,8 +3281,7 @@ mod tests {
         let snapshot = store
             .append(root_pin(), genesis, NewPolicyEvent::Revoke(&revoke))
             .unwrap();
-        let revoke_root =
-            append_revocation_root([0; 32], 1, &revoke.persistence_bytes()).unwrap();
+        let revoke_root = append_revocation_root([0; 32], 1, &revoke.persistence_bytes()).unwrap();
         let receipts = witness_receipts(1, snapshot.policy_head, revoke_root);
         let (counter, _, pin) = model_counter_io(&genesis);
         let prepared = Prepared {

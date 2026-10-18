@@ -1,6 +1,6 @@
 # Loom — implementation status and security gates
 
-> Updated: **2026-10-18**, through proposed L-001S Draft PR (on PR #25). Source of truth: repository branches, pull requests and GitHub Actions. This file describes the **stacked unmerged development branches**, not released features or the default branch.
+> Updated: **2026-10-18**, through Draft PR #26 (L-001S). Source of truth: repository branches, pull requests and GitHub Actions. This file describes the **stacked unmerged development branches**, not released features or the default branch.
 
 ## Executive status
 
@@ -27,7 +27,7 @@
 | L-001P, PR #23 | Reintegrate missing journal mirror-integrity checks and adversarial tests | Final-head CI passed; unmerged Draft |
 | L-001Q, PR #24 | Bind fully replayed SQLite policy, signed witness checkpoint and candidate counter stages under a single model transaction | Seven new adversarial tests; model only, no trusted NV writes |
 | L-001R, PR #25 | Verify prior committed policy root, revocation root and Owner manifest as an exact *signed journal prefix* before candidate counter mutation | Six new adversarial crash/forgery tests; no durable intent or TPM writer |
-| L-001S, proposed PR | Model independent Prepared-intent sync boundaries, irreversible NV count, reboot, stale handles and signed journal recovery | 4 model + 3 integration tests; purely volatile simulator; no TPM writer |
+| L-001S, PR #26 | Model independent Prepared-intent sync boundaries, irreversible NV count, reboot, stale handles and signed journal recovery | 4 model + 3 integration tests; purely volatile simulator; no TPM writer |
 
 **Branch topology caveat:** PRs #6 (wire), #7 (channel) and #16 (mirror integrity) branch from earlier ancestors; they are not all ancestors of PR #22. Count of open Draft PRs is not a count of integrated features. Do not merge leaf PRs into `main` out of order. Review and reconcile branches explicitly.
 

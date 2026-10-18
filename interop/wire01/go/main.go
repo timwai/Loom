@@ -126,7 +126,7 @@ func main() {
     mutate("tag",0,0xc9)
     x:=append(bytes.Clone(b),0);scenarios["trailing"]=x
     x=bytes.Clone(b);x=append(x[:2],append([]byte{0x18,0x01},x[3:]...)...);scenarios["overlong version"]=x
-    x=bytes.Clone(b);x[26]=0x00;scenarios["identity structure"]=x
+    x=bytes.Clone(b);x[25]=0x1f;scenarios["identity structure"]=x
     for name,bad:=range scenarios{mustReject(name,bad)}
     fmt.Printf("WIRE-01 Go PASS: canonical golden transcript, %d truncated and %d negative samples\n",len(b),len(scenarios))
 }

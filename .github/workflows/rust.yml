@@ -19,6 +19,12 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: Verify formatting
         run: cargo fmt --all -- --check
+      - name: Reconcile imported TLS Cargo.lock for review (temporary)
+        run: |
+          cargo metadata --format-version 1 > /dev/null
+          echo "LOOM-CARGO-LOCK-BEGIN"
+          cat Cargo.lock
+          echo "LOOM-CARGO-LOCK-END"
       - name: Unit tests
         run: cargo test --workspace --all-targets --locked
       - name: Lint all targets

@@ -3451,7 +3451,13 @@ mod tests {
         let model = cas_model(&genesis);
 
         assert_eq!(
-            cas_bound(&journal, genesis, &receipts, &model, CandidateCounterOperation::Begin),
+            cas_bound(
+                &journal,
+                genesis,
+                &receipts,
+                &model,
+                CandidateCounterOperation::Begin
+            ),
             Ok(Diagnostic::MatchingCounterOnly)
         );
         let after = model.image().unwrap();
@@ -3486,7 +3492,13 @@ mod tests {
         let model = cas_model(&genesis);
         model.fail_once(WriteCrashPoint::PrepareAfterCas).unwrap();
         assert_eq!(
-            cas_bound(&journal, genesis, &receipts, &model, CandidateCounterOperation::Begin),
+            cas_bound(
+                &journal,
+                genesis,
+                &receipts,
+                &model,
+                CandidateCounterOperation::Begin
+            ),
             Err(StoreError::PersistenceFailure)
         );
         model.reboot().unwrap();
@@ -3503,7 +3515,13 @@ mod tests {
         assert_eq!(model.image().unwrap().counter, 9);
         assert_eq!(model.image().unwrap().fence.minimum_record_sequence, 2);
         assert_eq!(
-            cas_bound(&journal, genesis, &receipts, &model, CandidateCounterOperation::Begin),
+            cas_bound(
+                &journal,
+                genesis,
+                &receipts,
+                &model,
+                CandidateCounterOperation::Begin
+            ),
             Err(StoreError::PersistenceFailure)
         );
     }
@@ -3523,7 +3541,13 @@ mod tests {
         let model = cas_model(&genesis);
         model.fail_once(WriteCrashPoint::CounterAfterWrite).unwrap();
         assert_eq!(
-            cas_bound(&journal, genesis, &receipts, &model, CandidateCounterOperation::Begin),
+            cas_bound(
+                &journal,
+                genesis,
+                &receipts,
+                &model,
+                CandidateCounterOperation::Begin
+            ),
             Err(StoreError::PersistenceFailure)
         );
         model.reboot().unwrap();

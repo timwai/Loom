@@ -958,9 +958,7 @@ mod tests {
         SimulatedRotationApproval {
             expected_pin: state.pin,
             expected_fence: state.fence,
-            successor_public_key: SigningKey::from_bytes(&[65; 32])
-                .verifying_key()
-                .to_bytes(),
+            successor_public_key: SigningKey::from_bytes(&[65; 32]).verifying_key().to_bytes(),
         }
     }
 
@@ -978,7 +976,10 @@ mod tests {
         assert_eq!(after.counter, before.counter);
         assert_eq!(after.fence.minimum_counter, 9);
         assert_eq!(after.fence.minimum_record_sequence, 2);
-        assert_ne!(after.fence.last_record_digest, before.fence.last_record_digest);
+        assert_ne!(
+            after.fence.last_record_digest,
+            before.fence.last_record_digest
+        );
         let (counter, store) = model.handles().unwrap();
         assert_eq!(store.load(), Ok(StoredBinding::Committed(original)));
         let (raw, trust) = model.read_sources().unwrap();
@@ -1070,14 +1071,28 @@ mod tests {
                 WriteCrashPoint::RotateBeforeCas => {
                     assert_eq!(frame.fence.minimum_record_sequence, 1);
                     assert_eq!(
-                        model.read_sources().unwrap().1.read_trust().unwrap().0.signer_epoch,
+                        model
+                            .read_sources()
+                            .unwrap()
+                            .1
+                            .read_trust()
+                            .unwrap()
+                            .0
+                            .signer_epoch,
                         2
                     );
                 }
                 WriteCrashPoint::RotateAfterCas => {
                     assert_eq!(frame.fence.minimum_record_sequence, 2);
                     assert_eq!(
-                        model.read_sources().unwrap().1.read_trust().unwrap().0.signer_epoch,
+                        model
+                            .read_sources()
+                            .unwrap()
+                            .1
+                            .read_trust()
+                            .unwrap()
+                            .0
+                            .signer_epoch,
                         3
                     );
                 }
@@ -1109,7 +1124,10 @@ mod tests {
         assert_eq!(counter.read(), Err(BindingError::PersistenceUncertain));
         let (rebooted_counter, rebooted_store) = model.handles().unwrap();
         assert_eq!(rebooted_store.load(), Err(BindingError::BrokenIntent));
-        assert_eq!(rebooted_counter.increment(), Err(BindingError::BrokenIntent));
+        assert_eq!(
+            rebooted_counter.increment(),
+            Err(BindingError::BrokenIntent)
+        );
         assert_eq!(model.image().unwrap().counter, 8);
         assert_eq!(model.image().unwrap().fence, fence);
     }
@@ -1190,5 +1208,4 @@ mod tests {
         );
         assert_eq!(model.image().unwrap().fence, fence);
     }
-
 }

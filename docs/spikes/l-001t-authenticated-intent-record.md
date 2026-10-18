@@ -48,7 +48,7 @@ The signing API exports a *preimage builder* only: it **does not** hold or gener
 
 ## Verification and test coverage
 
-Seven dedicated Rust unit tests cover canonical round trip, both frame lengths, dozens of bit flips and adversarial re-signing, version/reserved/length/phase mistakes, cross-device and cross-Root substitution, old-record and equal-sequence fork replay, explicit signing-key rotation, wrong counter and bad fence initialization. Run full repository CI:
+Eight dedicated Rust tests cover canonical round trip, both frame lengths, dozens of bit flips and adversarial re-signing, version/reserved/length/phase mistakes, cross-device and cross-Root substitution, old-record and equal-sequence fork replay, explicit signing-key rotation, wrong counter and bad fence initialization, plus a signed-record integration test against the L-001S post-increment crash image and restored stale intent. Run full repository CI:
 
 ```bash
 cargo fmt --all -- --check

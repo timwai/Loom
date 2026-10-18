@@ -26,7 +26,34 @@ pub struct Committed {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Prepared {
     pub before: Committed,
-    pub after: UnifiedPolicyHighWater,
+    /// Only those values allowed to advance under the same Root and Writer.
+    /// The unchanged identity, genesis, and writer are inherited from before.
+    pub after_sequence: u64,
+    pub after_head: [u8; 32],
+    pub after_revocation_root: [u8; 32],
+    pub after_manifest: [u8; 32],
+}
+
+impl Prepared {
+    fn new(before: Committed, next: UnifiedPolicyHighWater) -> Self {
+        Self {
+            before,
+            after_sequence: next.policy_sequence,
+            after_head: next.policy_head,
+            after_revocation_root: next.revocation_root,
+            after_manifest: next.current_manifest,
+        }
+    }
+
+    fn after_policy(&self) -> UnifiedPolicyHighWater {
+        UnifiedPolicyHighWater {
+            policy_sequence: self.after_sequence,
+            policy_head: self.after_head,
+            revocation_root: self.after_revocation_root,
+            current_manifest: self.after_manifest,
+            ..self.before.policy
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -95,7 +122,7 @@ pub fn inspect_counter(
                 return Err(BindingError::WrongCounterIdentity);
             }
             let old = intent.before.policy;
-            let new = intent.after;
+            let new = intent.after_policy();
             if new.space != old.space
                 || new.resource != old.resource
                 || new.root_public_key != old.root_public_key
@@ -171,10 +198,7 @@ pub fn begin_candidate_advance(
         .checked_add(1)
         .ok_or(BindingError::CounterOverflow)?;
     let after = witnessed_next(genesis, current, receipts, now_ms, prior.policy)?;
-    let intent = Prepared {
-        before: prior,
-        after,
-    };
+    let intent = Prepared::new(prior, after);
     store.prepare(prior, intent)?;
     // Every error after this point leaves a state that needs inspection.
     counter.increment()?;
@@ -210,7 +234,7 @@ pub fn reconcile_candidate_advance(
         return Err(BindingError::BrokenIntent);
     };
     let expected = witnessed_next(genesis, current, receipts, now_ms, intent.before.policy)?;
-    if expected != intent.after {
+    if expected != intent.after_policy() {
         return Err(BindingError::InvalidWitnesses);
     }
     store.finalize(intent)?;
@@ -298,7 +322,7 @@ mod tests {
                     .counter
                     .checked_add(1)
                     .ok_or(BindingError::CounterOverflow)?,
-                policy: prepared.after,
+                policy: prepared.after_policy(),
             });
             Ok(())
         }

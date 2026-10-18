@@ -245,7 +245,9 @@ mod tests {
         fault: Mutex<Fault>,
     }
     impl CandidateMonotonicCounter for Counter {
-        fn identity(&self) -> PinnedCounterIdentity { self.identity }
+        fn identity(&self) -> PinnedCounterIdentity {
+            self.identity
+        }
         fn read(&self) -> Result<u64, BindingError> {
             Ok(*self.value.lock().unwrap())
         }
@@ -291,7 +293,10 @@ mod tests {
             }
             *slot = StoredBinding::Committed(Committed {
                 identity: prepared.before.identity,
-                counter: prepared.before.counter.checked_add(1)
+                counter: prepared
+                    .before
+                    .counter
+                    .checked_add(1)
                     .ok_or(BindingError::CounterOverflow)?,
                 policy: prepared.after,
             });
@@ -299,8 +304,11 @@ mod tests {
         }
     }
     fn fixture() -> (
-        Counter, Journal, PinnedCounterIdentity,
-        VerifiedResourceTrust, [SignedCheckpoint; 2],
+        Counter,
+        Journal,
+        PinnedCounterIdentity,
+        VerifiedResourceTrust,
+        [SignedCheckpoint; 2],
     ) {
         let root = SigningKey::from_bytes(&[30; 32]);
         let owner = SigningKey::from_bytes(&[11; 32]);
@@ -308,15 +316,22 @@ mod tests {
         let witness_b = SigningKey::from_bytes(&[22; 32]);
         let pin = ExternallyPinnedRootForSpike {
             space: SpaceId::from_bytes([1; 16]),
-            public_key: root.verifying_key().to_bytes(), key_epoch: 7,
+            public_key: root.verifying_key().to_bytes(),
+            key_epoch: 7,
         };
         let manifest = ResourceTrustManifest {
-            space: pin.space, resource: ResourceId::from_bytes([2; 16]),
-            owner_public_key: owner.verifying_key().to_bytes(), owner_key_epoch: 3,
+            space: pin.space,
+            resource: ResourceId::from_bytes([2; 16]),
+            owner_public_key: owner.verifying_key().to_bytes(),
+            owner_key_epoch: 3,
             witness_public_keys: [
-                witness_a.verifying_key().to_bytes(), witness_b.verifying_key().to_bytes(),
+                witness_a.verifying_key().to_bytes(),
+                witness_b.verifying_key().to_bytes(),
             ],
-            writer_epoch: 1, root_key_epoch: 7, issued_at_ms: 100, expires_at_ms: 300,
+            writer_epoch: 1,
+            root_key_epoch: 7,
+            issued_at_ms: 100,
+            expires_at_ms: 300,
         };
         let signed = SignedResourceTrust {
             manifest,
@@ -324,26 +339,35 @@ mod tests {
         };
         let trust = verify_resource_trust_for_spike(&pin, &signed, 150).unwrap();
         let checkpoint = Checkpoint {
-            space: trust.space(), resource: trust.resource(), writer_epoch: trust.writer_epoch(),
-            seq: 1, head_hash: [77; 32], revocation_root: [88; 32],
-            issued_at_ms: 120, expires_at_ms: 250,
+            space: trust.space(),
+            resource: trust.resource(),
+            writer_epoch: trust.writer_epoch(),
+            seq: 1,
+            head_hash: [77; 32],
+            revocation_root: [88; 32],
+            issued_at_ms: 120,
+            expires_at_ms: 250,
         };
         let transcript = checkpoint_transcript(&checkpoint);
         let receipts = [witness_a, witness_b].map(|key| SignedCheckpoint {
-            witness_key_id: TrustedWitnessForSpike::from_public_key(
-                key.verifying_key().to_bytes(),
-            ).key_id,
+            witness_key_id: TrustedWitnessForSpike::from_public_key(key.verifying_key().to_bytes())
+                .key_id,
             checkpoint,
             signature: key.sign(&transcript).to_bytes(),
         });
         let nv = PinnedCounterIdentity {
-            device_binding: [3; 32], nv_index: 0x0180_0111,
+            device_binding: [3; 32],
+            nv_index: 0x0180_0111,
         };
         let committed = Committed {
-            identity: nv, counter: 17, policy: UnifiedPolicyHighWater::initial(&trust),
+            identity: nv,
+            counter: 17,
+            policy: UnifiedPolicyHighWater::initial(&trust),
         };
         let counter = Counter {
-            identity: nv, value: Mutex::new(17), fault: Mutex::new(Fault::None),
+            identity: nv,
+            value: Mutex::new(17),
+            fault: Mutex::new(Fault::None),
         };
         let journal = Journal {
             state: Mutex::new(StoredBinding::Committed(committed)),
@@ -352,14 +376,20 @@ mod tests {
         (counter, journal, nv, trust, receipts)
     }
     fn begin(
-        device: &Counter, journal: &Journal, pin: PinnedCounterIdentity,
-        trust: &VerifiedResourceTrust, receipts: &[SignedCheckpoint],
+        device: &Counter,
+        journal: &Journal,
+        pin: PinnedCounterIdentity,
+        trust: &VerifiedResourceTrust,
+        receipts: &[SignedCheckpoint],
     ) -> Result<Diagnostic, BindingError> {
         begin_candidate_advance(device, journal, pin, trust, trust, receipts, 150)
     }
     fn reconcile(
-        device: &Counter, journal: &Journal, pin: PinnedCounterIdentity,
-        trust: &VerifiedResourceTrust, receipts: &[SignedCheckpoint],
+        device: &Counter,
+        journal: &Journal,
+        pin: PinnedCounterIdentity,
+        trust: &VerifiedResourceTrust,
+        receipts: &[SignedCheckpoint],
     ) -> Result<Diagnostic, BindingError> {
         reconcile_candidate_advance(device, journal, pin, trust, trust, receipts, 150)
     }
@@ -367,8 +397,10 @@ mod tests {
     #[test]
     fn signed_advance_binds_both_policy_roots_and_stays_diagnostic_only() {
         let (device, journal, pin, trust, receipts) = fixture();
-        assert_eq!(begin(&device, &journal, pin, &trust, &receipts),
-            Ok(Diagnostic::MatchingCounterOnly));
+        assert_eq!(
+            begin(&device, &journal, pin, &trust, &receipts),
+            Ok(Diagnostic::MatchingCounterOnly)
+        );
         assert_eq!(*device.value.lock().unwrap(), 18);
         let StoredBinding::Committed(committed) = journal.load().unwrap() else {
             panic!("not committed")
@@ -376,28 +408,39 @@ mod tests {
         assert_eq!(committed.counter, 18);
         assert_eq!(committed.policy.policy_head, [77; 32]);
         assert_eq!(committed.policy.revocation_root, [88; 32]);
-        assert_eq!(reconcile(&device, &journal, pin, &trust, &receipts),
-            Ok(Diagnostic::MatchingCounterOnly));
+        assert_eq!(
+            reconcile(&device, &journal, pin, &trust, &receipts),
+            Ok(Diagnostic::MatchingCounterOnly)
+        );
     }
 
     #[test]
     fn failing_intent_stage_does_not_increment_counter() {
         let (device, journal, pin, trust, receipts) = fixture();
         *journal.fault.lock().unwrap() = Fault::StageFails;
-        assert_eq!(begin(&device, &journal, pin, &trust, &receipts),
-            Err(BindingError::PersistenceUncertain));
+        assert_eq!(
+            begin(&device, &journal, pin, &trust, &receipts),
+            Err(BindingError::PersistenceUncertain)
+        );
         assert_eq!(*device.value.lock().unwrap(), 17);
-        assert!(matches!(journal.load().unwrap(), StoredBinding::Committed(_)));
+        assert!(matches!(
+            journal.load().unwrap(),
+            StoredBinding::Committed(_)
+        ));
     }
 
     #[test]
     fn error_before_nv_increment_keeps_prepared_state_not_ready() {
         let (device, journal, pin, trust, receipts) = fixture();
         *device.fault.lock().unwrap() = Fault::CounterErrorBefore;
-        assert_eq!(begin(&device, &journal, pin, &trust, &receipts),
-            Err(BindingError::PersistenceUncertain));
-        assert_eq!(reconcile(&device, &journal, pin, &trust, &receipts),
-            Ok(Diagnostic::IntentBeforeIncrement));
+        assert_eq!(
+            begin(&device, &journal, pin, &trust, &receipts),
+            Err(BindingError::PersistenceUncertain)
+        );
+        assert_eq!(
+            reconcile(&device, &journal, pin, &trust, &receipts),
+            Ok(Diagnostic::IntentBeforeIncrement)
+        );
         assert_eq!(*device.value.lock().unwrap(), 17);
     }
 
@@ -405,11 +448,15 @@ mod tests {
     fn lost_ack_after_nv_increment_recovers_only_with_original_witnesses() {
         let (device, journal, pin, trust, receipts) = fixture();
         *device.fault.lock().unwrap() = Fault::CounterErrorAfter;
-        assert_eq!(begin(&device, &journal, pin, &trust, &receipts),
-            Err(BindingError::PersistenceUncertain));
+        assert_eq!(
+            begin(&device, &journal, pin, &trust, &receipts),
+            Err(BindingError::PersistenceUncertain)
+        );
         assert_eq!(*device.value.lock().unwrap(), 18);
-        assert_eq!(reconcile(&device, &journal, pin, &trust, &receipts),
-            Ok(Diagnostic::MatchingCounterOnly));
+        assert_eq!(
+            reconcile(&device, &journal, pin, &trust, &receipts),
+            Ok(Diagnostic::MatchingCounterOnly)
+        );
         let StoredBinding::Committed(bound) = journal.load().unwrap() else {
             panic!("recovery did not commit")
         };
@@ -420,16 +467,25 @@ mod tests {
     fn finalize_failure_requires_rechecking_valid_root_witness_signatures() {
         let (device, journal, pin, trust, mut receipts) = fixture();
         *journal.fault.lock().unwrap() = Fault::FinalizeFails;
-        assert_eq!(begin(&device, &journal, pin, &trust, &receipts),
-            Err(BindingError::PersistenceUncertain));
+        assert_eq!(
+            begin(&device, &journal, pin, &trust, &receipts),
+            Err(BindingError::PersistenceUncertain)
+        );
         *journal.fault.lock().unwrap() = Fault::None;
         receipts[0].signature[3] ^= 1;
-        assert_eq!(reconcile(&device, &journal, pin, &trust, &receipts),
-            Err(BindingError::InvalidWitnesses));
-        assert!(matches!(journal.load().unwrap(), StoredBinding::Prepared(_)));
+        assert_eq!(
+            reconcile(&device, &journal, pin, &trust, &receipts),
+            Err(BindingError::InvalidWitnesses)
+        );
+        assert!(matches!(
+            journal.load().unwrap(),
+            StoredBinding::Prepared(_)
+        ));
         receipts[0].signature[3] ^= 1;
-        assert_eq!(reconcile(&device, &journal, pin, &trust, &receipts),
-            Ok(Diagnostic::MatchingCounterOnly));
+        assert_eq!(
+            reconcile(&device, &journal, pin, &trust, &receipts),
+            Ok(Diagnostic::MatchingCounterOnly)
+        );
     }
 
     #[test]
@@ -438,42 +494,58 @@ mod tests {
         let older_backup = journal.load().unwrap();
         begin(&device, &journal, pin, &trust, &receipts).unwrap();
         *journal.state.lock().unwrap() = older_backup;
-        assert_eq!(reconcile(&device, &journal, pin, &trust, &receipts),
-            Err(BindingError::CounterMismatch));
+        assert_eq!(
+            reconcile(&device, &journal, pin, &trust, &receipts),
+            Err(BindingError::CounterMismatch)
+        );
     }
 
     #[test]
     fn cleared_tpm_and_external_increment_race_fail_closed() {
         let (device, journal, pin, trust, receipts) = fixture();
         *device.fault.lock().unwrap() = Fault::CounterErrorAfter;
-        assert_eq!(begin(&device, &journal, pin, &trust, &receipts),
-            Err(BindingError::PersistenceUncertain));
+        assert_eq!(
+            begin(&device, &journal, pin, &trust, &receipts),
+            Err(BindingError::PersistenceUncertain)
+        );
         *device.value.lock().unwrap() = 19;
-        assert_eq!(reconcile(&device, &journal, pin, &trust, &receipts),
-            Err(BindingError::CounterMismatch));
+        assert_eq!(
+            reconcile(&device, &journal, pin, &trust, &receipts),
+            Err(BindingError::CounterMismatch)
+        );
         *device.value.lock().unwrap() = 0;
-        assert_eq!(reconcile(&device, &journal, pin, &trust, &receipts),
-            Err(BindingError::CounterMismatch));
+        assert_eq!(
+            reconcile(&device, &journal, pin, &trust, &receipts),
+            Err(BindingError::CounterMismatch)
+        );
     }
 
     #[test]
     fn forged_witnesses_wrong_tpm_pin_missing_binding_and_stale_seq_reject() {
         let (device, journal, mut pin, trust, mut receipts) = fixture();
         pin.device_binding = [0; 32];
-        assert_eq!(begin(&device, &journal, pin, &trust, &receipts),
-            Err(BindingError::WrongCounterIdentity));
+        assert_eq!(
+            begin(&device, &journal, pin, &trust, &receipts),
+            Err(BindingError::WrongCounterIdentity)
+        );
         pin.device_binding = [3; 32];
         receipts[0].signature[0] ^= 1;
-        assert_eq!(begin(&device, &journal, pin, &trust, &receipts),
-            Err(BindingError::InvalidWitnesses));
+        assert_eq!(
+            begin(&device, &journal, pin, &trust, &receipts),
+            Err(BindingError::InvalidWitnesses)
+        );
         receipts[0].signature[0] ^= 1;
         *journal.state.lock().unwrap() = StoredBinding::Missing;
-        assert_eq!(begin(&device, &journal, pin, &trust, &receipts),
-            Err(BindingError::MissingBinding));
+        assert_eq!(
+            begin(&device, &journal, pin, &trust, &receipts),
+            Err(BindingError::MissingBinding)
+        );
         let (device, journal, pin, trust, receipts) = fixture();
         begin(&device, &journal, pin, &trust, &receipts).unwrap();
-        assert_eq!(begin(&device, &journal, pin, &trust, &receipts),
-            Err(BindingError::InvalidPolicyTransition));
+        assert_eq!(
+            begin(&device, &journal, pin, &trust, &receipts),
+            Err(BindingError::InvalidPolicyTransition)
+        );
     }
 
     #[test]
@@ -487,8 +559,13 @@ mod tests {
             };
             old.counter = u64::MAX;
         }
-        assert_eq!(begin(&device, &journal, pin, &trust, &receipts),
-            Err(BindingError::CounterOverflow));
-        assert!(matches!(journal.load().unwrap(), StoredBinding::Committed(_)));
+        assert_eq!(
+            begin(&device, &journal, pin, &trust, &receipts),
+            Err(BindingError::CounterOverflow)
+        );
+        assert!(matches!(
+            journal.load().unwrap(),
+            StoredBinding::Committed(_)
+        ));
     }
 }

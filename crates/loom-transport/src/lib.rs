@@ -34,3 +34,7 @@ mod tests {
         );
     }
 }
+
+/// Experimental L-001A mTLS Peer association over an untrusted bearer.
+/// No production membership enrollment or ServiceOpen admission.
+pub mod secure_channel;

@@ -18,7 +18,7 @@ use crate::tpm_counter_binding::{
     reconcile_candidate_advance,
 };
 use crate::unified_policy_anchor::{
-    IndependentUnifiedPolicyAnchor, UnifiedAnchorError, checked_unified_promotion,
+    IndependentUnifiedPolicyAnchor, UnifiedAnchorError, UnifiedPolicyHighWater, checked_unified_promotion,
 };
 use loom_crypto::owner_lifecycle::ResourceOwnerLifecycle;
 use loom_crypto::space_trust::verify_root_bound_witnesses;
@@ -728,6 +728,86 @@ fn binding_matches_replayed(
         && policy.revocation_root == checkpoint.revocation_root
 }
 
+/// Prove that the *independently supplied* prior counter binding is the
+/// authenticated prefix of this exact signed SQLite policy history.
+///
+/// Verifying only the latest two-witness checkpoint cannot establish the
+/// earlier policy-head / revocation-root / Owner-manifest committed by a
+/// counter. A valid later checkpoint could otherwise be paired with a
+/// fabricated earlier high-water state. The encompassing transaction first
+/// replays and verifies the ENTIRE history, including all side-table mirrors.
+/// This function verifies the prior prefix under the SAME SQLite write lock.
+/// Neither SQLite nor the caller is an independent rollback-resistant anchor.
+fn verify_signed_policy_prefix(
+    tx: &Transaction<'_>,
+    root: &ExternallyPinnedRootForSpike,
+    genesis: VerifiedResourceTrust,
+    prior: UnifiedPolicyHighWater,
+) -> Result<(), StoreError> {
+    if prior.space != genesis.space()
+        || prior.resource != genesis.resource()
+        || prior.root_public_key != genesis.root_public_key()
+        || prior.root_key_epoch != genesis.root_key_epoch()
+        || prior.genesis_manifest != genesis.manifest_commitment()
+        || prior.writer_epoch != genesis.writer_epoch()
+    {
+        return Err(StoreError::Conflict);
+    }
+    // The SQLite INTEGER domain cannot hold an arbitrary u64. Do not
+    // silently wrap, clamp, or reinterpret independently pinned sequence.
+    let limit = i64::try_from(prior.policy_sequence).map_err(|_| StoreError::Conflict)?;
+    let mut state = ResourceOwnerLifecycle::from_genesis(genesis);
+    let mut revocation_root = [0u8; 32];
+    let mut stmt = tx
+        .prepare(
+            "SELECT seq,kind,evidence,policy_head FROM unified_policy_events
+             WHERE space=?1 AND resource=?2 AND seq<=?3 ORDER BY seq ASC",
+        )
+        .map_err(|_| StoreError::PersistenceFailure)?;
+    let events = stmt
+        .query_map(
+            params![
+                root.space.as_bytes().as_slice(),
+                genesis.resource().as_bytes().as_slice(),
+                limit
+            ],
+            |row| {
+                let seq: i64 = row.get(0)?;
+                let kind: i64 = row.get(1)?;
+                let evidence: Vec<u8> = row.get(2)?;
+                let head: Vec<u8> = row.get(3)?;
+                Ok((seq, kind, evidence, head))
+            },
+        )
+        .map_err(|_| StoreError::PersistenceFailure)?;
+    for event in events {
+        let (seq, kind, evidence, stored_head) =
+            event.map_err(|_| StoreError::PersistenceFailure)?;
+        let seq = u64::try_from(seq).map_err(|_| StoreError::Conflict)?;
+        let kind = u8::try_from(kind).map_err(|_| StoreError::Conflict)?;
+        if state.sequence().checked_add(1) != Some(seq) {
+            return Err(StoreError::Conflict);
+        }
+        replay_event(&mut state, root, kind, &evidence)?;
+        if state.sequence() != seq || state.policy_head().as_slice() != stored_head {
+            return Err(StoreError::Conflict);
+        }
+        if kind == KIND_REVOKE {
+            revocation_root =
+                append_revocation_root(revocation_root, seq, &evidence)
+                    .ok_or(StoreError::Conflict)?;
+        }
+    }
+    if state.sequence() != prior.policy_sequence
+        || state.policy_head() != prior.policy_head
+        || revocation_root != prior.revocation_root
+        || state.current_trust().manifest_commitment() != prior.current_manifest
+    {
+        return Err(StoreError::Conflict);
+    }
+    Ok(())
+}
+
 /// A single DB write transaction covers the external *candidate* counter
 /// operation. A second SQLite writer cannot replace the verified snapshot
 /// between policy replay and increment. Counter and SQLite are still NOT
@@ -763,6 +843,18 @@ fn journal_bound_counter_transaction(
     {
         return Err(StoreError::Conflict);
     }
+
+    // Use the saved Committed policy, or the Prepared intent's committed
+    // BEFORE state. A valid *next* checkpoint must not launder an invented
+    // earlier policy prefix. No stage, finalize or counter increment occurs
+    // until this proof succeeds. A missing intent is never auto-provisioned.
+    let saved = io.intent.load().map_err(binding_error)?;
+    let prior = match saved {
+        StoredBinding::Committed(record) => record.policy,
+        StoredBinding::Prepared(record) => record.before.policy,
+        StoredBinding::Missing => return Err(StoreError::Conflict),
+    };
+    verify_signed_policy_prefix(&tx, &root, genesis, prior)?;
 
     let outcome = match operation {
         CandidateCounterOperation::Begin => begin_candidate_advance(

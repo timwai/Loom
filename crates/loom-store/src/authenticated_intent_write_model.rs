@@ -195,10 +195,7 @@ impl AuthenticatedWriteSimulator {
 
     /// Emulates replacing an ordinary storage backup. The authenticated
     /// independent replay fence and NV count remain untouched.
-    pub fn restore_untrusted_frame_for_test(
-        &self,
-        older: Vec<u8>,
-    ) -> Result<(), BindingError> {
+    pub fn restore_untrusted_frame_for_test(&self, older: Vec<u8>) -> Result<(), BindingError> {
         let mut state = self.lock()?;
         state.frame = older;
         state.generation = state
@@ -235,13 +232,8 @@ impl WriteHandle {
 
     fn snapshot(&self) -> Result<(Snapshot, StoredBinding), BindingError> {
         let state = self.lock()?;
-        let current = verify_signed_record(
-            &state.frame,
-            &state.pin,
-            state.fence,
-            state.counter,
-        )
-        .map_err(|_| BindingError::BrokenIntent)?;
+        let current = verify_signed_record(&state.frame, &state.pin, state.fence, state.counter)
+            .map_err(|_| BindingError::BrokenIntent)?;
         // No valid write operation may start from a higher unpinned record
         // than the fence; an independently authenticated fence must match
         // the exact current signed record.
@@ -307,8 +299,7 @@ impl WriteHandle {
             signer_public_key: snapshot.pin.signer_public_key,
             binding: next,
         };
-        let mut new_frame =
-            signing_preimage(&record).map_err(|_| BindingError::BrokenIntent)?;
+        let mut new_frame = signing_preimage(&record).map_err(|_| BindingError::BrokenIntent)?;
         let sig = snapshot.signer.sign(&new_frame)?;
         new_frame.extend_from_slice(&sig);
         let fence = ExternalReplayFence {
@@ -405,13 +396,8 @@ impl CandidateMonotonicCounter for WriteHandle {
 
     fn increment(&self) -> Result<(), BindingError> {
         let mut state = self.lock()?;
-        let verified = verify_signed_record(
-            &state.frame,
-            &state.pin,
-            state.fence,
-            state.counter,
-        )
-        .map_err(|_| BindingError::BrokenIntent)?;
+        let verified = verify_signed_record(&state.frame, &state.pin, state.fence, state.counter)
+            .map_err(|_| BindingError::BrokenIntent)?;
         let StoredBinding::Prepared(prepared) = verified.record().binding else {
             return Err(BindingError::PersistenceUncertain);
         };
@@ -460,7 +446,13 @@ mod tests {
         }
     }
 
-    fn base() -> (SigningKey, ExternalSignerPin, Committed, Vec<u8>, ExternalReplayFence) {
+    fn base() -> (
+        SigningKey,
+        ExternalSignerPin,
+        Committed,
+        Vec<u8>,
+        ExternalReplayFence,
+    ) {
         let signing_key = SigningKey::from_bytes(&[51; 32]);
         let policy = UnifiedPolicyHighWater {
             space: SpaceId::from_bytes([1; 16]),
@@ -546,7 +538,10 @@ mod tests {
         assert_eq!(last.fence.minimum_record_sequence, 3);
         assert_eq!(last.fence.minimum_counter, 10);
         assert_eq!(last.counter, 10);
-        assert_ne!(first.fence.last_record_digest, last.fence.last_record_digest);
+        assert_ne!(
+            first.fence.last_record_digest,
+            last.fence.last_record_digest
+        );
         let committed = intent.load().unwrap();
         let StoredBinding::Committed(committed) = committed else {
             panic!("finalization failed");
@@ -558,7 +553,10 @@ mod tests {
         let (raw, trusted) = model.read_sources().unwrap();
         let readonly = AuthenticatedReadOnlyIntent::new(before.identity, counter, raw, trusted);
         assert_eq!(readonly.load(), Ok(StoredBinding::Committed(committed)));
-        assert_eq!(readonly.inspect_read().unwrap().diagnostic(), Diagnostic::MatchingCounterOnly);
+        assert_eq!(
+            readonly.inspect_read().unwrap().diagnostic(),
+            Diagnostic::MatchingCounterOnly
+        );
     }
 
     #[test]
@@ -598,7 +596,11 @@ mod tests {
                 WriteCrashPoint::CounterAfterWrite
                     | WriteCrashPoint::FinalizeBeforeCas
                     | WriteCrashPoint::FinalizeAfterCas
-            ) { 10 } else { 9 };
+            ) {
+                10
+            } else {
+                9
+            };
             assert_eq!(image.counter, expected_counter);
             assert_eq!(counter.read(), Ok(expected_counter));
             let expected_sequence = match cut {
@@ -663,7 +665,10 @@ mod tests {
         let (model, before, mut candidate) = fixture();
         let (_, intent) = model.handles().unwrap();
         candidate.after_sequence = 0;
-        assert_eq!(intent.prepare(before, candidate), Err(BindingError::BrokenIntent));
+        assert_eq!(
+            intent.prepare(before, candidate),
+            Err(BindingError::BrokenIntent)
+        );
         assert_eq!(model.image().unwrap().fence.minimum_record_sequence, 1);
     }
 
@@ -680,7 +685,9 @@ mod tests {
                 .map_err(|_| BindingError::PersistenceUncertain)?
                 .take();
             if let Some(notify) = notify {
-                notify.send(()).map_err(|_| BindingError::PersistenceUncertain)?;
+                notify
+                    .send(())
+                    .map_err(|_| BindingError::PersistenceUncertain)?;
                 self.release
                     .lock()
                     .map_err(|_| BindingError::PersistenceUncertain)?
@@ -706,7 +713,8 @@ mod tests {
                 first: Mutex::new(Some(entered_tx)),
                 release: Mutex::new(release_rx),
             }),
-        ).unwrap();
+        )
+        .unwrap();
         let candidate = Prepared {
             before,
             after_sequence: 1,
@@ -720,7 +728,10 @@ mod tests {
         entered_rx.recv().unwrap();
         second.prepare(before, candidate).unwrap();
         release_tx.send(()).unwrap();
-        assert_eq!(pending.join().unwrap(), Err(BindingError::PersistenceUncertain));
+        assert_eq!(
+            pending.join().unwrap(),
+            Err(BindingError::PersistenceUncertain)
+        );
         let image = model.image().unwrap();
         assert_eq!(image.fence.minimum_record_sequence, 2);
         assert_eq!(

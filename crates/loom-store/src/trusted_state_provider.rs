@@ -107,9 +107,7 @@ pub fn check_provider_requirements(
     }
 
     let proof = evidence.ok_or(ProviderGateError::EvidenceUnavailable)?;
-    if proof.scope_binding != expected_scope
-        || descriptor.scope_binding != Some(expected_scope)
-    {
+    if proof.scope_binding != expected_scope || descriptor.scope_binding != Some(expected_scope) {
         return Err(ProviderGateError::WrongScope);
     }
     match use_case {
@@ -248,13 +246,20 @@ mod tests {
     #[test]
     fn portable_software_works_without_any_tpm_or_platform_probe() {
         let software = SoftwareStateProvider::new();
-        assert_eq!(software.descriptor(), ProviderDescriptor::portable_software());
+        assert_eq!(
+            software.descriptor(),
+            ProviderDescriptor::portable_software()
+        );
         assert_eq!(software.read_local().unwrap().generation, 0);
         assert_eq!(software.compare_and_write_local(0, b"preferences"), Ok(1));
         assert_eq!(software.read_local().unwrap().bytes, b"preferences");
         assert_eq!(
             check_provider_requirements(
-                software.descriptor(), None, SCOPE, 1, StateUse::PortableLocalOnly
+                software.descriptor(),
+                None,
+                SCOPE,
+                1,
+                StateUse::PortableLocalOnly
             ),
             Ok(StorageEligibility::LocalStateOnly)
         );
@@ -263,14 +268,21 @@ mod tests {
     #[test]
     fn software_never_satisfies_sensitive_rollback_or_hardware_key_demand() {
         let software = SoftwareStateProvider::new();
-        for use_case in [StateUse::HardwareKeyRequired, StateUse::NonRollbackablePolicy] {
+        for use_case in [
+            StateUse::HardwareKeyRequired,
+            StateUse::NonRollbackablePolicy,
+        ] {
             assert_eq!(
                 check_provider_requirements(software.descriptor(), None, SCOPE, 0, use_case),
                 Err(ProviderGateError::EvidenceUnavailable)
             );
             assert_eq!(
                 check_provider_requirements(
-                    software.descriptor(), Some(&fixture_proof(0)), SCOPE, 0, use_case
+                    software.descriptor(),
+                    Some(&fixture_proof(0)),
+                    SCOPE,
+                    0,
+                    use_case
                 ),
                 Err(ProviderGateError::WrongScope)
             );
@@ -286,7 +298,10 @@ mod tests {
             ProviderKind::ExternalQuorum,
         ] {
             let claim = candidate(kind);
-            for mode in [StateUse::HardwareKeyRequired, StateUse::NonRollbackablePolicy] {
+            for mode in [
+                StateUse::HardwareKeyRequired,
+                StateUse::NonRollbackablePolicy,
+            ] {
                 assert_eq!(
                     check_provider_requirements(claim, None, SCOPE, 10, mode),
                     Err(ProviderGateError::EvidenceUnavailable)
@@ -301,13 +316,21 @@ mod tests {
         key_only.rollback = RollbackCapability::Rollbackable;
         assert_eq!(
             check_provider_requirements(
-                key_only, Some(&fixture_proof(7)), SCOPE, 7, StateUse::NonRollbackablePolicy
+                key_only,
+                Some(&fixture_proof(7)),
+                SCOPE,
+                7,
+                StateUse::NonRollbackablePolicy
             ),
             Err(ProviderGateError::InadequateCapabilities)
         );
         assert_eq!(
             check_provider_requirements(
-                key_only, Some(&fixture_proof(7)), SCOPE, 7, StateUse::HardwareKeyRequired
+                key_only,
+                Some(&fixture_proof(7)),
+                SCOPE,
+                7,
+                StateUse::HardwareKeyRequired
             ),
             Ok(StorageEligibility::VerifiedRequirementsOnly)
         );
@@ -323,13 +346,21 @@ mod tests {
         let report = candidate(ProviderKind::SecureEnclave);
         assert_eq!(
             check_provider_requirements(
-                report, Some(&evidence), SCOPE, 9, StateUse::HardwareKeyRequired
+                report,
+                Some(&evidence),
+                SCOPE,
+                9,
+                StateUse::HardwareKeyRequired
             ),
             Err(ProviderGateError::EvidenceUnavailable)
         );
         assert_eq!(
             check_provider_requirements(
-                report, Some(&evidence), SCOPE, 9, StateUse::NonRollbackablePolicy
+                report,
+                Some(&evidence),
+                SCOPE,
+                9,
+                StateUse::NonRollbackablePolicy
             ),
             Ok(StorageEligibility::VerifiedRequirementsOnly)
         );
@@ -345,13 +376,21 @@ mod tests {
         let report = candidate(ProviderKind::AndroidKeystore);
         assert_eq!(
             check_provider_requirements(
-                report, Some(&evidence), SCOPE, 1, StateUse::HardwareKeyRequired
+                report,
+                Some(&evidence),
+                SCOPE,
+                1,
+                StateUse::HardwareKeyRequired
             ),
             Ok(StorageEligibility::VerifiedRequirementsOnly)
         );
         assert_eq!(
             check_provider_requirements(
-                report, Some(&evidence), SCOPE, 1, StateUse::NonRollbackablePolicy
+                report,
+                Some(&evidence),
+                SCOPE,
+                1,
+                StateUse::NonRollbackablePolicy
             ),
             Err(ProviderGateError::EvidenceUnavailable)
         );
@@ -362,20 +401,30 @@ mod tests {
         let candidate = candidate(ProviderKind::ExternalQuorum);
         assert_eq!(
             check_provider_requirements(
-                candidate, Some(&fixture_proof(12)), SCOPE, 11, StateUse::NonRollbackablePolicy
+                candidate,
+                Some(&fixture_proof(12)),
+                SCOPE,
+                11,
+                StateUse::NonRollbackablePolicy
             ),
             Err(ProviderGateError::StaleGeneration)
         );
         assert_eq!(
             check_provider_requirements(
-                candidate, Some(&fixture_proof(12)), [90; 32], 12,
+                candidate,
+                Some(&fixture_proof(12)),
+                [90; 32],
+                12,
                 StateUse::NonRollbackablePolicy
             ),
             Err(ProviderGateError::WrongScope)
         );
         assert_eq!(
             check_provider_requirements(
-                candidate, Some(&fixture_proof(12)), SCOPE, 12,
+                candidate,
+                Some(&fixture_proof(12)),
+                SCOPE,
+                12,
                 StateUse::NonRollbackablePolicy
             ),
             Ok(StorageEligibility::VerifiedRequirementsOnly)
@@ -388,7 +437,11 @@ mod tests {
         candidate.key_protection = KeyProtection::Software;
         assert_eq!(
             check_provider_requirements(
-                candidate, Some(&fixture_proof(0)), SCOPE, 0, StateUse::HardwareKeyRequired
+                candidate,
+                Some(&fixture_proof(0)),
+                SCOPE,
+                0,
+                StateUse::HardwareKeyRequired
             ),
             Err(ProviderGateError::InadequateCapabilities)
         );
@@ -407,7 +460,11 @@ mod tests {
         assert_eq!(reopened.read_local().unwrap().bytes, Vec::<u8>::new());
         assert_eq!(
             check_provider_requirements(
-                reopened.descriptor(), None, SCOPE, 0, StateUse::NonRollbackablePolicy
+                reopened.descriptor(),
+                None,
+                SCOPE,
+                0,
+                StateUse::NonRollbackablePolicy
             ),
             Err(ProviderGateError::EvidenceUnavailable)
         );

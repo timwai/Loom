@@ -71,7 +71,7 @@ impl IndependentUnifiedPolicyAnchor for LinuxTpm2Candidate {
 fn request(capability: u32, property: u32, count: u32) -> [u8; 22] {
     let mut output = [0u8; 22];
     output[0..2].copy_from_slice(&TPM_ST_NO_SESSIONS.to_be_bytes());
-    output[2..6].copy_from_slice(&(output.len() as u32).to_be_bytes());
+    output[2..6].copy_from_slice(&22u32.to_be_bytes());
     output[6..10].copy_from_slice(&TPM_CC_GET_CAPABILITY.to_be_bytes());
     output[10..14].copy_from_slice(&capability.to_be_bytes());
     output[14..18].copy_from_slice(&property.to_be_bytes());

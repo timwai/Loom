@@ -69,9 +69,10 @@ function transcript(bytes) {
   size.writeUInt32BE(bytes.length);
   return Buffer.concat([DOMAIN,size,bytes]);
 }
+for (const name of ['event-01','event-02','event-03']) {
+  assert.deepEqual(transcript(hex(name+'.cbor.hex')),hex(name+'.signing.hex'),name);
+}
 const wire=hex('event-01.cbor.hex');
-const signing=hex('event-01.signing.hex');
-assert.deepEqual(transcript(wire),signing);
 for (let n=0;n<wire.length;n++) {
   assert.throws(()=>readStrict(wire.subarray(0,n)),undefined,'truncation '+n);
 }

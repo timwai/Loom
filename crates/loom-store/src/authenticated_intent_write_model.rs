@@ -394,6 +394,14 @@ impl CandidateMonotonicCounter for WriteHandle {
         let mut state = self.lock()?;
         let verified = verify_signed_record(&state.frame, &state.pin, state.fence, state.counter)
             .map_err(|_| BindingError::BrokenIntent)?;
+        // The signed intent must ALREADY be fenced before the irreversible
+        // increment. A valid signed future record not anchored by the
+        // independent replay fence must never authorize advancing NV.
+        if verified.record().record_sequence != state.fence.minimum_record_sequence
+            || verified.digest() != state.fence.last_record_digest
+        {
+            return Err(BindingError::BrokenIntent);
+        }
         let StoredBinding::Prepared(prepared) = verified.record().binding else {
             return Err(BindingError::PersistenceUncertain);
         };
@@ -749,5 +757,70 @@ mod tests {
         let (new_counter, new_intent) = model.handles().unwrap();
         assert_eq!(new_counter.read(), Ok(10));
         assert_eq!(new_intent.load(), Ok(StoredBinding::Prepared(prepared)));
+    }
+
+    #[test]
+    fn signed_prepared_ahead_of_authenticated_fence_cannot_increment_nv() {
+        let (key, pin, before, frame, fence) = base();
+        let model = AuthenticatedWriteSimulator::enrolled_for_test(
+            frame,
+            pin,
+            fence,
+            9,
+            Arc::new(TestSigner(SigningKey::from_bytes(&[51; 32]))),
+        )
+        .unwrap();
+        let intent = Prepared {
+            before,
+            after_sequence: 1,
+            after_head: [66; 32],
+            after_revocation_root: [77; 32],
+            after_manifest: before.policy.current_manifest,
+        };
+        let candidate = IntentRecord {
+            record_sequence: 2,
+            signer_epoch: pin.signer_epoch,
+            signer_public_key: pin.signer_public_key,
+            binding: StoredBinding::Prepared(intent),
+        };
+        let mut future = signing_preimage(&candidate).unwrap();
+        let signature = key.sign(&future).to_bytes();
+        future.extend_from_slice(&signature);
+        model.restore_untrusted_frame_for_test(future).unwrap();
+        let (counter, store) = model.handles().unwrap();
+        assert_eq!(store.load(), Err(BindingError::BrokenIntent));
+        assert_eq!(counter.increment(), Err(BindingError::BrokenIntent));
+        assert_eq!(model.image().unwrap().counter, 9);
+        assert_eq!(model.image().unwrap().fence, fence);
+    }
+
+    #[test]
+    fn different_signing_key_cannot_publish_under_existing_pin() {
+        struct WrongSigner(SigningKey);
+        impl CandidateExternalIntentSigner for WrongSigner {
+            fn sign(&self, input: &[u8]) -> Result<[u8; 64], BindingError> {
+                Ok(self.0.sign(input).to_bytes())
+            }
+        }
+        let (_key, pin, before, frame, fence) = base();
+        let model = AuthenticatedWriteSimulator::enrolled_for_test(
+            frame,
+            pin,
+            fence,
+            9,
+            Arc::new(WrongSigner(SigningKey::from_bytes(&[67; 32]))),
+        )
+        .unwrap();
+        let prepared = Prepared {
+            before,
+            after_sequence: 1,
+            after_head: [66; 32],
+            after_revocation_root: [77; 32],
+            after_manifest: before.policy.current_manifest,
+        };
+        let (_, intent) = model.handles().unwrap();
+        assert_eq!(intent.prepare(before, prepared), Err(BindingError::BrokenIntent));
+        assert_eq!(model.image().unwrap().fence, fence);
+        assert_eq!(intent.load(), Ok(StoredBinding::Committed(before)));
     }
 }

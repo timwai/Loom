@@ -30,9 +30,9 @@ use loom_types::ResourceId;
 use loom_types::SpaceId;
 use rusqlite::{Connection, OptionalExtension, Transaction, TransactionBehavior, params};
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{Arc, Mutex};
-use std::sync::atomic::{AtomicU64, Ordering};
 
 /// In-process journal instance identifier to prevent accidental use of a
 /// reservation issued by a *different* SQLite actor. NOT an auth token.
@@ -275,7 +275,10 @@ impl UnifiedPolicyJournal {
             .map_err(|_| StoreError::PersistenceFailure)?;
         // If the process-local generation has overflowed, refuse BEFORE
         // writing to SQLite, rather than committing without invalidation.
-        barrier.generation.checked_add(1).ok_or(StoreError::Conflict)?;
+        barrier
+            .generation
+            .checked_add(1)
+            .ok_or(StoreError::Conflict)?;
         let (send, recv) = mpsc::channel();
         self.tx
             .as_ref()
@@ -518,11 +521,17 @@ impl UnifiedPolicyJournal {
         &self,
         request: CandidatePreflightRequest<'_>,
     ) -> Result<CandidateJournalReservation, StoreError> {
-        let mut barrier = self.gate.lock().map_err(|_| StoreError::PersistenceFailure)?;
+        let mut barrier = self
+            .gate
+            .lock()
+            .map_err(|_| StoreError::PersistenceFailure)?;
         if barrier.outstanding.is_some() || barrier.prepared_unreconciled {
             return Err(StoreError::Conflict);
         }
-        let next = barrier.next_ticket.checked_add(1).ok_or(StoreError::Conflict)?;
+        let next = barrier
+            .next_ticket
+            .checked_add(1)
+            .ok_or(StoreError::Conflict)?;
         let proof = self.preflight_candidate_journal(
             request.root,
             request.genesis,
@@ -557,7 +566,10 @@ impl UnifiedPolicyJournal {
         prepared: T,
         model_publish: impl FnOnce(T) -> Result<(), StoreError>,
     ) -> Result<JournalSnapshot, StoreError> {
-        let mut barrier = self.gate.lock().map_err(|_| StoreError::PersistenceFailure)?;
+        let mut barrier = self
+            .gate
+            .lock()
+            .map_err(|_| StoreError::PersistenceFailure)?;
         if barrier.journal_instance != reservation.journal_instance
             || barrier.generation != reservation.generation
             || barrier.outstanding != Some(reservation)
@@ -600,7 +612,10 @@ impl UnifiedPolicyJournal {
         &self,
         reservation: CandidateJournalReservation,
     ) -> Result<(), StoreError> {
-        let mut barrier = self.gate.lock().map_err(|_| StoreError::PersistenceFailure)?;
+        let mut barrier = self
+            .gate
+            .lock()
+            .map_err(|_| StoreError::PersistenceFailure)?;
         if barrier.outstanding != Some(reservation)
             || barrier.journal_instance != reservation.journal_instance
             || barrier.generation != reservation.generation
@@ -613,7 +628,10 @@ impl UnifiedPolicyJournal {
     /// Strictly diagnostic-only in-memory state, NOT persisted or usable
     /// for admission. Post-PREPARED signed policy append is visible as stale.
     pub fn candidate_reservation_health(&self) -> Result<(bool, bool), StoreError> {
-        let state = self.gate.lock().map_err(|_| StoreError::PersistenceFailure)?;
+        let state = self
+            .gate
+            .lock()
+            .map_err(|_| StoreError::PersistenceFailure)?;
         Ok((state.prepared_unreconciled, state.stale_prepared))
     }
 
@@ -4253,7 +4271,10 @@ mod tests {
         assert_eq!(model.image().unwrap().counter, 9);
         assert_eq!(intent.load(), Ok(StoredBinding::Prepared(prepared)));
         assert_eq!(journal.candidate_reservation_health(), Ok((true, false)));
-        assert_eq!(journal.reserve_candidate_journal(request()), Err(StoreError::Conflict));
+        assert_eq!(
+            journal.reserve_candidate_journal(request()),
+            Err(StoreError::Conflict)
+        );
     }
 
     #[test]
@@ -4272,9 +4293,9 @@ mod tests {
                 genesis,
                 &receipts,
                 150,
-                journal.preflight_candidate_journal(
-                    root_pin(), genesis, &receipts, 150, before.policy,
-                ).unwrap(),
+                journal
+                    .preflight_candidate_journal(root_pin(), genesis, &receipts, 150, before.policy)
+                    .unwrap(),
             )
             .unwrap();
         let cancel = signed_cancellation(2);
@@ -4307,9 +4328,15 @@ mod tests {
         let (receipts, model, before, prepared) = nonblocking_fixture(&journal, genesis);
         let request = || reservation_request(genesis, &receipts, before.policy);
         let first = journal.reserve_candidate_journal(request()).unwrap();
-        assert_eq!(journal.reserve_candidate_journal(request()), Err(StoreError::Conflict));
+        assert_eq!(
+            journal.reserve_candidate_journal(request()),
+            Err(StoreError::Conflict)
+        );
         journal.cancel_candidate_reservation(first).unwrap();
-        assert_eq!(journal.cancel_candidate_reservation(first), Err(StoreError::Conflict));
+        assert_eq!(
+            journal.cancel_candidate_reservation(first),
+            Err(StoreError::Conflict)
+        );
         let next = journal.reserve_candidate_journal(request()).unwrap();
         assert_ne!(first, next);
         let mut called = false;
@@ -4347,7 +4374,10 @@ mod tests {
         );
         assert!(!called);
         assert_eq!(model.image().unwrap().counter, 9);
-        assert_eq!(journal.cancel_candidate_reservation(ticket), Err(StoreError::Conflict));
+        assert_eq!(
+            journal.cancel_candidate_reservation(ticket),
+            Err(StoreError::Conflict)
+        );
     }
 
     #[test]
@@ -4368,7 +4398,10 @@ mod tests {
         );
         assert_eq!(calls, 1);
         assert_eq!(journal.candidate_reservation_health(), Ok((true, false)));
-        assert_eq!(journal.reserve_candidate_journal(request()), Err(StoreError::Conflict));
+        assert_eq!(
+            journal.reserve_candidate_journal(request()),
+            Err(StoreError::Conflict)
+        );
         assert_eq!(model.image().unwrap().counter, 9);
         assert_eq!(model.image().unwrap().fence.minimum_record_sequence, 1);
     }
@@ -4421,7 +4454,10 @@ mod tests {
             2
         );
         assert_eq!(journal.candidate_reservation_health(), Ok((true, true)));
-        assert_eq!(journal.reserve_candidate_journal(request()), Err(StoreError::Conflict));
+        assert_eq!(
+            journal.reserve_candidate_journal(request()),
+            Err(StoreError::Conflict)
+        );
         assert_eq!(model.image().unwrap().counter, 9);
         assert_eq!(model.image().unwrap().fence.minimum_record_sequence, 2);
     }

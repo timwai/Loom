@@ -3741,4 +3741,276 @@ mod tests {
         assert_eq!(model.image().unwrap().counter, 10);
         assert_eq!(model.image().unwrap().fence.minimum_record_sequence, 3);
     }
+
+    // L-001X deliberately keeps the legacy journal-bound counter transaction
+    // untouched. These probes prove a separate nonblocking path; they do
+    // NOT claim to solve the final journal-vs-external-CAS race.
+
+    fn nonblocking_fixture(
+        db: &UnifiedPolicyJournal,
+        genesis: VerifiedResourceTrust,
+    ) -> (
+        [SignedCheckpoint; 2],
+        crate::authenticated_intent_write_model::AuthenticatedWriteSimulator,
+        crate::tpm_counter_binding::Committed,
+        crate::tpm_counter_binding::Prepared,
+    ) {
+        use crate::tpm_counter_binding::{Committed, Prepared};
+        let proof = signed_revocation(1, 11, 3);
+        let state = db
+            .append(root_pin(), genesis, NewPolicyEvent::Revoke(&proof))
+            .unwrap();
+        let rev_root =
+            append_revocation_root([0; 32], 1, &proof.persistence_bytes()).unwrap();
+        let receipts = witness_receipts(1, state.policy_head, rev_root);
+        let model = cas_model(&genesis);
+        let (_, store) = model.handles().unwrap();
+        let StoredBinding::Committed(old) = store.load().unwrap() else {
+            panic!("model is not initially Committed");
+        };
+        let next = Prepared {
+            before: old,
+            after_sequence: 1,
+            after_head: state.policy_head,
+            after_revocation_root: rev_root,
+            after_manifest: genesis.manifest_commitment(),
+        };
+        (receipts, model, old, next)
+    }
+
+    #[test]
+    fn signed_preflight_external_signing_has_no_sqlite_write_lock() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        let db = TempDb::new();
+        let journal = db.open();
+        let genesis = trusted_genesis();
+        let (receipts, model, before, prepared) = nonblocking_fixture(&journal, genesis);
+        let (_, store) = model.handles().unwrap();
+        let old_frame = model.image().unwrap();
+        let published = AtomicUsize::new(0);
+        let snapshot = journal
+            .coordinated_candidate_prepare_probe(
+                root_pin(),
+                genesis,
+                &receipts,
+                150,
+                before.policy,
+                || {
+                    // A second SQLite writer obtains a write transaction
+                    // WHILE the external signer callback is on the stack.
+                    // L-001Q's old in-transaction signer would block here.
+                    let other = Connection::open(&db.0).unwrap();
+                    other
+                        .execute_batch("BEGIN IMMEDIATE; ROLLBACK;")
+                        .unwrap();
+                    Ok(prepared)
+                },
+                |candidate| {
+                    store.prepare(before, candidate).map_err(binding_error)?;
+                    published.fetch_add(1, Ordering::SeqCst);
+                    Ok(())
+                },
+            )
+            .unwrap();
+        assert_eq!(snapshot.sequence, 1);
+        assert_eq!(published.load(Ordering::SeqCst), 1);
+        assert_eq!(model.image().unwrap().fence.minimum_record_sequence, 2);
+        assert_ne!(
+            model.image().unwrap().fence.last_record_digest,
+            old_frame.fence.last_record_digest
+        );
+        assert_eq!(model.image().unwrap().counter, 9);
+        assert_eq!(store.load(), Ok(StoredBinding::Prepared(prepared)));
+    }
+
+    #[test]
+    fn signed_policy_append_while_signer_waits_refuses_prepared_cas() {
+        let db = TempDb::new();
+        let journal = db.open();
+        let genesis = trusted_genesis();
+        let (receipts, model, before, prepared) = nonblocking_fixture(&journal, genesis);
+        let old_image = model.image().unwrap();
+        let (_, intent) = model.handles().unwrap();
+        let mut publishes = 0usize;
+        let outcome = journal.coordinated_candidate_prepare_probe(
+            root_pin(),
+            genesis,
+            &receipts,
+            150,
+            before.policy,
+            || {
+                let cancel = signed_cancellation(2);
+                let advanced = journal
+                    .append(root_pin(), genesis, NewPolicyEvent::Cancel(&cancel))
+                    .unwrap();
+                assert_eq!(advanced.sequence, 2);
+                Ok(prepared)
+            },
+            |candidate| {
+                publishes += 1;
+                intent.prepare(before, candidate).map_err(binding_error)
+            },
+        );
+        assert_eq!(outcome, Err(StoreError::Conflict));
+        assert_eq!(publishes, 0);
+        assert_eq!(model.image().unwrap(), old_image);
+        assert_eq!(intent.load(), Ok(StoredBinding::Committed(before)));
+    }
+
+    #[test]
+    fn owner_transfer_during_external_step_cannot_publish_old_manifest() {
+        let db = TempDb::new();
+        let journal = db.open();
+        let genesis = trusted_genesis();
+        let (receipts, model, before, prepared) = nonblocking_fixture(&journal, genesis);
+        let mut published = false;
+        let outcome = journal.coordinated_candidate_prepare_probe(
+            root_pin(),
+            genesis,
+            &receipts,
+            150,
+            before.policy,
+            || {
+                let successor = signed_manifest(33, 4);
+                let transfer = signed_transfer(&genesis, &successor, 2);
+                assert_eq!(
+                    journal
+                        .append(root_pin(), genesis, NewPolicyEvent::Transfer(&transfer))
+                        .unwrap()
+                        .sequence,
+                    2
+                );
+                Ok(prepared)
+            },
+            |_| {
+                published = true;
+                Ok(())
+            },
+        );
+        assert_eq!(outcome, Err(StoreError::Conflict));
+        assert!(!published);
+        assert_eq!(model.image().unwrap().counter, 9);
+        assert_eq!(model.image().unwrap().fence.minimum_record_sequence, 1);
+    }
+
+    #[test]
+    fn audit_mirror_mutation_while_signing_refuses_prepared_cas() {
+        let db = TempDb::new();
+        let journal = db.open();
+        let genesis = trusted_genesis();
+        let (receipts, model, before, prepared) = nonblocking_fixture(&journal, genesis);
+        let mut published = false;
+        let outcome = journal.coordinated_candidate_prepare_probe(
+            root_pin(),
+            genesis,
+            &receipts,
+            150,
+            before.policy,
+            || {
+                let other = Connection::open(&db.0).unwrap();
+                other
+                    .execute("DELETE FROM unified_policy_audit WHERE seq=1", [])
+                    .unwrap();
+                Ok(prepared)
+            },
+            |_| {
+                published = true;
+                Ok(())
+            },
+        );
+        assert_eq!(outcome, Err(StoreError::Conflict));
+        assert!(!published);
+        assert_eq!(model.image().unwrap().fence.minimum_record_sequence, 1);
+        assert_eq!(model.image().unwrap().counter, 9);
+    }
+
+    #[test]
+    fn wrong_witness_or_unauthenticated_historical_prefix_never_signs() {
+        let db = TempDb::new();
+        let journal = db.open();
+        let genesis = trusted_genesis();
+        let (receipts, model, before, prepared) = nonblocking_fixture(&journal, genesis);
+        let wrong = witness_receipts(1, [99; 32], [0; 32]);
+        let mut touched_signer = false;
+        let mut published = false;
+        assert_eq!(
+            journal.coordinated_candidate_prepare_probe(
+                root_pin(),
+                genesis,
+                &wrong,
+                150,
+                before.policy,
+                || {
+                    touched_signer = true;
+                    Ok(prepared)
+                },
+                |_| {
+                    published = true;
+                    Ok(())
+                },
+            ),
+            Err(StoreError::Conflict)
+        );
+        assert!(!touched_signer);
+        assert!(!published);
+        let mut forged_prior = before.policy;
+        forged_prior.policy_head = [91; 32];
+        assert_eq!(
+            journal.coordinated_candidate_prepare_probe(
+                root_pin(),
+                genesis,
+                &receipts,
+                150,
+                forged_prior,
+                || {
+                    touched_signer = true;
+                    Ok(prepared)
+                },
+                |_| {
+                    published = true;
+                    Ok(())
+                },
+            ),
+            Err(StoreError::Conflict)
+        );
+        assert!(!touched_signer);
+        assert!(!published);
+        assert_eq!(model.image().unwrap().counter, 9);
+    }
+
+    #[test]
+    fn external_signer_refusal_never_publishes_and_same_snapshot_revalidates() {
+        let db = TempDb::new();
+        let journal = db.open();
+        let genesis = trusted_genesis();
+        let (receipts, model, before, prepared) = nonblocking_fixture(&journal, genesis);
+        let token = journal
+            .preflight_candidate_journal(root_pin(), genesis, &receipts, 150, before.policy)
+            .unwrap();
+        assert_eq!(token.snapshot().sequence, 1);
+        assert_eq!(
+            journal.revalidate_candidate_journal(root_pin(), genesis, &receipts, 150, token),
+            Ok(())
+        );
+        let mut published = false;
+        assert_eq!(
+            journal.coordinated_candidate_prepare_probe(
+                root_pin(),
+                genesis,
+                &receipts,
+                150,
+                before.policy,
+                || Err::<crate::tpm_counter_binding::Prepared, _>(StoreError::PersistenceFailure),
+                |_| {
+                    published = true;
+                    Ok(())
+                },
+            ),
+            Err(StoreError::PersistenceFailure)
+        );
+        assert!(!published);
+        assert_eq!(model.image().unwrap().counter, 9);
+        assert_eq!(model.image().unwrap().fence.minimum_record_sequence, 1);
+        let _ = prepared;
+    }
 }

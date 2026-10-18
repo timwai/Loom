@@ -1,6 +1,6 @@
 # Loom — implementation status and security gates
 
-> Updated: **2026-10-18**, through proposed L-001AD stacked on Draft PR #36. Source of truth: repository branches, pull requests and GitHub Actions. This file describes the **stacked unmerged development branches**, not released features or the default branch.
+> Updated: **2026-10-18**, through Draft PR #37 (L-001AD). Source of truth: repository branches, pull requests and GitHub Actions. This file describes the **stacked unmerged development branches**, not released features or the default branch.
 
 ## Executive status
 
@@ -38,7 +38,7 @@
 | L-001AA, PR #34 | Independent logical reservation state across simulator reboot: Idle/Reserved/Prepared/StalePrepared, one-step signed append notification, image-generation CAS | Eight adversarial tests including six crash cuts, stale handles and missing-writer-callback negative test; **in-memory only** |
 | L-001AB, PR #35 | WIRE-01 cross-language candidate CBOR/security-event corpus, Rust+Go+Kotlin+JavaScript negative tests, separate release status job | All four language conformance checks run in Actions; wider frozen-wire interoperability/signoff remains blocked |
 | L-001AC, PR #36 | Reintegrate original L-001A TLS 1.3 pinned-Peer-channel PoC into the active security stack, retain malicious relay and identity tests | Isolated TLS/bearer tests only; no production signed membership/Owner admission, live daemon networking or platform acceptance |
-| L-001AD, proposed PR | Add Windows/macOS hosted Rust workspace matrix with locked TLS/crypto/journal tests in GitHub Actions | Host Rust portability smoke only; neither actual Windows filter/macos Network Extension nor Android VpnService `PLATFORM-*` pass |
+| L-001AD, PR #37 | Add Windows/macOS hosted Rust workspace matrix with locked TLS/crypto/journal tests in GitHub Actions | Host Rust portability smoke only; neither actual Windows filter/macos Network Extension nor Android VpnService `PLATFORM-*` pass |
 
 **Branch topology caveat:** PRs #6 (wire), #7 (channel) and #16 (mirror integrity) branch from earlier ancestors; they are not all ancestors of PR #22. Count of open Draft PRs is not a count of integrated features. Do not merge leaf PRs into `main` out of order. Review and reconcile branches explicitly.
 

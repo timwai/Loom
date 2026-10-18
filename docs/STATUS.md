@@ -1,6 +1,6 @@
 # Loom — implementation status and security gates
 
-> Updated: **2026-10-18**, through Draft PR #30 (L-001W). Source of truth: repository branches, pull requests and GitHub Actions. This file describes the **stacked unmerged development branches**, not released features or the default branch.
+> Updated: **2026-10-18**, through proposed L-001X stacked Draft on PR #30. Source of truth: repository branches, pull requests and GitHub Actions. This file describes the **stacked unmerged development branches**, not released features or the default branch.
 
 ## Executive status
 
@@ -9,7 +9,7 @@
 - `main` remains the one-README bootstrap commit. No Rust code is merged there.
 - The active stack through **L-001O / Draft PR #22** has eight Rust library crates, a `loomd` binary that does not start a service, signed protocol/Owner-lifecycle verifiers, SQLite policy journals, witness/rollback models and a **read-only** Linux TPM2 probe.
 - Latest L-001O branch head `4683c432dd4b2530fcd4bd8db39c6bf03b5a3945` passed GitHub Actions (Rust fmt, workspace tests, Clippy with `-D warnings`, docs, dependency policy); see [run 39083991175](https://github.com/timwai/Loom/actions/runs/39083991175).
-- **L-001P / PR #23** restored L-001J mirror-integrity checks; L-001Q / PR #24 tied SQLite signed journal replay to candidate counter steps; L-001R / PR #25 requires the prior committed policy to match the actual signed historical prefix. **L-001S** adds a deterministic simulated durable Prepared-intent medium with eight power-cut points, boot-bound handles and signed journal integration tests. **L-001T** adds fixed-width Ed25519 signed intent record parsing and independent signer, scope and replay-fence verification. **L-001U** introduces a read-only CandidateIntentStore adapter that authenticates every load before signed journal-bound recovery may inspect it; all writes are refused. **L-001V** separately models externally signed Prepared/Committed writes and record+replay-fence atomic CAS. **L-001W** models out-of-band-approved signer epoch rotation, two additional crash cuts, concurrent old-signer race refusal and device-reset fail-closed behavior, without physical writes.
+- **L-001P / PR #23** restored L-001J mirror-integrity checks; L-001Q / PR #24 tied SQLite signed journal replay to candidate counter steps; L-001R / PR #25 requires the prior committed policy to match the actual signed historical prefix. **L-001S** adds a deterministic simulated durable Prepared-intent medium with eight power-cut points, boot-bound handles and signed journal integration tests. **L-001T** adds fixed-width Ed25519 signed intent record parsing and independent signer, scope and replay-fence verification. **L-001U** introduces a read-only CandidateIntentStore adapter that authenticates every load before signed journal-bound recovery may inspect it; all writes are refused. **L-001V** separately models externally signed Prepared/Committed writes and record+replay-fence atomic CAS. **L-001W** models out-of-band-approved signer epoch rotation, two additional crash cuts, concurrent old-signer race refusal and device-reset fail-closed behavior. **L-001X** adds independent short journal preflight and signed revalidation around external work, detecting mid-signing policy/Owner/Audit changes without holding SQLite write locks. None of this is production hardware I/O.
 - A green test suite verifies isolated PoCs only. There is no production-admission authorization, usable Mesh service, production TPM anchor, deployment or hardware security certificate.
 
 ## What exists on development branches
@@ -32,10 +32,11 @@
 | L-001U, PR #28 | Authenticated read-only IntentStore adapter: strict signatures, pinned replay-fence + count checks, double-observation torn-read refusal, signed-journal integration | Six adapter + two journal integration tests; no authenticated writer or real trusted storage |
 | L-001V, PR #29 | Signed Prepared/Committed writer CAS with separately pinned frame/fence, six crash cuts, stale signer race and signed journal integration | Eight model + three journal tests; **in-memory oracle only**, no real trusted writer or TPM NV writes |
 | L-001W, PR #30 | Model externally approved signer-pin/fence rotation with monotonic epoch, committed-only gate, two crash cuts, concurrent stale signature rejection, reset refusal; nonblocking hardware protocol design | Seven additional adversarial model tests; **no external trust backend or real atomic storage** |
+| L-001X, proposed PR | Read-only short-transaction signed journal preflight, opaque snapshot token, second full history/Witness revalidation, external callback outside SQLite lock and candidate CAS probe | Six new tests (Owner, cancellation, Audit, Witness, historic prefix, signer failure); **remaining post-check/pre-CAS TOCTOU is NO-GO** |
 
 **Branch topology caveat:** PRs #6 (wire), #7 (channel) and #16 (mirror integrity) branch from earlier ancestors; they are not all ancestors of PR #22. Count of open Draft PRs is not a count of integrated features. Do not merge leaf PRs into `main` out of order. Review and reconcile branches explicitly.
 
-## Current P0 update after L-001W
+## Current P0 update after L-001X
 
 - The L-001P integration (#23) succeeded in the final commit CI, and L-001Q (#24) now tests a journal-bound counter transition with matching dual witness receipts, full signed-history replay, mirror parity, current Owner manifest and a SQLite transaction barrier. Both remain **unmerged Draft PRs**.
 - A matching counter/manifest pair is only a **diagnostic** result. No real independently protected TPM anchor, attested device binding, authenticated durable Prepared store or physical power-loss verification exists; ServiceOpen stays disabled.
@@ -45,7 +46,8 @@
 - L-001U adds an authenticated **read boundary**, not a writable durable IntentStore: it verifies the signed record on every load against independently supplied signer and replay fence, rechecks all observed inputs, and rejects any prepare/finalize. Existing full journal replay and two-Witness consistency checks still run in the bounded PoC recovery route.
 - L-001V adds **only** a deterministic model of an authenticated signed writer: it signs a canonical frame using an abstract external signer, atomically compares the old frame/fence/counter after signing, and simulates a single frame+fence CAS. It tests crash cuts and racing writers without changing hardware or ServiceOpen. A mutex is **not** independently authenticated durable CAS.
 - L-001W extends the model-only CAS to change signer public key + epoch, record + external fence in one **in-memory** atomic step. Approval is an externally supplied *test fixture*, NOT a cryptographically authorized administrative action. Rotation is prohibited during Prepared recovery; reset or a stale old-key signed record fails closed.
-- Production design must remove long-running external hardware I/O from SQLite write transactions. Independently authenticated real durable Prepared intent, hardware-backed signer/fence CAS, audited key-rotation authorization, TPM provisioning, real power-loss and cross-process/host adversarial acceptance remain blockers.
+- L-001X adds a **separate** diagnostic candidate preflight path: short SQLite transaction verifies the full Root/Owner signed history, mirror parity, dual Witness and exact old policy prefix; the actor releases all DB locks during external signing, and a second short transaction rejects altered snapshots **before** invoking an optional in-memory Prepared CAS. The L-001Q long-transaction path remains present and must **not** be used for real hardware. A journal append occurring after revalidation but before external CAS is still an unresolved TOCTOU.
+- Production design must remove long-running external hardware I/O from all SQLite write transactions. Independently authenticated real durable Prepared intent, hardware-backed signer/fence CAS, journal-to-CAS reservation fencing, audited key-rotation authorization, TPM provisioning, real power-loss and cross-process/host adversarial acceptance remain blockers.
 
 ## Critical release blockers (P0)
 
@@ -57,8 +59,8 @@
 
 ## Next execution gates
 
-- **Current (L-001W):** model signer rotation with pinned-fence CAS, reject stale and competing old signatures, test dual rotation crash cuts and TPM-clear reset refusal; formalize nonblocking trusted-media design and safety gates.
-- **Next (L-001X):** extract a journal snapshot preflight/revalidation token from the long SQLite write transaction and model a signer delay/Owner or Witness change preventing stale Prepared CAS; no TPM NV writes.
+- **Current (L-001X):** short signed journal snapshot preflight → unlocked external step → full revalidation → *optional model-only* CAS callback; reject mid-signing policy/Owner/Audit/Witness drift.
+- **Next (L-001Y):** eliminate the **revalidate-to-external-CAS TOCTOU** with a reviewed versioned journal reservation/fence state machine and adversarial append-after-second-check test; all real trusted-media/TPM integration remains blocked.
 - **Platform validation:** independently evaluate hardware enrollment, monotonic NV semantics, attestation, reset/wear/quotas, and legacy signed-history migration (sacrificial TPM target only after review). Unsupported targets remain explicit NO-GO.
 - **Vertical slice:** isolated two-Peer LAN read with Owner ACL and revoke-kills-session test **only after** production admission prerequisites pass.
 - **Release:** threat-model sign-off, coverage across all intended OS targets, security review, reproducible builds, migration/rollback drills, support and license gates.

@@ -39,7 +39,7 @@ pub enum RecordError {
 
 /// The signer pin MUST be acquired from independent authenticated enrollment,
 /// never from this record, backed-up SQLite or an untrusted network peer.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ExternalSignerPin {
     pub signer_public_key: [u8; 32],
     pub signer_epoch: u64,

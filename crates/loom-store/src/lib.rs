@@ -94,3 +94,6 @@ pub mod authenticated_intent_record;
 /// L-001U diagnostic-only authenticated signed-intent read boundary.
 /// Mutation and ServiceOpen remain fail-closed.
 pub mod authenticated_intent_read_gate;
+
+/// L-001V signed write/replay-fence CAS **simulation**. No real durable writer.
+pub mod authenticated_intent_write_model;

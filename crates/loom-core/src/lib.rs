@@ -44,6 +44,11 @@ impl PeerCore {
     }
 }
 
+/// L-002A contains an isolated two-Peer file-read/revoke *test-only* model.
+/// Deliberately not compiled into a production binary or ServiceOpen path.
+#[cfg(test)]
+mod lan_file_read_model;
+
 #[cfg(test)]
 mod tests {
     use super::*;

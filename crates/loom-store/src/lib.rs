@@ -90,3 +90,7 @@ pub mod durable_intent_simulator;
 /// L-001T canonical, versioned Ed25519 signed intent record verifier.
 /// Only diagnostic, requires externally pinned signer and replay fence.
 pub mod authenticated_intent_record;
+
+/// L-001U diagnostic-only authenticated signed-intent read boundary.
+/// Mutation and ServiceOpen remain fail-closed.
+pub mod authenticated_intent_read_gate;

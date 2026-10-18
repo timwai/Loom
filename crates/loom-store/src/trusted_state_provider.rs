@@ -152,7 +152,7 @@ pub trait TrustedStateProvider: Send + Sync {
 
 const MAX_LOCAL_BYTES: usize = 4096;
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct LocalStateSnapshot {
     pub generation: u64,
     pub bytes: Vec<u8>,
@@ -163,15 +163,6 @@ pub struct LocalStateSnapshot {
 #[derive(Default)]
 pub struct SoftwareStateProvider {
     state: Mutex<LocalStateSnapshot>,
-}
-
-impl Default for LocalStateSnapshot {
-    fn default() -> Self {
-        Self {
-            generation: 0,
-            bytes: Vec::new(),
-        }
-    }
 }
 
 impl SoftwareStateProvider {

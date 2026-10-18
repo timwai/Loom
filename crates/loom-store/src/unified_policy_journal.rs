@@ -2016,4 +2016,309 @@ mod tests {
             assert_eq!(store.pending_outbox(), Err(StoreError::Conflict), "{table}");
         }
     }
+
+    // L-001Q uses separately allocated, in-memory fakes. The real Linux TPM
+    // adapter is read-only and MUST NOT be used for a counter increment.
+    struct ModelCounter {
+        pin: PinnedCounterIdentity,
+        number: Mutex<u64>,
+        fail_after_increment: std::sync::atomic::AtomicBool,
+        foreign_sqlite: Mutex<Option<PathBuf>>,
+        foreign_write_blocked: std::sync::atomic::AtomicBool,
+    }
+
+    impl CandidateMonotonicCounter for ModelCounter {
+        fn identity(&self) -> PinnedCounterIdentity {
+            self.pin
+        }
+
+        fn read(&self) -> Result<u64, BindingError> {
+            Ok(*self.number.lock().unwrap())
+        }
+
+        fn increment(&self) -> Result<(), BindingError> {
+            let mut number = self.number.lock().unwrap();
+            *number = number.checked_add(1).ok_or(BindingError::CounterOverflow)?;
+            if let Some(path) = self.foreign_sqlite.lock().unwrap().as_ref() {
+                let conn = Connection::open(path).unwrap();
+                conn.busy_timeout(Duration::ZERO).unwrap();
+                let attempt = conn.execute(
+                    "UPDATE unified_policy_outbox SET evidence=x'01' WHERE seq=1",
+                    [],
+                );
+                self.foreign_write_blocked
+                    .store(attempt.is_err(), std::sync::atomic::Ordering::SeqCst);
+            }
+            if self.fail_after_increment.swap(false, std::sync::atomic::Ordering::SeqCst) {
+                return Err(BindingError::PersistenceUncertain);
+            }
+            Ok(())
+        }
+    }
+
+    struct ModelIntent {
+        saved: Mutex<StoredBinding>,
+    }
+
+    impl CandidateIntentStore for ModelIntent {
+        fn load(&self) -> Result<StoredBinding, BindingError> {
+            Ok(*self.saved.lock().unwrap())
+        }
+
+        fn prepare(
+            &self,
+            expected: crate::tpm_counter_binding::Committed,
+            next: crate::tpm_counter_binding::Prepared,
+        ) -> Result<(), BindingError> {
+            let mut saved = self.saved.lock().unwrap();
+            if *saved != StoredBinding::Committed(expected) {
+                return Err(BindingError::PersistenceUncertain);
+            }
+            *saved = StoredBinding::Prepared(next);
+            Ok(())
+        }
+
+        fn finalize(
+            &self,
+            expected: crate::tpm_counter_binding::Prepared,
+        ) -> Result<(), BindingError> {
+            let mut saved = self.saved.lock().unwrap();
+            if *saved != StoredBinding::Prepared(expected) {
+                return Err(BindingError::PersistenceUncertain);
+            }
+            *saved = StoredBinding::Committed(crate::tpm_counter_binding::Committed {
+                identity: expected.before.identity,
+                counter: expected
+                    .before
+                    .counter
+                    .checked_add(1)
+                    .ok_or(BindingError::CounterOverflow)?,
+                policy: crate::unified_policy_anchor::UnifiedPolicyHighWater {
+                    policy_sequence: expected.after_sequence,
+                    policy_head: expected.after_head,
+                    revocation_root: expected.after_revocation_root,
+                    current_manifest: expected.after_manifest,
+                    ..expected.before.policy
+                },
+            });
+            Ok(())
+        }
+    }
+
+    fn model_counter_io(
+        genesis: &VerifiedResourceTrust,
+    ) -> (Arc<ModelCounter>, Arc<ModelIntent>, PinnedCounterIdentity) {
+        let pin = PinnedCounterIdentity {
+            device_binding: [55; 32],
+            nv_index: 0x0180_0ace,
+        };
+        (
+            Arc::new(ModelCounter {
+                pin,
+                number: Mutex::new(9),
+                fail_after_increment: std::sync::atomic::AtomicBool::new(false),
+                foreign_sqlite: Mutex::new(None),
+                foreign_write_blocked: std::sync::atomic::AtomicBool::new(false),
+            }),
+            Arc::new(ModelIntent {
+                saved: Mutex::new(StoredBinding::Committed(
+                    crate::tpm_counter_binding::Committed {
+                        identity: pin,
+                        counter: 9,
+                        policy: crate::unified_policy_anchor::UnifiedPolicyHighWater::initial(genesis),
+                    },
+                )),
+            }),
+            pin,
+        )
+    }
+
+    fn bound_counter(
+        store: &UnifiedPolicyJournal,
+        genesis: VerifiedResourceTrust,
+        receipts: &[SignedCheckpoint],
+        counter: &Arc<ModelCounter>,
+        intent: &Arc<ModelIntent>,
+        pin: PinnedCounterIdentity,
+        operation: CandidateCounterOperation,
+    ) -> Result<Diagnostic, StoreError> {
+        store.inspect_journal_bound_counter(
+            root_pin(),
+            genesis,
+            receipts,
+            150,
+            CandidateCounterIo {
+                pin,
+                counter: counter.clone(),
+                intent: intent.clone(),
+            },
+            operation,
+        )
+    }
+
+    #[test]
+    fn journal_bound_counter_accepts_exact_signed_mixed_policy() {
+        let db = TempDb::new();
+        let store = db.open();
+        let genesis = trusted_genesis();
+        let revoke = signed_revocation(1, 11, 3);
+        store.append(root_pin(), genesis, NewPolicyEvent::Revoke(&revoke)).unwrap();
+        let cancel = signed_cancellation(2);
+        let state = store.append(root_pin(), genesis, NewPolicyEvent::Cancel(&cancel)).unwrap();
+        let revoke_root =
+            append_revocation_root([0; 32], 1, &revoke.persistence_bytes()).unwrap();
+        let receipts = witness_receipts(2, state.policy_head, revoke_root);
+        let (counter, intent, pin) = model_counter_io(&genesis);
+        assert_eq!(
+            bound_counter(&store, genesis, &receipts, &counter, &intent, pin, CandidateCounterOperation::Begin),
+            Ok(Diagnostic::MatchingCounterOnly)
+        );
+        assert_eq!(*counter.number.lock().unwrap(), 10);
+        let StoredBinding::Committed(committed) = intent.load().unwrap() else {
+            panic!("counter intent was not finalized");
+        };
+        assert_eq!(committed.policy.policy_sequence, 2);
+        assert_eq!(committed.policy.policy_head, state.policy_head);
+        assert_eq!(committed.policy.revocation_root, revoke_root);
+        assert_eq!(
+            bound_counter(&store, genesis, &receipts, &counter, &intent, pin, CandidateCounterOperation::Reconcile),
+            Ok(Diagnostic::MatchingCounterOnly)
+        );
+        assert_eq!(*counter.number.lock().unwrap(), 10);
+        assert!(state.admission_paused);
+    }
+
+    #[test]
+    fn signed_checkpoint_for_wrong_journal_never_touches_counter() {
+        let db = TempDb::new();
+        let store = db.open();
+        let genesis = trusted_genesis();
+        let revoke = signed_revocation(1, 11, 3);
+        let state = store.append(root_pin(), genesis, NewPolicyEvent::Revoke(&revoke)).unwrap();
+        let root = append_revocation_root([0; 32], 1, &revoke.persistence_bytes()).unwrap();
+        let (counter, intent, pin) = model_counter_io(&genesis);
+        for receipts in [
+            witness_receipts(1, [0xaa; 32], root),
+            witness_receipts(1, state.policy_head, [0xbb; 32]),
+            witness_receipts(2, state.policy_head, root),
+        ] {
+            assert_eq!(
+                bound_counter(&store, genesis, &receipts, &counter, &intent, pin, CandidateCounterOperation::Begin),
+                Err(StoreError::Conflict)
+            );
+        }
+        assert_eq!(*counter.number.lock().unwrap(), 9);
+        assert!(matches!(intent.load().unwrap(), StoredBinding::Committed(_)));
+    }
+
+    #[test]
+    fn corrupted_mirror_blocks_counter_stage_before_increment() {
+        let db = TempDb::new();
+        let store = db.open();
+        let genesis = trusted_genesis();
+        let revoke = signed_revocation(1, 11, 3);
+        let state = store.append(root_pin(), genesis, NewPolicyEvent::Revoke(&revoke)).unwrap();
+        let root = append_revocation_root([0; 32], 1, &revoke.persistence_bytes()).unwrap();
+        let receipts = witness_receipts(1, state.policy_head, root);
+        let (counter, intent, pin) = model_counter_io(&genesis);
+        let conn = Connection::open(&db.0).unwrap();
+        conn.execute("DELETE FROM unified_policy_audit WHERE seq=1", []).unwrap();
+        drop(conn);
+        assert_eq!(
+            bound_counter(&store, genesis, &receipts, &counter, &intent, pin, CandidateCounterOperation::Begin),
+            Err(StoreError::Conflict)
+        );
+        assert_eq!(*counter.number.lock().unwrap(), 9);
+        assert!(matches!(intent.load().unwrap(), StoredBinding::Committed(_)));
+    }
+
+    #[test]
+    fn ambiguous_increment_requires_same_verified_journal_on_reconcile() {
+        let db = TempDb::new();
+        let store = db.open();
+        let genesis = trusted_genesis();
+        let revoke = signed_revocation(1, 11, 3);
+        let state = store.append(root_pin(), genesis, NewPolicyEvent::Revoke(&revoke)).unwrap();
+        let root = append_revocation_root([0; 32], 1, &revoke.persistence_bytes()).unwrap();
+        let receipts = witness_receipts(1, state.policy_head, root);
+        let (counter, intent, pin) = model_counter_io(&genesis);
+        counter.fail_after_increment.store(true, std::sync::atomic::Ordering::SeqCst);
+        assert_eq!(
+            bound_counter(&store, genesis, &receipts, &counter, &intent, pin, CandidateCounterOperation::Begin),
+            Err(StoreError::PersistenceFailure)
+        );
+        assert_eq!(*counter.number.lock().unwrap(), 10);
+        assert!(matches!(intent.load().unwrap(), StoredBinding::Prepared(_)));
+        assert_eq!(
+            bound_counter(&store, genesis, &witness_receipts(1, [0; 32], root), &counter, &intent, pin, CandidateCounterOperation::Reconcile),
+            Err(StoreError::Conflict)
+        );
+        assert_eq!(
+            bound_counter(&store, genesis, &receipts, &counter, &intent, pin, CandidateCounterOperation::Reconcile),
+            Ok(Diagnostic::MatchingCounterOnly)
+        );
+        assert!(matches!(intent.load().unwrap(), StoredBinding::Committed(_)));
+        assert_eq!(*counter.number.lock().unwrap(), 10);
+    }
+
+    #[test]
+    fn second_sqlite_writer_cannot_swap_snapshot_during_counter_transition() {
+        let db = TempDb::new();
+        let store = db.open();
+        let genesis = trusted_genesis();
+        let revoke = signed_revocation(1, 11, 3);
+        let state = store.append(root_pin(), genesis, NewPolicyEvent::Revoke(&revoke)).unwrap();
+        let root = append_revocation_root([0; 32], 1, &revoke.persistence_bytes()).unwrap();
+        let receipts = witness_receipts(1, state.policy_head, root);
+        let (counter, intent, pin) = model_counter_io(&genesis);
+        *counter.foreign_sqlite.lock().unwrap() = Some(db.0.clone());
+        assert_eq!(
+            bound_counter(&store, genesis, &receipts, &counter, &intent, pin, CandidateCounterOperation::Begin),
+            Ok(Diagnostic::MatchingCounterOnly)
+        );
+        assert!(counter.foreign_write_blocked.load(std::sync::atomic::Ordering::SeqCst));
+        assert_eq!(store.pending_outbox().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn committed_counter_number_without_replayed_policy_match_is_rejected() {
+        let db = TempDb::new();
+        let store = db.open();
+        let genesis = trusted_genesis();
+        let (counter, intent, pin) = model_counter_io(&genesis);
+        let revoke = signed_revocation(1, 11, 3);
+        let state = store.append(root_pin(), genesis, NewPolicyEvent::Revoke(&revoke)).unwrap();
+        let root = append_revocation_root([0; 32], 1, &revoke.persistence_bytes()).unwrap();
+        assert_eq!(
+            bound_counter(&store, genesis, &witness_receipts(1, state.policy_head, root), &counter, &intent, pin, CandidateCounterOperation::Reconcile),
+            Err(StoreError::Conflict)
+        );
+        assert_eq!(*counter.number.lock().unwrap(), 9);
+    }
+
+    #[test]
+    fn owner_transfer_policy_commits_current_manifest_not_just_old_owner() {
+        let db = TempDb::new();
+        let store = db.open();
+        let genesis = trusted_genesis();
+        let successor = signed_manifest(33, 4);
+        let transfer = signed_transfer(&genesis, &successor, 1);
+        let snapshot = store.append(root_pin(), genesis, NewPolicyEvent::Transfer {
+            transfer: &transfer,
+            successor_manifest: &successor,
+        }).unwrap();
+        let receipts = witness_receipts(1, snapshot.policy_head, [0; 32]);
+        let (counter, intent, pin) = model_counter_io(&genesis);
+        assert_eq!(
+            bound_counter(&store, genesis, &receipts, &counter, &intent, pin, CandidateCounterOperation::Begin),
+            Ok(Diagnostic::MatchingCounterOnly)
+        );
+        let StoredBinding::Committed(binding) = intent.load().unwrap() else {
+            panic!("transfer did not finalize");
+        };
+        let current = verify_resource_trust_for_spike(&root_pin(), &successor, 150).unwrap();
+        assert_eq!(binding.policy.current_manifest, current.manifest_commitment());
+        assert_ne!(binding.policy.current_manifest, genesis.manifest_commitment());
+    }
+
 }

@@ -1,0 +1,15 @@
+[package]
+name = "loom-crypto"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+
+[dependencies]
+loom-types = { path = "../loom-types" }
+loom-wire = { path = "../loom-wire" }
+ed25519-dalek = { version = "2.2.0", default-features = false, features = ["std"] }
+sha2 = "0.10.9"
+
+[lints]
+workspace = true

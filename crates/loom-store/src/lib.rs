@@ -1,0 +1,103 @@
+//! Transaction persistence boundary; L-001C experimental actor added.
+//! The default deliberately does not persist or acknowledge security events.
+
+use loom_types::{ResourceId, SpaceId};
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum StoreError {
+    NotInitialized,
+    Conflict,
+    PersistenceFailure,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct PolicyVersion {
+    pub space_id: SpaceId,
+    pub resource_id: ResourceId,
+    pub epoch: u64,
+}
+
+pub trait SecurityEventStore: Send + Sync {
+    fn commit_revocation(
+        &self,
+        version: PolicyVersion,
+        signed_event: &[u8],
+    ) -> Result<PolicyVersion, StoreError>;
+}
+
+pub struct RejectUninitializedStore;
+
+impl SecurityEventStore for RejectUninitializedStore {
+    fn commit_revocation(
+        &self,
+        _version: PolicyVersion,
+        _signed_event: &[u8],
+    ) -> Result<PolicyVersion, StoreError> {
+        Err(StoreError::NotInitialized)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn no_ack_before_persist() {
+        let version = PolicyVersion {
+            space_id: SpaceId::from_bytes([1; 16]),
+            resource_id: ResourceId::from_bytes([2; 16]),
+            epoch: 3,
+        };
+        assert_eq!(
+            RejectUninitializedStore.commit_revocation(version, b"unverified"),
+            Err(StoreError::NotInitialized)
+        );
+    }
+}
+
+/// Experimental fail-closed SQLite revoke/outbox coordinator.
+pub mod sqlite_revocation;
+
+/// External rollback-resistant high-water interface; no production provider.
+pub mod rollback_anchor;
+
+mod policy_journal_codec;
+/// Unified signed lifecycle journal candidate. Always fail-closed for network use.
+pub mod unified_policy_journal;
+
+/// Two-witness policy-head high-water interface; no production storage provider.
+pub mod unified_policy_anchor;
+
+/// Strict read-only audit of incompatible legacy revocation-only tables.
+pub mod legacy_migration;
+
+/// Read-only signed legacy evidence inspection; no automatic schema conversion.
+pub mod legacy_history_audit;
+
+/// L-001M behavioral adapter probe; never physical device certification.
+pub mod anchor_conformance;
+
+/// Linux TPM2 read-only capability experiment (no NV writes or trusted anchor).
+pub mod linux_tpm2_probe;
+
+/// Experimental signed policy-to-monotonic-counter crash protocol, no TPM writes.
+pub mod tpm_counter_binding;
+
+/// L-001S simulated independently durable Prepared-intent + NV crash boundary model.
+/// Deterministic test media only; never actual TPM or persistent trusted storage.
+pub mod durable_intent_simulator;
+
+/// L-001T canonical, versioned Ed25519 signed intent record verifier.
+/// Only diagnostic, requires externally pinned signer and replay fence.
+pub mod authenticated_intent_record;
+
+/// L-001U diagnostic-only authenticated signed-intent read boundary.
+/// Mutation and ServiceOpen remain fail-closed.
+pub mod authenticated_intent_read_gate;
+
+/// L-001V signed write/replay-fence CAS **simulation**. No real durable writer.
+pub mod authenticated_intent_write_model;
+
+/// L-001AA logical restart-retained journal reservation CAS simulator.
+/// No real durable independent fence or TPM NV hardware is implemented.
+pub mod independent_reservation_fence_model;

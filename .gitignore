@@ -1,0 +1,9 @@
+/target/
+/**/target/
+.DS_Store
+*.swp
+.env
+.env.*
+!.env.example
+/fuzz/artifacts/
+/fuzz/corpus/

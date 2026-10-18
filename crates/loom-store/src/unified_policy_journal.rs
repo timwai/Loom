@@ -75,6 +75,24 @@ struct JournalCheckpointState {
     current_trust: VerifiedResourceTrust,
 }
 
+/// L-001X: short-transaction journal proof. It is NOT a permit or an
+/// independently trusted record: an external signer/CAS must recheck its own
+/// pinned counter, signed Prepared record and replay fence before writes.
+/// Its fields are private to prevent callers constructing false snapshots.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct CandidateJournalPreflight {
+    snapshot: JournalSnapshot,
+    prior: UnifiedPolicyHighWater,
+    checkpoint: Checkpoint,
+    current_manifest: [u8; 32],
+}
+
+impl CandidateJournalPreflight {
+    pub fn snapshot(&self) -> JournalSnapshot {
+        self.snapshot
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CriticalPolicyOutbox {
     pub sequence: u64,
@@ -109,6 +127,14 @@ enum Command {
         io: CandidateCounterIo,
         operation: CandidateCounterOperation,
         done: Sender<Result<Diagnostic, StoreError>>,
+    },
+    CandidatePreflight {
+        root: ExternallyPinnedRootForSpike,
+        genesis: VerifiedResourceTrust,
+        receipts: Vec<SignedCheckpoint>,
+        now_ms: u64,
+        prior: UnifiedPolicyHighWater,
+        done: Sender<Result<CandidateJournalPreflight, StoreError>>,
     },
     MarkWitness {
         root: ExternallyPinnedRootForSpike,
@@ -334,6 +360,82 @@ impl UnifiedPolicyJournal {
         recv.recv().map_err(|_| StoreError::PersistenceFailure)?
     }
 
+    /// Complete replay, mirror parity, Root-selected Witness validation and
+    /// exact historical signed-prefix checks under one SHORT SQLite
+    /// transaction. Never performs counter/intent I/O under the DB lock.
+    /// The prior policy must come from an independently authenticated
+    /// candidate read, not an untrusted SQLite row.
+    pub fn preflight_candidate_journal(
+        &self,
+        root: ExternallyPinnedRootForSpike,
+        genesis: VerifiedResourceTrust,
+        receipts: &[SignedCheckpoint],
+        now_ms: u64,
+        prior: UnifiedPolicyHighWater,
+    ) -> Result<CandidateJournalPreflight, StoreError> {
+        let (done, rx) = mpsc::channel();
+        self.tx
+            .as_ref()
+            .ok_or(StoreError::PersistenceFailure)?
+            .send(Command::CandidatePreflight {
+                root,
+                genesis,
+                receipts: receipts.to_vec(),
+                now_ms,
+                prior,
+                done,
+            })
+            .map_err(|_| StoreError::PersistenceFailure)?;
+        rx.recv().map_err(|_| StoreError::PersistenceFailure)?
+    }
+
+    /// Re-read all signed evidence under a fresh short transaction. The
+    /// preflight token is NOT an atomic authorization to publish after return:
+    /// the external CAS must also guard journal changes in real deployments.
+    pub fn revalidate_candidate_journal(
+        &self,
+        root: ExternallyPinnedRootForSpike,
+        genesis: VerifiedResourceTrust,
+        receipts: &[SignedCheckpoint],
+        now_ms: u64,
+        expected: CandidateJournalPreflight,
+    ) -> Result<(), StoreError> {
+        let current = self.preflight_candidate_journal(
+            root,
+            genesis,
+            receipts,
+            now_ms,
+            expected.prior,
+        )?;
+        if current != expected {
+            return Err(StoreError::Conflict);
+        }
+        Ok(())
+    }
+
+    /// Model-only candidate preparation probe. No SQLite transaction or
+    /// journal actor gate is held while the external step runs. The pending
+    /// result is discarded unless a SECOND signed replay and Witness check
+    /// exactly matches the preflight. The final publisher is deliberately
+    /// caller-defined and is NOT a production distributed CAS; a late journal
+    /// change after this second check remains a release-blocking race.
+    pub fn coordinated_candidate_prepare_probe<T>(
+        &self,
+        root: ExternallyPinnedRootForSpike,
+        genesis: VerifiedResourceTrust,
+        receipts: &[SignedCheckpoint],
+        now_ms: u64,
+        prior: UnifiedPolicyHighWater,
+        external_step: impl FnOnce() -> Result<T, StoreError>,
+        model_publish: impl FnOnce(T) -> Result<(), StoreError>,
+    ) -> Result<JournalSnapshot, StoreError> {
+        let token = self.preflight_candidate_journal(root, genesis, receipts, now_ms, prior)?;
+        let prepared = external_step()?;
+        self.revalidate_candidate_journal(root, genesis, receipts, now_ms, token)?;
+        model_publish(prepared)?;
+        Ok(token.snapshot())
+    }
+
     /// Read-only: no ACK is allowed without authenticated remote durable
     /// receipt and a separate fairness/priority retransmission protocol.
     pub fn pending_outbox(&self) -> Result<Vec<CriticalPolicyOutbox>, StoreError> {
@@ -415,6 +517,23 @@ fn worker(path: PathBuf, rx: Receiver<Command>, started: Sender<Result<(), Store
                             now_ms,
                             &io,
                             operation,
+                        ));
+                    }
+                    Command::CandidatePreflight {
+                        root,
+                        genesis,
+                        receipts,
+                        now_ms,
+                        prior,
+                        done,
+                    } => {
+                        let _ = done.send(candidate_preflight_transaction(
+                            &mut connection,
+                            root,
+                            genesis,
+                            &receipts,
+                            now_ms,
+                            prior,
                         ));
                     }
                     Command::MarkWitness {
@@ -806,6 +925,52 @@ fn verify_signed_policy_prefix(
         return Err(StoreError::Conflict);
     }
     Ok(())
+}
+
+/// The ONLY SQLite transaction used by the L-001X candidate preflight
+/// path. Its transaction finishes before any external signing, counter
+/// observation, or simulated CAS begins. This is NOT a distributed lock.
+fn candidate_preflight_transaction(
+    conn: &mut Connection,
+    root: ExternallyPinnedRootForSpike,
+    genesis: VerifiedResourceTrust,
+    receipts: &[SignedCheckpoint],
+    now_ms: u64,
+    prior: UnifiedPolicyHighWater,
+) -> Result<CandidateJournalPreflight, StoreError> {
+    let tx = conn
+        .transaction_with_behavior(TransactionBehavior::Deferred)
+        .map_err(|_| StoreError::PersistenceFailure)?;
+    let history = replay(&tx, &root, genesis)?;
+    let current = history.current_trust();
+    let verified = verify_root_bound_witnesses(&genesis, receipts, now_ms)
+        .map_err(|_| StoreError::Conflict)?;
+    let checkpoint = verified.checkpoint();
+    let original_witnesses = genesis.witnesses();
+    let active_witnesses = current.witnesses();
+    if original_witnesses[0].public_key != active_witnesses[0].public_key
+        || original_witnesses[1].public_key != active_witnesses[1].public_key
+        || checkpoint.space != genesis.space()
+        || checkpoint.resource != genesis.resource()
+        || checkpoint.writer_epoch != genesis.writer_epoch()
+        || checkpoint.seq != history.sequence()
+        || checkpoint.head_hash != history.policy_head()
+        || checkpoint.revocation_root
+            != revocation_root_for_journal(&tx, &root, genesis.resource())?
+    {
+        return Err(StoreError::Conflict);
+    }
+    // The prefix is checked against the signed lifecycle at the exact
+    // historical sequence, not against the current witness alone.
+    verify_signed_policy_prefix(&tx, &root, genesis, prior)?;
+    let proof = CandidateJournalPreflight {
+        snapshot: snapshot(&history),
+        prior,
+        checkpoint,
+        current_manifest: current.manifest_commitment(),
+    };
+    tx.commit().map_err(|_| StoreError::PersistenceFailure)?;
+    Ok(proof)
 }
 
 /// A single DB write transaction covers the external *candidate* counter

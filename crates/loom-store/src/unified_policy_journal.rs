@@ -32,6 +32,11 @@ use rusqlite::{Connection, OptionalExtension, Transaction, TransactionBehavior, 
 use std::path::PathBuf;
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{Arc, Mutex};
+use std::sync::atomic::{AtomicU64, Ordering};
+
+/// In-process journal instance identifier to prevent accidental use of a
+/// reservation issued by a *different* SQLite actor. NOT an auth token.
+static NEXT_JOURNAL_INSTANCE: AtomicU64 = AtomicU64::new(1);
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
@@ -103,6 +108,47 @@ impl CandidateJournalPreflight {
     }
 }
 
+/// L-001Y: process-local journal append generation + single in-flight
+/// reservation. These do not survive restart, protect external SQLite writers,
+/// or bind a real trusted medium. Never treat a ticket as authorization.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct CandidateJournalReservation {
+    journal_instance: u64,
+    generation: u64,
+    ticket: u64,
+    preflight: CandidateJournalPreflight,
+}
+
+impl CandidateJournalReservation {
+    pub fn snapshot(&self) -> JournalSnapshot {
+        self.preflight.snapshot()
+    }
+}
+
+struct CandidateJournalGateState {
+    journal_instance: u64,
+    generation: u64,
+    next_ticket: u64,
+    outstanding: Option<CandidateJournalReservation>,
+    /// After *modeled* Prepared publication, no subsequent model reservation
+    /// can be issued until a separately reviewed signed-recovery protocol.
+    prepared_unreconciled: bool,
+    /// Signed policy append after Prepared is never a grant of admission.
+    /// A diagnostic flag only; neither durable nor a safety boundary.
+    stale_prepared: bool,
+}
+
+impl CandidateJournalGateState {
+    fn advance_generation(&mut self) -> Result<(), StoreError> {
+        self.generation = self.generation.checked_add(1).ok_or(StoreError::Conflict)?;
+        self.outstanding = None;
+        if self.prepared_unreconciled {
+            self.stale_prepared = true;
+        }
+        Ok(())
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CriticalPolicyOutbox {
     pub sequence: u64,
@@ -160,7 +206,7 @@ enum Command {
 pub struct UnifiedPolicyJournal {
     tx: Option<Sender<Command>>,
     join: Option<JoinHandle<()>>,
-    gate: Mutex<()>,
+    gate: Mutex<CandidateJournalGateState>,
 }
 
 impl UnifiedPolicyJournal {
@@ -177,7 +223,16 @@ impl UnifiedPolicyJournal {
         Ok(Self {
             tx: Some(tx),
             join: Some(join),
-            gate: Mutex::new(()),
+            gate: Mutex::new(CandidateJournalGateState {
+                journal_instance: NEXT_JOURNAL_INSTANCE
+                    .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |id| id.checked_add(1))
+                    .map_err(|_| StoreError::PersistenceFailure)?,
+                generation: 0,
+                next_ticket: 0,
+                outstanding: None,
+                prepared_unreconciled: false,
+                stale_prepared: false,
+            }),
         })
     }
 
@@ -217,10 +272,13 @@ impl UnifiedPolicyJournal {
         if evidence.is_empty() || evidence.len() > MAX_EVIDENCE {
             return Err(StoreError::Conflict);
         }
-        let _barrier = self
+        let mut barrier = self
             .gate
             .lock()
             .map_err(|_| StoreError::PersistenceFailure)?;
+        // If the process-local generation has overflowed, refuse BEFORE
+        // writing to SQLite, rather than committing without invalidation.
+        barrier.generation.checked_add(1).ok_or(StoreError::Conflict)?;
         let (send, recv) = mpsc::channel();
         self.tx
             .as_ref()
@@ -233,7 +291,10 @@ impl UnifiedPolicyJournal {
                 done: send,
             })
             .map_err(|_| StoreError::PersistenceFailure)?;
-        recv.recv().map_err(|_| StoreError::PersistenceFailure)?
+        let result = recv.recv().map_err(|_| StoreError::PersistenceFailure)??;
+        // Only a SUCCESSFULLY COMMITTED signed event invalidates the ticket.
+        barrier.advance_generation()?;
+        Ok(result)
     }
 
     /// Verify two Root-selected signed checkpoints against a fully replayed,
@@ -447,6 +508,107 @@ impl UnifiedPolicyJournal {
         )?;
         model_publish(prepared)?;
         Ok(token.snapshot())
+    }
+
+    /// A single outstanding, process-local reservation for model Prepared
+    /// publication. The complete signed preflight runs as a short SQLite
+    /// transaction, then releases the writer gate BEFORE external signing.
+    /// The returned ticket has no independently authenticated durability.
+    pub fn reserve_candidate_journal(
+        &self,
+        request: CandidatePreflightRequest<'_>,
+    ) -> Result<CandidateJournalReservation, StoreError> {
+        let mut barrier = self.gate.lock().map_err(|_| StoreError::PersistenceFailure)?;
+        if barrier.outstanding.is_some() || barrier.prepared_unreconciled {
+            return Err(StoreError::Conflict);
+        }
+        let next = barrier.next_ticket.checked_add(1).ok_or(StoreError::Conflict)?;
+        let proof = self.preflight_candidate_journal(
+            request.root,
+            request.genesis,
+            request.receipts,
+            request.now_ms,
+            request.prior,
+        )?;
+        let token = CandidateJournalReservation {
+            journal_instance: barrier.journal_instance,
+            generation: barrier.generation,
+            ticket: next,
+            preflight: proof,
+        };
+        barrier.next_ticket = next;
+        barrier.outstanding = Some(token);
+        Ok(token)
+    }
+
+    /// Model-only final commit boundary. A second replay/dual-Witness check
+    /// and the supplied in-memory CAS publisher are serialized together by
+    /// the *same process-local gate* used by this journal actor's append().
+    ///
+    /// External signer work must happen BEFORE this call. The publisher MUST
+    /// NOT call back into this journal: no SQLite transaction is held here,
+    /// but the in-process gate serializes appends for the brief model CAS.
+    /// This does not fence another process, raw SQLite connection, or real
+    /// hardware. On an ambiguous CAS result, force fresh signed recovery.
+    pub fn commit_candidate_reservation<T>(
+        &self,
+        request: CandidatePreflightRequest<'_>,
+        reservation: CandidateJournalReservation,
+        prepared: T,
+        model_publish: impl FnOnce(T) -> Result<(), StoreError>,
+    ) -> Result<JournalSnapshot, StoreError> {
+        let mut barrier = self.gate.lock().map_err(|_| StoreError::PersistenceFailure)?;
+        if barrier.journal_instance != reservation.journal_instance
+            || barrier.generation != reservation.generation
+            || barrier.outstanding != Some(reservation)
+            || barrier.prepared_unreconciled
+            || request.prior != reservation.preflight.prior
+        {
+            return Err(StoreError::Conflict);
+        }
+        // Burn this one-shot ticket BEFORE the callback. No other contender
+        // can commit the same reservation even if the CAS fails ambiguously.
+        barrier.outstanding = None;
+        let rechecked = self.preflight_candidate_journal(
+            request.root,
+            request.genesis,
+            request.receipts,
+            request.now_ms,
+            request.prior,
+        )?;
+        if rechecked != reservation.preflight {
+            barrier.advance_generation()?;
+            return Err(StoreError::Conflict);
+        }
+        let result = model_publish(prepared);
+        // If the CAS may have persisted Prepared before returning an error,
+        // quarantine the candidate until signed independent re-observation.
+        barrier.prepared_unreconciled = true;
+        barrier.advance_generation()?;
+        result?;
+        Ok(rechecked.snapshot())
+    }
+
+    /// Cancel only the exact outstanding ticket; no external media changes.
+    pub fn cancel_candidate_reservation(
+        &self,
+        reservation: CandidateJournalReservation,
+    ) -> Result<(), StoreError> {
+        let mut barrier = self.gate.lock().map_err(|_| StoreError::PersistenceFailure)?;
+        if barrier.outstanding != Some(reservation)
+            || barrier.journal_instance != reservation.journal_instance
+            || barrier.generation != reservation.generation
+        {
+            return Err(StoreError::Conflict);
+        }
+        barrier.advance_generation()
+    }
+
+    /// Strictly diagnostic-only in-memory state, NOT persisted or usable
+    /// for admission. Post-PREPARED signed policy append is visible as stale.
+    pub fn candidate_reservation_health(&self) -> Result<(bool, bool), StoreError> {
+        let state = self.gate.lock().map_err(|_| StoreError::PersistenceFailure)?;
+        Ok((state.prepared_unreconciled, state.stale_prepared))
     }
 
     /// Read-only: no ACK is allowed without authenticated remote durable

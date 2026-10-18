@@ -48,6 +48,12 @@ jobs:
           command -v kotlinc
           kotlinc ./interop/wire01/kotlin/Main.kt -include-runtime -d "$RUNNER_TEMP/wire01-kotlin.jar"
           java -jar "$RUNNER_TEMP/wire01-kotlin.jar" .
+  l001-milestone-truth:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Reject unsupported L-001 completion claims
+        run: python3 scripts/l001_gate.py
   dependency-policy:
     runs-on: ubuntu-latest
     steps:

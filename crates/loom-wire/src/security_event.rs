@@ -353,6 +353,38 @@ mod tests {
     }
 
     #[test]
+    fn wire01_multilang_boundary_vectors_use_identical_transcript() {
+        for (encoded, transcript, expected_kind, expected_payload) in [
+            (
+                include_str!("../../../test-vectors/wire-v1/event-02.cbor.hex"),
+                include_str!("../../../test-vectors/wire-v1/event-02.signing.hex"),
+                EventKind::PeerKeyBinding,
+                0,
+            ),
+            (
+                include_str!("../../../test-vectors/wire-v1/event-03.cbor.hex"),
+                include_str!("../../../test-vectors/wire-v1/event-03.signing.hex"),
+                EventKind::MembershipGrant,
+                24,
+            ),
+        ] {
+            let wire = unhex(encoded);
+            let exact = unhex(transcript);
+            let event = decode_security_event(&wire).expect("strict CBOR golden");
+            assert_eq!(event.kind, expected_kind);
+            assert_eq!(event.payload.len(), expected_payload);
+            assert_eq!(encode_security_event(&event), Ok(wire.clone()));
+            assert_eq!(signing_input(&wire), Ok(exact));
+        }
+        let high = decode_security_event(&unhex(include_str!(
+            "../../../test-vectors/wire-v1/event-02.cbor.hex"
+        )))
+        .unwrap();
+        assert_eq!(high.issuer_epoch, u64::MAX);
+        assert_eq!(high.seq, (1_u64 << 53) + 1);
+    }
+
+    #[test]
     fn truncation_and_random_mutations_never_panic() {
         let good = encode_security_event(&fixture()).expect("encode");
         for end in 0..good.len() {

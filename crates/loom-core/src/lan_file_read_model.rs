@@ -107,8 +107,7 @@ impl ModelLanFileServer {
             return Err(ModelReadError::Denied);
         }
         let mut state = self.state.lock().map_err(|_| ModelReadError::Uncertain)?;
-        if state.grants.get(&claimed_principal.peer_id)
-            != Some(&claimed_principal.membership_epoch)
+        if state.grants.get(&claimed_principal.peer_id) != Some(&claimed_principal.membership_epoch)
         {
             return Err(ModelReadError::Denied);
         }
@@ -146,7 +145,10 @@ impl ModelReadSession {
             return Err(ModelReadError::InvalidChunk);
         }
         let mut state = self.state.lock().map_err(|_| ModelReadError::Uncertain)?;
-        let cursor = state.sessions.get(&self.id).ok_or(ModelReadError::StaleSession)?;
+        let cursor = state
+            .sessions
+            .get(&self.id)
+            .ok_or(ModelReadError::StaleSession)?;
         if cursor.policy_revision != state.policy_revision
             || state.grants.get(&cursor.peer) != Some(&cursor.membership_epoch)
         {
@@ -165,8 +167,8 @@ impl ModelReadSession {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use loom_types::Action;
     use loom_policy::{Decision, DenyAllPolicy, PolicyState, ResourceAuthorizer};
+    use loom_types::Action;
     use std::sync::mpsc;
     use std::thread;
 
@@ -197,8 +199,14 @@ mod tests {
     #[test]
     fn default_is_no_grants_no_sessions() {
         let host = server();
-        assert!(matches!(host.open_read(alice(), resource()), Err(ModelReadError::Denied)));
-        assert!(matches!(host.open_read(bob(), resource()), Err(ModelReadError::Denied)));
+        assert!(matches!(
+            host.open_read(alice(), resource()),
+            Err(ModelReadError::Denied)
+        ));
+        assert!(matches!(
+            host.open_read(bob(), resource()),
+            Err(ModelReadError::Denied)
+        ));
     }
 
     #[test]
@@ -209,7 +217,10 @@ mod tests {
         assert_eq!(stream.read_chunk(5).unwrap(), b"hello");
         assert_eq!(stream.read_chunk(40).unwrap(), b" LAN read model");
         assert_eq!(stream.read_chunk(40).unwrap(), b"");
-        assert!(matches!(host.open_read(bob(), resource()), Err(ModelReadError::Denied)));
+        assert!(matches!(
+            host.open_read(bob(), resource()),
+            Err(ModelReadError::Denied)
+        ));
     }
 
     #[test]
@@ -218,10 +229,16 @@ mod tests {
         host.owner_grant_for_test(alice().peer_id, 7).unwrap();
         let mut impostor = alice();
         impostor.space_id = SpaceId::from_bytes([99; 16]);
-        assert!(matches!(host.open_read(impostor, resource()), Err(ModelReadError::Denied)));
+        assert!(matches!(
+            host.open_read(impostor, resource()),
+            Err(ModelReadError::Denied)
+        ));
         impostor = alice();
         impostor.membership_epoch = 8;
-        assert!(matches!(host.open_read(impostor, resource()), Err(ModelReadError::Denied)));
+        assert!(matches!(
+            host.open_read(impostor, resource()),
+            Err(ModelReadError::Denied)
+        ));
         assert!(matches!(
             host.open_read(alice(), ResourceId::from_bytes([99; 16])),
             Err(ModelReadError::Denied)
@@ -236,7 +253,10 @@ mod tests {
         assert_eq!(stream.read_chunk(5).unwrap(), b"hello");
         host.owner_revoke_for_test(alice().peer_id).unwrap();
         assert_eq!(stream.read_chunk(5), Err(ModelReadError::StaleSession));
-        assert!(matches!(host.open_read(alice(), resource()), Err(ModelReadError::Denied)));
+        assert!(matches!(
+            host.open_read(alice(), resource()),
+            Err(ModelReadError::Denied)
+        ));
     }
 
     #[test]
@@ -247,7 +267,13 @@ mod tests {
         host.owner_revoke_for_test(alice().peer_id).unwrap();
         host.owner_grant_for_test(alice().peer_id, 7).unwrap();
         assert_eq!(old.read_chunk(4), Err(ModelReadError::StaleSession));
-        assert_eq!(host.open_read(alice(), resource()).unwrap().read_chunk(5).unwrap(), b"hello");
+        assert_eq!(
+            host.open_read(alice(), resource())
+                .unwrap()
+                .read_chunk(5)
+                .unwrap(),
+            b"hello"
+        );
     }
 
     #[test]
@@ -257,10 +283,19 @@ mod tests {
         let old = host.open_read(alice(), resource()).unwrap();
         host.owner_grant_for_test(alice().peer_id, 8).unwrap();
         assert_eq!(old.read_chunk(5), Err(ModelReadError::StaleSession));
-        assert!(matches!(host.open_read(alice(), resource()), Err(ModelReadError::Denied)));
+        assert!(matches!(
+            host.open_read(alice(), resource()),
+            Err(ModelReadError::Denied)
+        ));
         let mut rotated = alice();
         rotated.membership_epoch = 8;
-        assert_eq!(host.open_read(rotated, resource()).unwrap().read_chunk(5).unwrap(), b"hello");
+        assert_eq!(
+            host.open_read(rotated, resource())
+                .unwrap()
+                .read_chunk(5)
+                .unwrap(),
+            b"hello"
+        );
     }
 
     #[test]
@@ -278,7 +313,10 @@ mod tests {
         host.owner_grant_for_test(alice().peer_id, 7).unwrap();
         let stream = host.open_read(alice(), resource()).unwrap();
         assert_eq!(stream.read_chunk(0), Err(ModelReadError::InvalidChunk));
-        assert_eq!(stream.read_chunk(MAX_CHUNK_BYTES + 1), Err(ModelReadError::InvalidChunk));
+        assert_eq!(
+            stream.read_chunk(MAX_CHUNK_BYTES + 1),
+            Err(ModelReadError::InvalidChunk)
+        );
         assert_eq!(stream.read_chunk(5).unwrap(), b"hello");
     }
 
@@ -289,8 +327,14 @@ mod tests {
             Err(ModelReadError::FixtureTooLarge)
         ));
         let host = server();
-        assert_eq!(host.owner_grant_for_test(alice().peer_id, 0), Err(ModelReadError::Denied));
-        assert!(matches!(host.open_read(alice(), resource()), Err(ModelReadError::Denied)));
+        assert_eq!(
+            host.owner_grant_for_test(alice().peer_id, 0),
+            Err(ModelReadError::Denied)
+        );
+        assert!(matches!(
+            host.open_read(alice(), resource()),
+            Err(ModelReadError::Denied)
+        ));
     }
 
     #[test]
@@ -299,7 +343,10 @@ mod tests {
         host.owner_grant_for_test(alice().peer_id, 7).unwrap();
         let stale = host.open_read(alice(), resource()).unwrap();
         let fresh = server();
-        assert!(matches!(fresh.open_read(alice(), resource()), Err(ModelReadError::Denied)));
+        assert!(matches!(
+            fresh.open_read(alice(), resource()),
+            Err(ModelReadError::Denied)
+        ));
         assert_eq!(stale.read_chunk(5).unwrap(), b"hello");
         // This old handle is process-memory-only and MUST NOT be
         // exported or resurrected by a real daemon restart.

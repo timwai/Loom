@@ -296,9 +296,9 @@ impl ReservationFenceHandle {
         inner.commit(changed, FenceCrash::AppendBefore, FenceCrash::AppendAfter)
     }
 
-    /// The model intentionally has NO automatic recovery method that could
-    /// authorize ambiguous Prepared. A reviewed witness/counter/hardware
-    /// reconciliation procedure must be introduced before such an API.
+    // The model intentionally has NO automatic recovery method that could
+    // authorize ambiguous Prepared. A reviewed witness/counter/hardware
+    // reconciliation procedure must be introduced before such an API.
 }
 
 #[cfg(test)]

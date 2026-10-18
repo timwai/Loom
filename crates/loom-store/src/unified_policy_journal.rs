@@ -75,6 +75,16 @@ struct JournalCheckpointState {
     current_trust: VerifiedResourceTrust,
 }
 
+/// Signed journal preflight inputs. The prior policy MUST be read from
+/// independently authenticated intent storage, not a rollbackable SQLite row.
+pub struct CandidatePreflightRequest<'a> {
+    pub root: ExternallyPinnedRootForSpike,
+    pub genesis: VerifiedResourceTrust,
+    pub receipts: &'a [SignedCheckpoint],
+    pub now_ms: u64,
+    pub prior: UnifiedPolicyHighWater,
+}
+
 /// L-001X: short-transaction journal proof. It is NOT a permit or an
 /// independently trusted record: an external signer/CAS must recheck its own
 /// pinned counter, signed Prepared record and replay fence before writes.
@@ -416,17 +426,25 @@ impl UnifiedPolicyJournal {
     /// change after this second check remains a release-blocking race.
     pub fn coordinated_candidate_prepare_probe<T>(
         &self,
-        root: ExternallyPinnedRootForSpike,
-        genesis: VerifiedResourceTrust,
-        receipts: &[SignedCheckpoint],
-        now_ms: u64,
-        prior: UnifiedPolicyHighWater,
+        request: CandidatePreflightRequest<'_>,
         external_step: impl FnOnce() -> Result<T, StoreError>,
         model_publish: impl FnOnce(T) -> Result<(), StoreError>,
     ) -> Result<JournalSnapshot, StoreError> {
-        let token = self.preflight_candidate_journal(root, genesis, receipts, now_ms, prior)?;
+        let token = self.preflight_candidate_journal(
+            request.root,
+            request.genesis,
+            request.receipts,
+            request.now_ms,
+            request.prior,
+        )?;
         let prepared = external_step()?;
-        self.revalidate_candidate_journal(root, genesis, receipts, now_ms, token)?;
+        self.revalidate_candidate_journal(
+            request.root,
+            request.genesis,
+            request.receipts,
+            request.now_ms,
+            token,
+        )?;
         model_publish(prepared)?;
         Ok(token.snapshot())
     }
@@ -3784,11 +3802,13 @@ mod tests {
         let published = AtomicUsize::new(0);
         let snapshot = journal
             .coordinated_candidate_prepare_probe(
-                root_pin(),
-                genesis,
-                &receipts,
-                150,
-                before.policy,
+                CandidatePreflightRequest {
+                    root: root_pin(),
+                    genesis,
+                    receipts: &receipts,
+                    now_ms: 150,
+                    prior: before.policy,
+                },
                 || {
                     // A second SQLite writer obtains a write transaction
                     // WHILE the external signer callback is on the stack.
@@ -3825,11 +3845,13 @@ mod tests {
         let (_, intent) = model.handles().unwrap();
         let mut publishes = 0usize;
         let outcome = journal.coordinated_candidate_prepare_probe(
-            root_pin(),
-            genesis,
-            &receipts,
-            150,
-            before.policy,
+            CandidatePreflightRequest {
+                root: root_pin(),
+                genesis,
+                receipts: &receipts,
+                now_ms: 150,
+                prior: before.policy,
+            },
             || {
                 let cancel = signed_cancellation(2);
                 let advanced = journal
@@ -3857,11 +3879,13 @@ mod tests {
         let (receipts, model, before, prepared) = nonblocking_fixture(&journal, genesis);
         let mut published = false;
         let outcome = journal.coordinated_candidate_prepare_probe(
-            root_pin(),
-            genesis,
-            &receipts,
-            150,
-            before.policy,
+            CandidatePreflightRequest {
+                root: root_pin(),
+                genesis,
+                receipts: &receipts,
+                now_ms: 150,
+                prior: before.policy,
+            },
             || {
                 let successor = signed_manifest(33, 4);
                 let transfer = signed_transfer(&genesis, &successor, 2);
@@ -3900,11 +3924,13 @@ mod tests {
         let (receipts, model, before, prepared) = nonblocking_fixture(&journal, genesis);
         let mut published = false;
         let outcome = journal.coordinated_candidate_prepare_probe(
-            root_pin(),
-            genesis,
-            &receipts,
-            150,
-            before.policy,
+            CandidatePreflightRequest {
+                root: root_pin(),
+                genesis,
+                receipts: &receipts,
+                now_ms: 150,
+                prior: before.policy,
+            },
             || {
                 let other = Connection::open(&db.0).unwrap();
                 other
@@ -3934,11 +3960,13 @@ mod tests {
         let mut published = false;
         assert_eq!(
             journal.coordinated_candidate_prepare_probe(
-                root_pin(),
-                genesis,
-                &wrong,
-                150,
-                before.policy,
+                CandidatePreflightRequest {
+                    root: root_pin(),
+                    genesis,
+                    receipts: &wrong,
+                    now_ms: 150,
+                    prior: before.policy,
+                },
                 || {
                     touched_signer = true;
                     Ok(prepared)
@@ -3956,11 +3984,13 @@ mod tests {
         forged_prior.policy_head = [91; 32];
         assert_eq!(
             journal.coordinated_candidate_prepare_probe(
-                root_pin(),
-                genesis,
-                &receipts,
-                150,
-                forged_prior,
+                CandidatePreflightRequest {
+                    root: root_pin(),
+                    genesis,
+                    receipts: &receipts,
+                    now_ms: 150,
+                    prior: forged_prior,
+                },
                 || {
                     touched_signer = true;
                     Ok(prepared)
@@ -3994,11 +4024,13 @@ mod tests {
         let mut published = false;
         assert_eq!(
             journal.coordinated_candidate_prepare_probe(
-                root_pin(),
-                genesis,
-                &receipts,
-                150,
-                before.policy,
+                CandidatePreflightRequest {
+                    root: root_pin(),
+                    genesis,
+                    receipts: &receipts,
+                    now_ms: 150,
+                    prior: before.policy,
+                },
                 || Err::<crate::tpm_counter_binding::Prepared, _>(StoreError::PersistenceFailure),
                 |_| {
                     published = true;

@@ -402,7 +402,8 @@ mod tests {
             binding,
         };
         let mut bytes = signing_preimage(&record).unwrap();
-        bytes.extend_from_slice(&key.sign(&bytes).to_bytes());
+        let signature = key.sign(&bytes).to_bytes();
+        bytes.extend_from_slice(&signature);
         let _ = counter; // ensures helper call sites bind the same fixture identity
         bytes
     }

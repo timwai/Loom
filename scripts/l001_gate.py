@@ -12,7 +12,7 @@ REQUIRED = {
     "AUTHZ-RACE-01", "AUTHZ-CRASH-02", "ROLLBACK-01",
     "PLATFORM-ANDROID-01", "PLATFORM-WIN-01", "PLATFORM-MAC-01",
 }
-SIGNOFFS = {"security", "hardware", "interop", "platform"}
+SIGNOFFS = {"security", "trusted_state", "interop", "platform"}
 STATES = {"blocked", "partial", "passed"}
 
 
@@ -27,6 +27,26 @@ def validate() -> tuple[bool, list[str]]:
             assert isinstance(main_sha, str) and len(main_sha) == 40
             assert all(c in "0123456789abcdef" for c in main_sha), "invalid integration SHA"
             assert engineering.get("scope"), "missing engineering-only scope"
+    provider = data.get("provider_policy")
+    assert isinstance(provider, dict), "missing hardware-agnostic provider policy"
+    assert provider.get("mode") == "hardware_agnostic", "TPM-specific policy not accepted"
+    assert provider.get("tpm_required") is False, "TPM cannot be a mandatory platform gate"
+    assert provider.get("software_baseline") == "portable_local_only", (
+        "software cannot imply antirollback protection"
+    )
+    assert provider.get("high_assurance") == (
+        "independently_verified_scoped_freshness_and_crash_recovery"
+    ), "independent antirollback evidence is mandatory for sensitive operations"
+    assert provider.get("no_silent_downgrade") is True, (
+        "security-sensitive operations may not silently downgrade"
+    )
+    backends = provider.get("provider_backends")
+    assert isinstance(backends, list) and "software" in backends, (
+        "software baseline must remain portable"
+    )
+    assert "optional_tpm2" in backends and "optional_independent_quorum" in backends, (
+        "require hardware-neutral trusted-state backends"
+    )
     checks = data["checks"]
     ids = [item["id"] for item in checks]
     assert set(ids) == REQUIRED and len(ids) == len(REQUIRED), "gate set incomplete"

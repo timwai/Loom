@@ -1,6 +1,6 @@
 # Loom — implementation status and security gates
 
-> Updated: **2026-10-18**, through proposed L-001W Draft PR (stacked on PR #29). Source of truth: repository branches, pull requests and GitHub Actions. This file describes the **stacked unmerged development branches**, not released features or the default branch.
+> Updated: **2026-10-18**, through Draft PR #30 (L-001W). Source of truth: repository branches, pull requests and GitHub Actions. This file describes the **stacked unmerged development branches**, not released features or the default branch.
 
 ## Executive status
 
@@ -31,7 +31,7 @@
 | L-001T, PR #27 | Versioned, fixed-size signed Committed/Prepared record codec; external Ed25519 signer pin and independently anchored replay fence | 8 adversarial verifier/integration tests; no real trusted key/record persistence or TPM writer |
 | L-001U, PR #28 | Authenticated read-only IntentStore adapter: strict signatures, pinned replay-fence + count checks, double-observation torn-read refusal, signed-journal integration | Six adapter + two journal integration tests; no authenticated writer or real trusted storage |
 | L-001V, PR #29 | Signed Prepared/Committed writer CAS with separately pinned frame/fence, six crash cuts, stale signer race and signed journal integration | Eight model + three journal tests; **in-memory oracle only**, no real trusted writer or TPM NV writes |
-| L-001W, proposed PR | Model externally approved signer-pin/fence rotation with monotonic epoch, committed-only gate, two crash cuts, concurrent stale signature rejection, reset refusal; nonblocking hardware protocol design | Seven additional adversarial model tests; **no external trust backend or real atomic storage** |
+| L-001W, PR #30 | Model externally approved signer-pin/fence rotation with monotonic epoch, committed-only gate, two crash cuts, concurrent stale signature rejection, reset refusal; nonblocking hardware protocol design | Seven additional adversarial model tests; **no external trust backend or real atomic storage** |
 
 **Branch topology caveat:** PRs #6 (wire), #7 (channel) and #16 (mirror integrity) branch from earlier ancestors; they are not all ancestors of PR #22. Count of open Draft PRs is not a count of integrated features. Do not merge leaf PRs into `main` out of order. Review and reconcile branches explicitly.
 

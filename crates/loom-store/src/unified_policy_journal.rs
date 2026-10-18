@@ -2851,4 +2851,257 @@ mod tests {
         );
         assert_eq!(*counter.number.lock().unwrap(), 11);
     }
+
+    /// L-001S integration: a *model* independent medium is recovered only
+    /// after the SQLite history and current dual-witness checkpoint are
+    /// replayed and the historical high-water prefix is verified.
+    fn crash_media(
+        genesis: &VerifiedResourceTrust,
+    ) -> crate::durable_intent_simulator::CrashRecoverySimulator {
+        use crate::tpm_counter_binding::{Committed, PinnedCounterIdentity};
+        crate::durable_intent_simulator::CrashRecoverySimulator::enrolled_for_test(Committed {
+            identity: PinnedCounterIdentity {
+                device_binding: [55; 32],
+                nv_index: 0x0180_0111,
+            },
+            counter: 9,
+            policy: crate::unified_policy_anchor::UnifiedPolicyHighWater::initial(genesis),
+        })
+    }
+
+    fn simulated_bound(
+        store: &UnifiedPolicyJournal,
+        genesis: VerifiedResourceTrust,
+        receipts: &[SignedCheckpoint],
+        media: &crate::durable_intent_simulator::CrashRecoverySimulator,
+        operation: CandidateCounterOperation,
+    ) -> Result<Diagnostic, StoreError> {
+        let (counter, intent) = media.handles().unwrap();
+        store.inspect_journal_bound_counter(
+            root_pin(),
+            genesis,
+            receipts,
+            150,
+            CandidateCounterIo {
+                pin: PinnedCounterIdentity {
+                    device_binding: [55; 32],
+                    nv_index: 0x0180_0111,
+                },
+                counter,
+                intent,
+            },
+            operation,
+        )
+    }
+
+    #[test]
+    fn journal_bound_recovery_survives_every_simulated_power_cut() {
+        use crate::durable_intent_simulator::CrashPoint;
+        use crate::tpm_counter_binding::StoredBinding;
+        let db = TempDb::new();
+        let store = db.open();
+        let genesis = trusted_genesis();
+        let evidence = signed_revocation(1, 11, 3);
+        let snapshot = store
+            .append(root_pin(), genesis, NewPolicyEvent::Revoke(&evidence))
+            .unwrap();
+        let revocations =
+            append_revocation_root([0; 32], 1, &evidence.persistence_bytes()).unwrap();
+        let receipts = witness_receipts(1, snapshot.policy_head, revocations);
+
+        for point in [
+            CrashPoint::PrepareBeforeWrite,
+            CrashPoint::PrepareBeforeSync,
+            CrashPoint::PrepareAfterSync,
+            CrashPoint::IncrementBeforeWrite,
+            CrashPoint::IncrementAfterWrite,
+            CrashPoint::FinalizeBeforeWrite,
+            CrashPoint::FinalizeBeforeSync,
+            CrashPoint::FinalizeAfterSync,
+        ] {
+            let media = crash_media(&genesis);
+            media.fail_once(point).unwrap();
+            assert_eq!(
+                simulated_bound(
+                    &store,
+                    genesis,
+                    &receipts,
+                    &media,
+                    CandidateCounterOperation::Begin
+                ),
+                Err(StoreError::PersistenceFailure),
+                "failed crash point: {point:?}"
+            );
+            media.reboot().unwrap();
+            let first = media.durable_image().unwrap();
+            let expected_count = if matches!(
+                point,
+                CrashPoint::IncrementAfterWrite
+                    | CrashPoint::FinalizeBeforeWrite
+                    | CrashPoint::FinalizeBeforeSync
+                    | CrashPoint::FinalizeAfterSync
+            ) {
+                10
+            } else {
+                9
+            };
+            assert_eq!(first.nv_counter, expected_count, "{point:?}");
+            let outcome = simulated_bound(
+                &store,
+                genesis,
+                &receipts,
+                &media,
+                CandidateCounterOperation::Reconcile,
+            );
+            if matches!(
+                point,
+                CrashPoint::PrepareBeforeWrite | CrashPoint::PrepareBeforeSync
+            ) {
+                // No durable Prepared intent was ever installed. A matching
+                // NV number against *old* state is NOT a verified current
+                // policy, and cannot become a misleading success result.
+                assert_eq!(outcome, Err(StoreError::Conflict), "{point:?}");
+                assert!(matches!(
+                    media.durable_image().unwrap().intent,
+                    StoredBinding::Committed(_)
+                ));
+            } else if matches!(
+                point,
+                CrashPoint::PrepareAfterSync | CrashPoint::IncrementBeforeWrite
+            ) {
+                assert_eq!(outcome, Ok(Diagnostic::IntentBeforeIncrement), "{point:?}");
+                assert!(matches!(
+                    media.durable_image().unwrap().intent,
+                    StoredBinding::Prepared(_)
+                ));
+            } else {
+                assert_eq!(outcome, Ok(Diagnostic::MatchingCounterOnly), "{point:?}");
+                let after = media.durable_image().unwrap();
+                assert_eq!(after.nv_counter, 10);
+                let StoredBinding::Committed(committed) = after.intent else {
+                    panic!("signed replay did not reconcile final committed state");
+                };
+                assert_eq!(committed.policy.policy_head, snapshot.policy_head);
+                assert_eq!(committed.policy.revocation_root, revocations);
+                assert_eq!(committed.policy.policy_sequence, 1);
+            }
+            // Reconciliation is never permitted to silently increase NV.
+            assert_eq!(media.durable_image().unwrap().nv_counter, expected_count);
+        }
+    }
+
+    #[test]
+    fn crash_recovery_never_finalizes_against_changed_or_corrupt_journal() {
+        use crate::durable_intent_simulator::CrashPoint;
+        use crate::tpm_counter_binding::StoredBinding;
+        let db = TempDb::new();
+        let store = db.open();
+        let genesis = trusted_genesis();
+        let evidence = signed_revocation(1, 11, 3);
+        let snapshot = store
+            .append(root_pin(), genesis, NewPolicyEvent::Revoke(&evidence))
+            .unwrap();
+        let revocations =
+            append_revocation_root([0; 32], 1, &evidence.persistence_bytes()).unwrap();
+        let receipts = witness_receipts(1, snapshot.policy_head, revocations);
+        let media = crash_media(&genesis);
+        media.fail_once(CrashPoint::IncrementAfterWrite).unwrap();
+        assert_eq!(
+            simulated_bound(
+                &store,
+                genesis,
+                &receipts,
+                &media,
+                CandidateCounterOperation::Begin
+            ),
+            Err(StoreError::PersistenceFailure)
+        );
+        media.reboot().unwrap();
+        assert_eq!(
+            simulated_bound(
+                &store,
+                genesis,
+                &witness_receipts(1, [22; 32], revocations),
+                &media,
+                CandidateCounterOperation::Reconcile
+            ),
+            Err(StoreError::Conflict)
+        );
+        let conn = Connection::open(&db.0).unwrap();
+        conn.execute("DELETE FROM unified_policy_audit WHERE seq=1", [])
+            .unwrap();
+        drop(conn);
+        assert_eq!(
+            simulated_bound(
+                &store,
+                genesis,
+                &receipts,
+                &media,
+                CandidateCounterOperation::Reconcile
+            ),
+            Err(StoreError::Conflict)
+        );
+        assert_eq!(media.durable_image().unwrap().nv_counter, 10);
+        assert!(matches!(
+            media.durable_image().unwrap().intent,
+            StoredBinding::Prepared(_)
+        ));
+    }
+
+    #[test]
+    fn restored_old_intent_cannot_launder_current_signed_checkpoint() {
+        use crate::durable_intent_simulator::CrashPoint;
+        use crate::tpm_counter_binding::StoredBinding;
+        let db = TempDb::new();
+        let store = db.open();
+        let genesis = trusted_genesis();
+        let evidence = signed_revocation(1, 11, 3);
+        let snapshot = store
+            .append(root_pin(), genesis, NewPolicyEvent::Revoke(&evidence))
+            .unwrap();
+        let revocations =
+            append_revocation_root([0; 32], 1, &evidence.persistence_bytes()).unwrap();
+        let receipts = witness_receipts(1, snapshot.policy_head, revocations);
+        let media = crash_media(&genesis);
+        let initial = media.durable_image().unwrap().intent;
+        media.fail_once(CrashPoint::FinalizeAfterSync).unwrap();
+        assert_eq!(
+            simulated_bound(
+                &store,
+                genesis,
+                &receipts,
+                &media,
+                CandidateCounterOperation::Begin
+            ),
+            Err(StoreError::PersistenceFailure)
+        );
+        media.reboot().unwrap();
+        assert_eq!(
+            simulated_bound(
+                &store,
+                genesis,
+                &receipts,
+                &media,
+                CandidateCounterOperation::Reconcile
+            ),
+            Ok(Diagnostic::MatchingCounterOnly)
+        );
+        media.restore_untrusted_intent_for_test(initial).unwrap();
+        assert_eq!(
+            simulated_bound(
+                &store,
+                genesis,
+                &receipts,
+                &media,
+                CandidateCounterOperation::Reconcile
+            ),
+            Err(StoreError::Conflict)
+        );
+        assert_eq!(media.durable_image().unwrap().nv_counter, 10);
+        assert!(matches!(
+            media.durable_image().unwrap().intent,
+            StoredBinding::Committed(_)
+        ));
+    }
+
 }

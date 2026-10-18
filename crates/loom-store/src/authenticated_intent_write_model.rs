@@ -712,6 +712,9 @@ mod tests {
                     counter.increment().unwrap();
                     intent.finalize(prepared)
                 }
+                WriteCrashPoint::RotateBeforeCas | WriteCrashPoint::RotateAfterCas => {
+                    unreachable!("rotation cuts are tested separately")
+                }
             };
             assert_eq!(result, Err(BindingError::PersistenceUncertain));
             assert_eq!(intent.load(), Err(BindingError::PersistenceUncertain));

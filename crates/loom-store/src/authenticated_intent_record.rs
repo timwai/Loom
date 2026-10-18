@@ -129,7 +129,12 @@ pub fn signing_preimage(record: &IntentRecord) -> Result<Vec<u8>, RecordError> {
         return Err(RecordError::InvalidState);
     }
     let mut out = Vec::with_capacity(
-        HEADER_LEN + if tag == COMMITTED_TAG { COMMITTED_LEN } else { PREPARED_LEN },
+        HEADER_LEN
+            + if tag == COMMITTED_TAG {
+                COMMITTED_LEN
+            } else {
+                PREPARED_LEN
+            },
     );
     out.extend_from_slice(MAGIC);
     out.extend_from_slice(&VERSION.to_be_bytes());
@@ -319,14 +324,11 @@ pub fn verify_signed_record(
     if fence.minimum_record_sequence == 0 && fence.last_record_digest != [0; 32] {
         return Err(RecordError::ReplayOrFork);
     }
-    if record_sequence < fence.minimum_record_sequence
-        || observed_counter < fence.minimum_counter
-    {
+    if record_sequence < fence.minimum_record_sequence || observed_counter < fence.minimum_counter {
         return Err(RecordError::ReplayOrFork);
     }
     let record_digest = signed_record_digest(bytes);
-    if record_sequence == fence.minimum_record_sequence
-        && record_digest != fence.last_record_digest
+    if record_sequence == fence.minimum_record_sequence && record_digest != fence.last_record_digest
     {
         return Err(RecordError::ReplayOrFork);
     }
@@ -433,7 +435,10 @@ mod tests {
         assert_eq!(frame.len(), HEADER_LEN + COMMITTED_LEN + SIG_LEN);
         assert_eq!(&frame[..8], MAGIC);
         let verified = verify_signed_record(&frame, &pin, initial_fence(), 17).unwrap();
-        assert_eq!(verified.record().binding, StoredBinding::Committed(committed));
+        assert_eq!(
+            verified.record().binding,
+            StoredBinding::Committed(committed)
+        );
         assert_eq!(verified.diagnostic(), Diagnostic::MatchingCounterOnly);
         assert_eq!(verified.digest(), signed_record_digest(&frame));
 
@@ -459,9 +464,41 @@ mod tests {
         let (key, pin, committed) = fixture();
         let original = signed(&key, committed, 4, 2, StoredBinding::Committed(committed));
         for index in [
-            0, 8, 10, 11, 12, 20, 28, 59, 60, 91, 92, 95, 96, 103, 104, 119, 120,
-            135, 136, 143, 144, 175, 176, 207, 208, 215, 216, 247, 248, 279, 280,
-            311, 312, original.len() - 65, original.len() - 1,
+            0,
+            8,
+            10,
+            11,
+            12,
+            20,
+            28,
+            59,
+            60,
+            91,
+            92,
+            95,
+            96,
+            103,
+            104,
+            119,
+            120,
+            135,
+            136,
+            143,
+            144,
+            175,
+            176,
+            207,
+            208,
+            215,
+            216,
+            247,
+            248,
+            279,
+            280,
+            311,
+            312,
+            original.len() - 65,
+            original.len() - 1,
         ] {
             let mut tampered = original.clone();
             tampered[index] ^= 1;
@@ -578,7 +615,13 @@ mod tests {
                 .record_sequence,
             8
         );
-        let altered = signed(&key, committed, 8, 2, StoredBinding::Prepared(future_intent(committed)));
+        let altered = signed(
+            &key,
+            committed,
+            8,
+            2,
+            StoredBinding::Prepared(future_intent(committed)),
+        );
         assert_eq!(
             verify_signed_record(&altered, &pin, fence, 17),
             Err(RecordError::ReplayOrFork)
@@ -596,9 +639,21 @@ mod tests {
     #[test]
     fn signer_rotation_needs_out_of_band_epoch_and_public_key_pin() {
         let (old_key, old_pin, committed) = fixture();
-        let old = signed(&old_key, committed, 12, 2, StoredBinding::Committed(committed));
+        let old = signed(
+            &old_key,
+            committed,
+            12,
+            2,
+            StoredBinding::Committed(committed),
+        );
         let new_key = SigningKey::from_bytes(&[53; 32]);
-        let newer = signed(&new_key, committed, 13, 3, StoredBinding::Committed(committed));
+        let newer = signed(
+            &new_key,
+            committed,
+            13,
+            3,
+            StoredBinding::Committed(committed),
+        );
         let fence = ExternalReplayFence {
             minimum_record_sequence: 12,
             minimum_counter: 17,
@@ -622,8 +677,13 @@ mod tests {
                 .record_sequence,
             13
         );
-        let old_key_claiming_new_epoch =
-            signed(&old_key, committed, 13, 3, StoredBinding::Committed(committed));
+        let old_key_claiming_new_epoch = signed(
+            &old_key,
+            committed,
+            13,
+            3,
+            StoredBinding::Committed(committed),
+        );
         assert_eq!(
             verify_signed_record(&old_key_claiming_new_epoch, &rotated_pin, fence, 17),
             Err(RecordError::UntrustedSigner)

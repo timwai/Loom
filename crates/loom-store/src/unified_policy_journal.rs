@@ -142,9 +142,6 @@ impl CandidateJournalGateState {
     fn advance_generation(&mut self) -> Result<(), StoreError> {
         self.generation = self.generation.checked_add(1).ok_or(StoreError::Conflict)?;
         self.outstanding = None;
-        if self.prepared_unreconciled {
-            self.stale_prepared = true;
-        }
         Ok(())
     }
 }
@@ -294,6 +291,9 @@ impl UnifiedPolicyJournal {
         let result = recv.recv().map_err(|_| StoreError::PersistenceFailure)??;
         // Only a SUCCESSFULLY COMMITTED signed event invalidates the ticket.
         barrier.advance_generation()?;
+        if barrier.prepared_unreconciled {
+            barrier.stale_prepared = true;
+        }
         Ok(result)
     }
 
@@ -569,13 +569,19 @@ impl UnifiedPolicyJournal {
         // Burn this one-shot ticket BEFORE the callback. No other contender
         // can commit the same reservation even if the CAS fails ambiguously.
         barrier.outstanding = None;
-        let rechecked = self.preflight_candidate_journal(
+        let rechecked = match self.preflight_candidate_journal(
             request.root,
             request.genesis,
             request.receipts,
             request.now_ms,
             request.prior,
-        )?;
+        ) {
+            Ok(proof) => proof,
+            Err(error) => {
+                barrier.advance_generation()?;
+                return Err(error);
+            }
+        };
         if rechecked != reservation.preflight {
             barrier.advance_generation()?;
             return Err(StoreError::Conflict);

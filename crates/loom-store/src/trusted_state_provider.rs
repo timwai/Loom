@@ -51,13 +51,15 @@ impl ProviderDescriptor {
     }
 }
 
-/// A separate vetted bootstrap MUST create this opaque evidence. The model
-/// deliberately exposes NO public constructor: providers cannot self-enroll.
-/// Even a hardware key alone cannot produce this anti-rollback evidence.
+/// Independently checked platform/provider evidence, not a self-asserted
+/// capability. Two *distinct* checks are represented: key custody and the
+/// rollback-resistant state high-water. Neither implies the other.
+/// A future reviewed platform verifier must mint this opaque proof.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct VerifiedIndependentAnchor {
+pub struct VerifiedProviderEvidence {
     scope_binding: [u8; 32],
-    minimum_state_generation: u64,
+    hardware_key_verified: bool,
+    minimum_state_generation: Option<u64>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -95,7 +97,7 @@ pub enum StorageEligibility {
 /// never from the provider's own metadata or the local SQLite database.
 pub fn check_provider_requirements(
     descriptor: ProviderDescriptor,
-    evidence: Option<&VerifiedIndependentAnchor>,
+    evidence: Option<&VerifiedProviderEvidence>,
     expected_scope: [u8; 32],
     observed_generation: u64,
     use_case: StateUse,
@@ -110,15 +112,13 @@ pub fn check_provider_requirements(
     {
         return Err(ProviderGateError::WrongScope);
     }
-    if observed_generation < proof.minimum_state_generation {
-        return Err(ProviderGateError::StaleGeneration);
-    }
-
     match use_case {
         StateUse::PortableLocalOnly => Ok(StorageEligibility::LocalStateOnly),
         StateUse::HardwareKeyRequired => {
             if descriptor.key_protection != KeyProtection::ClaimedHardwareBound {
                 Err(ProviderGateError::InadequateCapabilities)
+            } else if !proof.hardware_key_verified {
+                Err(ProviderGateError::EvidenceUnavailable)
             } else {
                 Ok(StorageEligibility::VerifiedRequirementsOnly)
             }
@@ -127,7 +127,14 @@ pub fn check_provider_requirements(
             if descriptor.rollback != RollbackCapability::ClaimsIndependentAnchor {
                 Err(ProviderGateError::InadequateCapabilities)
             } else {
-                Ok(StorageEligibility::VerifiedRequirementsOnly)
+                let floor = proof
+                    .minimum_state_generation
+                    .ok_or(ProviderGateError::EvidenceUnavailable)?;
+                if observed_generation < floor {
+                    Err(ProviderGateError::StaleGeneration)
+                } else {
+                    Ok(StorageEligibility::VerifiedRequirementsOnly)
+                }
             }
         }
     }
@@ -220,12 +227,12 @@ mod tests {
 
     const SCOPE: [u8; 32] = [11; 32];
 
-    fn fixture_proof(floor: u64) -> VerifiedIndependentAnchor {
-        // Test-only fake proof: real provisioning must be implemented in a
-        // separately audited hardware/remote provider bootstrap.
-        VerifiedIndependentAnchor {
+    fn fixture_proof(floor: u64) -> VerifiedProviderEvidence {
+        // Test-only fake: no actual hardware or quorum attestation exists.
+        VerifiedProviderEvidence {
             scope_binding: SCOPE,
-            minimum_state_generation: floor,
+            hardware_key_verified: true,
+            minimum_state_generation: Some(floor),
         }
     }
 
@@ -303,6 +310,50 @@ mod tests {
                 key_only, Some(&fixture_proof(7)), SCOPE, 7, StateUse::HardwareKeyRequired
             ),
             Ok(StorageEligibility::VerifiedRequirementsOnly)
+        );
+    }
+
+    #[test]
+    fn individually_verified_anchor_does_not_prove_hardware_key_custody() {
+        let evidence = VerifiedProviderEvidence {
+            scope_binding: SCOPE,
+            hardware_key_verified: false,
+            minimum_state_generation: Some(9),
+        };
+        let report = candidate(ProviderKind::SecureEnclave);
+        assert_eq!(
+            check_provider_requirements(
+                report, Some(&evidence), SCOPE, 9, StateUse::HardwareKeyRequired
+            ),
+            Err(ProviderGateError::EvidenceUnavailable)
+        );
+        assert_eq!(
+            check_provider_requirements(
+                report, Some(&evidence), SCOPE, 9, StateUse::NonRollbackablePolicy
+            ),
+            Ok(StorageEligibility::VerifiedRequirementsOnly)
+        );
+    }
+
+    #[test]
+    fn verified_hardware_key_does_not_prove_nonrollbackable_policy() {
+        let evidence = VerifiedProviderEvidence {
+            scope_binding: SCOPE,
+            hardware_key_verified: true,
+            minimum_state_generation: None,
+        };
+        let report = candidate(ProviderKind::AndroidKeystore);
+        assert_eq!(
+            check_provider_requirements(
+                report, Some(&evidence), SCOPE, 1, StateUse::HardwareKeyRequired
+            ),
+            Ok(StorageEligibility::VerifiedRequirementsOnly)
+        );
+        assert_eq!(
+            check_provider_requirements(
+                report, Some(&evidence), SCOPE, 1, StateUse::NonRollbackablePolicy
+            ),
+            Err(ProviderGateError::EvidenceUnavailable)
         );
     }
 

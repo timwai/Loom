@@ -1,6 +1,6 @@
 # Loom — implementation status and security gates
 
-> Updated: **2026-10-18**, through proposed Draft L-001Z (stacked on PR #32). Source of truth: repository branches, pull requests and GitHub Actions. This file describes the **stacked unmerged development branches**, not released features or the default branch.
+> Updated: **2026-10-18**, through Draft PR #33 (L-001Z). Source of truth: repository branches, pull requests and GitHub Actions. This file describes the **stacked unmerged development branches**, not released features or the default branch.
 
 ## Executive status
 
@@ -34,7 +34,7 @@
 | L-001W, PR #30 | Model externally approved signer-pin/fence rotation with monotonic epoch, committed-only gate, two crash cuts, concurrent stale signature rejection, reset refusal; nonblocking hardware protocol design | Seven additional adversarial model tests; **no external trust backend or real atomic storage** |
 | L-001X, PR #31 | Read-only short-transaction signed journal preflight, opaque snapshot token, second full history/Witness revalidation, external callback outside SQLite lock and candidate CAS probe | Six new tests (Owner, cancellation, Audit, Witness, historic prefix, signer failure); **remaining post-check/pre-CAS TOCTOU is NO-GO** |
 | L-001Y, PR #32 | Versioned one-shot journal reservation, process-local append invalidation, final signed replay + simulated CAS under shared gate, post-Prepared stale quarantine | Eight adversarial tests; only **same-instance** append-to-CAS exclusion; cross-process/raw SQLite still NO-GO |
-| L-001Z, proposed PR | Third signed journal/Witness/mirror replay after simulated CAS, reject second actor and raw SQLite writes visible during model publisher; post-CAS quarantine | Five cross-instance/direct SQL/restart tests; **after-final-check and reboot race remain NO-GO** |
+| L-001Z, PR #33 | Third signed journal/Witness/mirror replay after simulated CAS, reject second actor and raw SQLite writes visible during model publisher; post-CAS quarantine | Five cross-instance/direct SQL/restart tests; **after-final-check and reboot race remain NO-GO** |
 
 **Branch topology caveat:** PRs #6 (wire), #7 (channel) and #16 (mirror integrity) branch from earlier ancestors; they are not all ancestors of PR #22. Count of open Draft PRs is not a count of integrated features. Do not merge leaf PRs into `main` out of order. Review and reconcile branches explicitly.
 

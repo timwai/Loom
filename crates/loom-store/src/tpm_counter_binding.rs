@@ -3,11 +3,11 @@
 //! TPM counters cannot atomically store Root, Owner, witness or policy hashes.
 //! Every mismatch, omitted intent or ambiguous write fails closed. No permit.
 
-use loom_crypto::space_trust::{VerifiedResourceTrust, verify_root_bound_witnesses};
-use loom_crypto::witness_checkpoint::SignedCheckpoint;
 use crate::unified_policy_anchor::{
     UnifiedAnchorError, UnifiedPolicyHighWater, checked_unified_promotion,
 };
+use loom_crypto::space_trust::{VerifiedResourceTrust, verify_root_bound_witnesses};
+use loom_crypto::witness_checkpoint::SignedCheckpoint;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct PinnedCounterIdentity {
@@ -82,8 +82,12 @@ pub fn inspect_counter(
     match saved {
         StoredBinding::Missing => Err(BindingError::MissingBinding),
         StoredBinding::Committed(binding) => {
-            if binding.identity != pin { return Err(BindingError::WrongCounterIdentity); }
-            if binding.counter != observed { return Err(BindingError::CounterMismatch); }
+            if binding.identity != pin {
+                return Err(BindingError::WrongCounterIdentity);
+            }
+            if binding.counter != observed {
+                return Err(BindingError::CounterMismatch);
+            }
             Ok(Diagnostic::MatchingCounterOnly)
         }
         StoredBinding::Prepared(intent) => {
@@ -102,7 +106,10 @@ pub fn inspect_counter(
             {
                 return Err(BindingError::BrokenIntent);
             }
-            let incremented = intent.before.counter.checked_add(1)
+            let incremented = intent
+                .before
+                .counter
+                .checked_add(1)
                 .ok_or(BindingError::CounterOverflow)?;
             if observed == intent.before.counter {
                 Ok(Diagnostic::IntentBeforeIncrement)
@@ -127,9 +134,8 @@ fn witnessed_next(
 ) -> Result<UnifiedPolicyHighWater, BindingError> {
     let checked = verify_root_bound_witnesses(genesis, receipts, time_ms)
         .map_err(|_| BindingError::InvalidWitnesses)?;
-    let next = checked_unified_promotion(
-        genesis, current, checked.checkpoint(), old, time_ms,
-    ).map_err(|_: UnifiedAnchorError| BindingError::InvalidPolicyTransition)?;
+    let next = checked_unified_promotion(genesis, current, checked.checkpoint(), old, time_ms)
+        .map_err(|_: UnifiedAnchorError| BindingError::InvalidPolicyTransition)?;
     if next.policy_sequence <= old.policy_sequence {
         return Err(BindingError::InvalidPolicyTransition);
     }
@@ -160,9 +166,15 @@ pub fn begin_candidate_advance(
         StoredBinding::Prepared(_) => return Err(BindingError::PersistenceUncertain),
     };
     // Overflow must reject before writing a staged intent or touching TPM.
-    prior.counter.checked_add(1).ok_or(BindingError::CounterOverflow)?;
+    prior
+        .counter
+        .checked_add(1)
+        .ok_or(BindingError::CounterOverflow)?;
     let after = witnessed_next(genesis, current, receipts, now_ms, prior.policy)?;
-    let intent = Prepared { before: prior, after };
+    let intent = Prepared {
+        before: prior,
+        after,
+    };
     store.prepare(prior, intent)?;
     // Every error after this point leaves a state that needs inspection.
     counter.increment()?;

@@ -1,6 +1,6 @@
 # Loom — implementation status and security gates
 
-> Updated: **2026-10-18**, through Draft PR #34 (L-001AA). Source of truth: repository branches, pull requests and GitHub Actions. This file describes the **stacked unmerged development branches**, not released features or the default branch.
+> Updated: **2026-10-18**, through proposed L-001AB (stacked on Draft PR #34). Source of truth: repository branches, pull requests and GitHub Actions. This file describes the **stacked unmerged development branches**, not released features or the default branch.
 
 ## Executive status
 
@@ -36,10 +36,11 @@
 | L-001Y, PR #32 | Versioned one-shot journal reservation, process-local append invalidation, final signed replay + simulated CAS under shared gate, post-Prepared stale quarantine | Eight adversarial tests; only **same-instance** append-to-CAS exclusion; cross-process/raw SQLite still NO-GO |
 | L-001Z, PR #33 | Third signed journal/Witness/mirror replay after simulated CAS, reject second actor and raw SQLite writes visible during model publisher; post-CAS quarantine | Five cross-instance/direct SQL/restart tests; **after-final-check and reboot race remain NO-GO** |
 | L-001AA, PR #34 | Independent logical reservation state across simulator reboot: Idle/Reserved/Prepared/StalePrepared, one-step signed append notification, image-generation CAS | Eight adversarial tests including six crash cuts, stale handles and missing-writer-callback negative test; **in-memory only** |
+| L-001AB, proposed PR | WIRE-01 cross-language candidate CBOR/security-event corpus, Rust+Go+Kotlin+JavaScript negative tests, separate release status job | All four language conformance checks run in Actions; wider frozen-wire interoperability/signoff remains blocked |
 
 **Branch topology caveat:** PRs #6 (wire), #7 (channel) and #16 (mirror integrity) branch from earlier ancestors; they are not all ancestors of PR #22. Count of open Draft PRs is not a count of integrated features. Do not merge leaf PRs into `main` out of order. Review and reconcile branches explicitly.
 
-## Current P0 update after L-001AA
+## Current P0 update after L-001AB
 
 - The L-001P integration (#23) succeeded in the final commit CI, and L-001Q (#24) now tests a journal-bound counter transition with matching dual witness receipts, full signed-history replay, mirror parity, current Owner manifest and a SQLite transaction barrier. Both remain **unmerged Draft PRs**.
 - A matching counter/manifest pair is only a **diagnostic** result. No real independently protected TPM anchor, attested device binding, authenticated durable Prepared store or physical power-loss verification exists; ServiceOpen stays disabled.
@@ -53,6 +54,8 @@
 - L-001Y **only in one journal instance** eliminates the post-second-check/pre-model-CAS append interleaving: signed append invalidates outstanding generation/ticket, while a final full-history/Witness replay and simulated Prepared CAS share a single in-memory gate (no SQLite transaction during model CAS). Ambiguous result forbids further reservations and a later emergency policy append marks Prepared stale without blocking revocation. A second process or direct SQLite connection **is not fenced**, and the reservation/quarantine disappears on restart.
 - L-001Z adds another complete signed replay after model publication: a different journal instance or raw SQLite writer that changes evidence **during** the callback forces Conflict and a volatile stale quarantine rather than a false success. The modeled Prepared may still exist and rollback cannot be assumed. Changes **after** that replay and fresh actors after restart remain unfenced.
 - L-001AA models a wholly separate reservation high-water across simulated reboot with one-shot generation/ticket CAS and no automatic recovery for Prepared. Critically, a raw SQLite writer that fails to notify the model is **undetectable**; its acceptance requires compulsory independently authenticated cross-process participation, not merely forwarding unverified `JournalView` structures.
+- L-001AB adds Go, Kotlin, and JavaScript independent canonical CBOR decoders and signing transcript checks, using three shared golden vectors including 64-bit boundary cases, plus a CI job. This is candidate WIRE-01 evidence, **not** an independently frozen protocol or end-to-end peer-admission security approval.
+- A machine-readable `docs/acceptance/l001.json` now explicitly lists all nine L-001 A–D acceptance gates. `scripts/l001_gate.py` rejects unsupported completion claims and fails release mode when any gate or required signoff is missing.
 - Production design must remove long-running external hardware I/O from all SQLite write transactions **and process locks**. Independently authenticated real durable Prepared intent, hardware-backed signer/fence CAS, cross-process journal-to-CAS reservation fencing, audited key-rotation authorization, TPM provisioning, real power-loss and cross-host adversarial acceptance remain blockers.
 
 ## Critical release blockers (P0)
@@ -65,8 +68,8 @@
 
 ## Next execution gates
 
-- **Current (L-001AA):** model independent *logical* retained reservation CAS, six power-loss cuts, stale boot generations, and mandatory full writer participation as a negative test.
-- **Next (L-001AB):** prove real-platform signed-journal-to-fence coordination, enforce all SQLite/process writers, and separately execute remaining E2EE-01, WIRE-01, AUTHZ-RACE/CRASH/ROLLBACK and OS `PLATFORM-*` gates. Full L-001 release remains **NOT COMPLETE**.
+- **Current (L-001AB):** four-language candidate wire corpus passes in CI; executable L-001 milestone checker denies unsupported completion claims.
+- **Next:** reintegrate isolated SecurePeerChannel spike into the active stack, then run genuine hostile relay/identity E2EE acceptance; separately establish independently trusted hardware rollback and Android/Windows/macOS test evidence. Full L-001 release remains **NOT COMPLETE**.
 - **Platform validation:** independently evaluate hardware enrollment, monotonic NV semantics, attestation, reset/wear/quotas, and legacy signed-history migration (sacrificial TPM target only after review). Unsupported targets remain explicit NO-GO.
 - **Vertical slice:** isolated two-Peer LAN read with Owner ACL and revoke-kills-session test **only after** production admission prerequisites pass.
 - **Release:** threat-model sign-off, coverage across all intended OS targets, security review, reproducible builds, migration/rollback drills, support and license gates.

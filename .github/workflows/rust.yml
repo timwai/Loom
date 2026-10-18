@@ -54,6 +54,21 @@ jobs:
       - uses: actions/checkout@v4
       - name: Reject unsupported L-001 completion claims
         run: python3 scripts/l001_gate.py
+  rust-host-portability:
+    name: Rust library host tests (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.90.0"
+      - uses: Swatinem/rust-cache@v2
+      - name: Build and run locked Rust workspace tests
+        run: cargo test --workspace --all-targets --locked
   dependency-policy:
     runs-on: ubuntu-latest
     steps:

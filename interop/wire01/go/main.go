@@ -112,9 +112,13 @@ func mustReject(name string,b []byte) {
 }
 func main() {
     root:=".";if len(os.Args)>1{root=os.Args[1]}
+    for _, name := range []string{"event-01","event-02","event-03"} {
+        wire := fileHex(root,name+".cbor.hex")
+        expected := fileHex(root,name+".signing.hex")
+        actual,e := transcript(wire)
+        if e!=nil||!bytes.Equal(expected,actual){panic("golden signing mismatch "+name)}
+    }
     b:=fileHex(root,"event-01.cbor.hex")
-    expected:=fileHex(root,"event-01.signing.hex")
-    actual,e:=transcript(b);if e!=nil||!bytes.Equal(expected,actual){panic("golden signing mismatch")}
     for i:=0;i<len(b);i++ {mustReject("truncation",b[:i])}
     scenarios:=map[string][]byte{}
     mutate:=func(name string,at int,value byte){x:=bytes.Clone(b);x[at]=value;scenarios[name]=x}

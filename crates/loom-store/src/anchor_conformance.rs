@@ -5,7 +5,9 @@
 use crate::unified_policy_anchor::{
     IndependentUnifiedPolicyAnchor, UnifiedAnchorError, UnifiedPolicyHighWater,
 };
-use loom_types::{ResourceId, SpaceId};
+use loom_types::ResourceId;
+#[cfg(test)]
+use loom_types::SpaceId;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Fault {
@@ -89,10 +91,10 @@ pub fn run_behavioral_probe(
     if other == initial.resource {
         return Err(ProbeError::Failed(Check::ScopeIsolation));
     }
-    if let Ok(record) = provider.read(initial.space, other) {
-        if record == initial {
-            return Err(ProbeError::Failed(Check::ScopeIsolation));
-        }
+    if let Ok(record) = provider.read(initial.space, other)
+        && record == initial
+    {
+        return Err(ProbeError::Failed(Check::ScopeIsolation));
     }
 
     let one = next(initial, 1, 11);

@@ -4212,4 +4212,259 @@ mod tests {
         assert_eq!(model.image().unwrap().fence.minimum_record_sequence, 1);
         let _ = prepared;
     }
+
+    // L-001Y: process-local versioned reservation model. Intentionally not
+    // an independently durable fence and NEVER an admission authority.
+    fn reservation_request<'a>(
+        genesis: VerifiedResourceTrust,
+        receipts: &'a [SignedCheckpoint],
+        prior: UnifiedPolicyHighWater,
+    ) -> CandidatePreflightRequest<'a> {
+        CandidatePreflightRequest {
+            root: root_pin(),
+            genesis,
+            receipts,
+            now_ms: 150,
+            prior,
+        }
+    }
+
+    #[test]
+    fn reserved_model_prepare_keeps_sqlite_unlocked_during_signing() {
+        let db = TempDb::new();
+        let journal = db.open();
+        let genesis = trusted_genesis();
+        let (receipts, model, before, prepared) = nonblocking_fixture(&journal, genesis);
+        let (_, intent) = model.handles().unwrap();
+        let request = || reservation_request(genesis, &receipts, before.policy);
+        let ticket = journal.reserve_candidate_journal(request()).unwrap();
+
+        // Signing phase. Another SQLite writer can acquire BEGIN IMMEDIATE.
+        let other = Connection::open(&db.0).unwrap();
+        other.execute_batch("BEGIN IMMEDIATE; ROLLBACK;").unwrap();
+        let signed = prepared;
+        let snapshot = journal
+            .commit_candidate_reservation(request(), ticket, signed, |p| {
+                intent.prepare(before, p).map_err(binding_error)
+            })
+            .unwrap();
+        assert_eq!(snapshot.sequence, 1);
+        assert_eq!(model.image().unwrap().fence.minimum_record_sequence, 2);
+        assert_eq!(model.image().unwrap().counter, 9);
+        assert_eq!(intent.load(), Ok(StoredBinding::Prepared(prepared)));
+        assert_eq!(journal.candidate_reservation_health(), Ok((true, false)));
+        assert_eq!(journal.reserve_candidate_journal(request()), Err(StoreError::Conflict));
+    }
+
+    #[test]
+    fn append_after_separate_revalidation_invalidates_ticket_before_cas() {
+        let db = TempDb::new();
+        let journal = db.open();
+        let genesis = trusted_genesis();
+        let (receipts, model, before, prepared) = nonblocking_fixture(&journal, genesis);
+        let request = || reservation_request(genesis, &receipts, before.policy);
+        let token = journal.reserve_candidate_journal(request()).unwrap();
+        // This second check would have passed in the L-001X probe and
+        // exposed a gap before its caller-supplied publisher.
+        journal
+            .revalidate_candidate_journal(
+                root_pin(),
+                genesis,
+                &receipts,
+                150,
+                journal.preflight_candidate_journal(
+                    root_pin(), genesis, &receipts, 150, before.policy,
+                ).unwrap(),
+            )
+            .unwrap();
+        let cancel = signed_cancellation(2);
+        assert_eq!(
+            journal
+                .append(root_pin(), genesis, NewPolicyEvent::Cancel(&cancel))
+                .unwrap()
+                .sequence,
+            2
+        );
+        let mut invoked = false;
+        assert_eq!(
+            journal.commit_candidate_reservation(request(), token, prepared, |_| {
+                invoked = true;
+                Ok(())
+            }),
+            Err(StoreError::Conflict)
+        );
+        assert!(!invoked);
+        assert_eq!(model.image().unwrap().counter, 9);
+        assert_eq!(model.image().unwrap().fence.minimum_record_sequence, 1);
+        assert_eq!(journal.candidate_reservation_health(), Ok((false, false)));
+    }
+
+    #[test]
+    fn different_reserved_writer_is_refused_until_cancelled() {
+        let db = TempDb::new();
+        let journal = db.open();
+        let genesis = trusted_genesis();
+        let (receipts, model, before, prepared) = nonblocking_fixture(&journal, genesis);
+        let request = || reservation_request(genesis, &receipts, before.policy);
+        let first = journal.reserve_candidate_journal(request()).unwrap();
+        assert_eq!(journal.reserve_candidate_journal(request()), Err(StoreError::Conflict));
+        journal.cancel_candidate_reservation(first).unwrap();
+        assert_eq!(journal.cancel_candidate_reservation(first), Err(StoreError::Conflict));
+        let next = journal.reserve_candidate_journal(request()).unwrap();
+        assert_ne!(first, next);
+        let mut called = false;
+        assert_eq!(
+            journal.commit_candidate_reservation(request(), first, prepared, |_| {
+                called = true;
+                Ok(())
+            }),
+            Err(StoreError::Conflict)
+        );
+        assert!(!called);
+        journal.cancel_candidate_reservation(next).unwrap();
+        assert_eq!(model.image().unwrap().fence.minimum_record_sequence, 1);
+    }
+
+    #[test]
+    fn final_replay_rejects_tampered_audit_without_publishing() {
+        let db = TempDb::new();
+        let journal = db.open();
+        let genesis = trusted_genesis();
+        let (receipts, model, before, prepared) = nonblocking_fixture(&journal, genesis);
+        let request = || reservation_request(genesis, &receipts, before.policy);
+        let ticket = journal.reserve_candidate_journal(request()).unwrap();
+        Connection::open(&db.0)
+            .unwrap()
+            .execute("DELETE FROM unified_policy_audit WHERE seq=1", [])
+            .unwrap();
+        let mut called = false;
+        assert_eq!(
+            journal.commit_candidate_reservation(request(), ticket, prepared, |_| {
+                called = true;
+                Ok(())
+            }),
+            Err(StoreError::Conflict)
+        );
+        assert!(!called);
+        assert_eq!(model.image().unwrap().counter, 9);
+        assert_eq!(journal.cancel_candidate_reservation(ticket), Err(StoreError::Conflict));
+    }
+
+    #[test]
+    fn publisher_failure_is_ambiguous_and_quarantines_future_reservations() {
+        let db = TempDb::new();
+        let journal = db.open();
+        let genesis = trusted_genesis();
+        let (receipts, model, before, prepared) = nonblocking_fixture(&journal, genesis);
+        let request = || reservation_request(genesis, &receipts, before.policy);
+        let ticket = journal.reserve_candidate_journal(request()).unwrap();
+        let mut calls = 0usize;
+        assert_eq!(
+            journal.commit_candidate_reservation(request(), ticket, prepared, |_| {
+                calls += 1;
+                Err(StoreError::PersistenceFailure)
+            }),
+            Err(StoreError::PersistenceFailure)
+        );
+        assert_eq!(calls, 1);
+        assert_eq!(journal.candidate_reservation_health(), Ok((true, false)));
+        assert_eq!(journal.reserve_candidate_journal(request()), Err(StoreError::Conflict));
+        assert_eq!(model.image().unwrap().counter, 9);
+        assert_eq!(model.image().unwrap().fence.minimum_record_sequence, 1);
+    }
+
+    #[test]
+    fn independent_journal_instance_cannot_commit_foreign_ticket() {
+        let db = TempDb::new();
+        let first = db.open();
+        let other = db.open();
+        let genesis = trusted_genesis();
+        let (receipts, model, before, prepared) = nonblocking_fixture(&first, genesis);
+        let request = || reservation_request(genesis, &receipts, before.policy);
+        let token = first.reserve_candidate_journal(request()).unwrap();
+        let mut called = false;
+        assert_eq!(
+            other.commit_candidate_reservation(request(), token, prepared, |_| {
+                called = true;
+                Ok(())
+            }),
+            Err(StoreError::Conflict)
+        );
+        assert!(!called);
+        first.cancel_candidate_reservation(token).unwrap();
+        assert_eq!(model.image().unwrap().counter, 9);
+    }
+
+    #[test]
+    fn policy_append_after_prepared_publishes_marks_stale_without_suppressing_revocation() {
+        let db = TempDb::new();
+        let journal = db.open();
+        let genesis = trusted_genesis();
+        let (receipts, model, before, prepared) = nonblocking_fixture(&journal, genesis);
+        let request = || reservation_request(genesis, &receipts, before.policy);
+        let token = journal.reserve_candidate_journal(request()).unwrap();
+        let (_, intent) = model.handles().unwrap();
+        journal
+            .commit_candidate_reservation(request(), token, prepared, |p| {
+                intent.prepare(before, p).map_err(binding_error)
+            })
+            .unwrap();
+        assert_eq!(journal.candidate_reservation_health(), Ok((true, false)));
+        // A signed emergency policy append is never blocked forever by
+        // Prepared; it marks the *in-memory* candidate stale/quarantined.
+        let cancel = signed_cancellation(2);
+        assert_eq!(
+            journal
+                .append(root_pin(), genesis, NewPolicyEvent::Cancel(&cancel))
+                .unwrap()
+                .sequence,
+            2
+        );
+        assert_eq!(journal.candidate_reservation_health(), Ok((true, true)));
+        assert_eq!(journal.reserve_candidate_journal(request()), Err(StoreError::Conflict));
+        assert_eq!(model.image().unwrap().counter, 9);
+        assert_eq!(model.image().unwrap().fence.minimum_record_sequence, 2);
+    }
+
+    #[test]
+    fn append_attempt_between_last_replay_and_model_cas_cannot_interleave() {
+        use std::sync::mpsc::{self, TryRecvError};
+        use std::thread;
+
+        let db = TempDb::new();
+        let journal = db.open();
+        let genesis = trusted_genesis();
+        let (receipts, model, before, prepared) = nonblocking_fixture(&journal, genesis);
+        let request = || reservation_request(genesis, &receipts, before.policy);
+        let ticket = journal.reserve_candidate_journal(request()).unwrap();
+        let (_, intent) = model.handles().unwrap();
+        let (go_tx, go_rx) = mpsc::channel::<()>();
+        let (started_tx, started_rx) = mpsc::channel::<()>();
+        let (finished_tx, finished_rx) = mpsc::channel::<()>();
+        thread::scope(|scope| {
+            let writer = scope.spawn(|| {
+                go_rx.recv().unwrap();
+                started_tx.send(()).unwrap();
+                let cancel = signed_cancellation(2);
+                let result = journal.append(root_pin(), genesis, NewPolicyEvent::Cancel(&cancel));
+                finished_tx.send(()).unwrap();
+                result
+            });
+            journal
+                .commit_candidate_reservation(request(), ticket, prepared, |p| {
+                    go_tx.send(()).unwrap();
+                    started_rx.recv().unwrap();
+                    // The publisher has the journal's in-process gate. Even
+                    // if the competing thread has begun its append call,
+                    // that call cannot finish before this signed model CAS.
+                    assert_eq!(finished_rx.try_recv(), Err(TryRecvError::Empty));
+                    intent.prepare(before, p).map_err(binding_error)
+                })
+                .unwrap();
+            assert_eq!(writer.join().unwrap().unwrap().sequence, 2);
+        });
+        assert_eq!(model.image().unwrap().fence.minimum_record_sequence, 2);
+        assert_eq!(model.image().unwrap().counter, 9);
+        assert_eq!(journal.candidate_reservation_health(), Ok((true, true)));
+    }
 }

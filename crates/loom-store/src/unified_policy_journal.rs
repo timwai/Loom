@@ -3103,5 +3103,4 @@ mod tests {
             StoredBinding::Committed(_)
         ));
     }
-
 }

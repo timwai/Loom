@@ -4559,7 +4559,10 @@ mod tests {
         assert_eq!(intent.load(), Ok(StoredBinding::Prepared(prepared)));
         assert_eq!(model.image().unwrap().counter, 9);
         assert_eq!(journal.candidate_reservation_health(), Ok((true, true)));
-        assert_eq!(journal.reserve_candidate_journal(request()), Err(StoreError::Conflict));
+        assert_eq!(
+            journal.reserve_candidate_journal(request()),
+            Err(StoreError::Conflict)
+        );
     }
 
     #[test]
@@ -4600,7 +4603,10 @@ mod tests {
         let ticket = journal.reserve_candidate_journal(request()).unwrap();
         let (_, intent) = model.handles().unwrap();
         let committed = journal.commit_candidate_reservation(request(), ticket, prepared, |p| {
-            assert_eq!(independent.inspect(root_pin(), genesis).unwrap().sequence, 1);
+            assert_eq!(
+                independent.inspect(root_pin(), genesis).unwrap().sequence,
+                1
+            );
             intent.prepare(before, p).map_err(binding_error)
         });
         assert_eq!(committed.unwrap().sequence, 1);
@@ -4636,9 +4642,7 @@ mod tests {
         // process-local ticket API can claim full cross-process fencing.
         assert_eq!(journal.candidate_reservation_health(), Ok((true, false)));
         assert_eq!(
-            journal.preflight_candidate_journal(
-                root_pin(), genesis, &receipts, 150, before.policy
-            ),
+            journal.preflight_candidate_journal(root_pin(), genesis, &receipts, 150, before.policy),
             Err(StoreError::Conflict)
         );
         assert_eq!(model.image().unwrap().counter, 9);

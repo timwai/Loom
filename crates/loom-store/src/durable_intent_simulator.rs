@@ -246,7 +246,10 @@ impl CandidateIntentStore for MediaHandle {
         disk.pending = Some(StoredBinding::Prepared(next));
         disk.inject(CrashPoint::PrepareBeforeSync)?;
         // Simulates a *durability barrier*; not an actual fsync.
-        disk.disk = disk.pending.take().ok_or(BindingError::PersistenceUncertain)?;
+        disk.disk = disk
+            .pending
+            .take()
+            .ok_or(BindingError::PersistenceUncertain)?;
         disk.inject(CrashPoint::PrepareAfterSync)?;
         Ok(())
     }
@@ -272,7 +275,10 @@ impl CandidateIntentStore for MediaHandle {
             policy: after_policy(expected),
         }));
         disk.inject(CrashPoint::FinalizeBeforeSync)?;
-        disk.disk = disk.pending.take().ok_or(BindingError::PersistenceUncertain)?;
+        disk.disk = disk
+            .pending
+            .take()
+            .ok_or(BindingError::PersistenceUncertain)?;
         disk.inject(CrashPoint::FinalizeAfterSync)?;
         Ok(())
     }
@@ -283,11 +289,11 @@ mod tests {
     use super::*;
     use crate::tpm_counter_binding::{Diagnostic, inspect_counter};
     use crate::unified_policy_anchor::UnifiedPolicyHighWater;
+    use ed25519_dalek::{Signer, SigningKey};
     use loom_crypto::space_trust::{
         ExternallyPinnedRootForSpike, ResourceTrustManifest, SignedResourceTrust,
         trust_manifest_transcript, verify_resource_trust_for_spike,
     };
-    use ed25519_dalek::{Signer, SigningKey};
     use loom_types::{ResourceId, SpaceId};
 
     fn seeded() -> (CrashRecoverySimulator, Committed, Prepared) {
@@ -332,7 +338,11 @@ mod tests {
             after_revocation_root: [88; 32],
             after_manifest: trust.manifest_commitment(),
         };
-        (CrashRecoverySimulator::enrolled_for_test(binding), binding, next)
+        (
+            CrashRecoverySimulator::enrolled_for_test(binding),
+            binding,
+            next,
+        )
     }
 
     #[test]
@@ -394,7 +404,8 @@ mod tests {
                 _ => StoredBinding::Prepared(next),
             };
             assert_eq!(after.intent, expected_binding);
-            let diagnostic = inspect_counter(original.identity, after.nv_counter, after.intent).unwrap();
+            let diagnostic =
+                inspect_counter(original.identity, after.nv_counter, after.intent).unwrap();
             if expected_binding == StoredBinding::Prepared(next) {
                 assert_eq!(
                     diagnostic,
@@ -451,13 +462,25 @@ mod tests {
     fn wrong_finalize_or_stale_boot_handle_cannot_rewrite_disk() {
         let (media, old, next) = seeded();
         let (counter, intent) = media.handles().unwrap();
-        assert_eq!(intent.finalize(next), Err(BindingError::PersistenceUncertain));
+        assert_eq!(
+            intent.finalize(next),
+            Err(BindingError::PersistenceUncertain)
+        );
         intent.prepare(old, next).unwrap();
         media.reboot().unwrap();
         assert_eq!(counter.increment(), Err(BindingError::PersistenceUncertain));
-        assert_eq!(intent.finalize(next), Err(BindingError::PersistenceUncertain));
+        assert_eq!(
+            intent.finalize(next),
+            Err(BindingError::PersistenceUncertain)
+        );
         let (_, restarted_intent) = media.handles().unwrap();
-        assert_eq!(restarted_intent.finalize(next), Err(BindingError::PersistenceUncertain));
-        assert_eq!(media.durable_image().unwrap().intent, StoredBinding::Prepared(next));
+        assert_eq!(
+            restarted_intent.finalize(next),
+            Err(BindingError::PersistenceUncertain)
+        );
+        assert_eq!(
+            media.durable_image().unwrap().intent,
+            StoredBinding::Prepared(next)
+        );
     }
 }

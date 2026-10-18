@@ -3346,4 +3346,210 @@ mod tests {
         assert_eq!(*counter.number.lock().unwrap(), 10);
         assert!(!source.frame.lock().unwrap().is_empty());
     }
+
+    // L-001V: model-only signed writer and replay-fence CAS through the
+    // complete Root/Owner journal and two-Witness signed checkpoint path.
+    struct CasModelSigner(SigningKey);
+
+    impl crate::authenticated_intent_write_model::CandidateExternalIntentSigner for CasModelSigner {
+        fn sign(&self, preimage: &[u8]) -> Result<[u8; 64], BindingError> {
+            Ok(self.0.sign(preimage).to_bytes())
+        }
+    }
+
+    fn cas_model(
+        genesis: &VerifiedResourceTrust,
+    ) -> crate::authenticated_intent_write_model::AuthenticatedWriteSimulator {
+        use crate::authenticated_intent_record::{
+            ExternalReplayFence, ExternalSignerPin, IntentRecord, signed_record_digest,
+            signing_preimage,
+        };
+        use crate::authenticated_intent_write_model::AuthenticatedWriteSimulator;
+        use crate::tpm_counter_binding::Committed;
+
+        let signing = SigningKey::from_bytes(&[49; 32]);
+        let device = PinnedCounterIdentity {
+            device_binding: [55; 32],
+            nv_index: 0x0180_0ace,
+        };
+        let committed = Committed {
+            identity: device,
+            counter: 9,
+            policy: crate::unified_policy_anchor::UnifiedPolicyHighWater::initial(genesis),
+        };
+        let trust_pin = ExternalSignerPin {
+            signer_public_key: signing.verifying_key().to_bytes(),
+            signer_epoch: 2,
+            device,
+            space: genesis.space(),
+            resource: genesis.resource(),
+            root_public_key: genesis.root_public_key(),
+            root_key_epoch: genesis.root_key_epoch(),
+            genesis_manifest: genesis.manifest_commitment(),
+            writer_epoch: genesis.writer_epoch(),
+        };
+        let original = IntentRecord {
+            record_sequence: 1,
+            signer_epoch: 2,
+            signer_public_key: trust_pin.signer_public_key,
+            binding: StoredBinding::Committed(committed),
+        };
+        let mut frame = signing_preimage(&original).unwrap();
+        let sig = signing.sign(&frame).to_bytes();
+        frame.extend_from_slice(&sig);
+        let fence = ExternalReplayFence {
+            minimum_record_sequence: 1,
+            minimum_counter: 9,
+            last_record_digest: signed_record_digest(&frame),
+        };
+        AuthenticatedWriteSimulator::enrolled_for_test(
+            frame,
+            trust_pin,
+            fence,
+            9,
+            Arc::new(CasModelSigner(signing)),
+        )
+        .unwrap()
+    }
+
+    fn cas_bound(
+        journal: &UnifiedPolicyJournal,
+        genesis: VerifiedResourceTrust,
+        receipts: &[SignedCheckpoint],
+        model: &crate::authenticated_intent_write_model::AuthenticatedWriteSimulator,
+        operation: CandidateCounterOperation,
+    ) -> Result<Diagnostic, StoreError> {
+        let (counter, intent) = model.handles().unwrap();
+        journal.inspect_journal_bound_counter(
+            root_pin(),
+            genesis,
+            receipts,
+            150,
+            CandidateCounterIo {
+                pin: PinnedCounterIdentity {
+                    device_binding: [55; 32],
+                    nv_index: 0x0180_0ace,
+                },
+                counter,
+                intent,
+            },
+            operation,
+        )
+    }
+
+    #[test]
+    fn signed_cas_writer_journal_bound_begin_then_reconcile_is_only_diagnostic() {
+        let db = TempDb::new();
+        let journal = db.open();
+        let genesis = trusted_genesis();
+        let revoke = signed_revocation(1, 11, 3);
+        let snapshot = journal
+            .append(root_pin(), genesis, NewPolicyEvent::Revoke(&revoke))
+            .unwrap();
+        let root = append_revocation_root([0; 32], 1, &revoke.persistence_bytes()).unwrap();
+        let receipts = witness_receipts(1, snapshot.policy_head, root);
+        let model = cas_model(&genesis);
+
+        assert_eq!(
+            cas_bound(&journal, genesis, &receipts, &model, CandidateCounterOperation::Begin),
+            Ok(Diagnostic::MatchingCounterOnly)
+        );
+        let after = model.image().unwrap();
+        assert_eq!(after.counter, 10);
+        assert_eq!(after.fence.minimum_counter, 10);
+        assert_eq!(after.fence.minimum_record_sequence, 3);
+        assert_eq!(
+            cas_bound(
+                &journal,
+                genesis,
+                &receipts,
+                &model,
+                CandidateCounterOperation::Reconcile
+            ),
+            Ok(Diagnostic::MatchingCounterOnly)
+        );
+        assert_eq!(model.image().unwrap().counter, 10);
+    }
+
+    #[test]
+    fn signed_cas_writer_crash_after_preparing_never_reincrements() {
+        use crate::authenticated_intent_write_model::WriteCrashPoint;
+        let db = TempDb::new();
+        let journal = db.open();
+        let genesis = trusted_genesis();
+        let revoke = signed_revocation(1, 11, 3);
+        let snapshot = journal
+            .append(root_pin(), genesis, NewPolicyEvent::Revoke(&revoke))
+            .unwrap();
+        let root = append_revocation_root([0; 32], 1, &revoke.persistence_bytes()).unwrap();
+        let receipts = witness_receipts(1, snapshot.policy_head, root);
+        let model = cas_model(&genesis);
+        model.fail_once(WriteCrashPoint::PrepareAfterCas).unwrap();
+        assert_eq!(
+            cas_bound(&journal, genesis, &receipts, &model, CandidateCounterOperation::Begin),
+            Err(StoreError::PersistenceFailure)
+        );
+        model.reboot().unwrap();
+        assert_eq!(
+            cas_bound(
+                &journal,
+                genesis,
+                &receipts,
+                &model,
+                CandidateCounterOperation::Reconcile
+            ),
+            Ok(Diagnostic::IntentBeforeIncrement)
+        );
+        assert_eq!(model.image().unwrap().counter, 9);
+        assert_eq!(model.image().unwrap().fence.minimum_record_sequence, 2);
+        assert_eq!(
+            cas_bound(&journal, genesis, &receipts, &model, CandidateCounterOperation::Begin),
+            Err(StoreError::PersistenceFailure)
+        );
+    }
+
+    #[test]
+    fn signed_cas_writer_recovers_after_counter_increment_only_with_same_witness() {
+        use crate::authenticated_intent_write_model::WriteCrashPoint;
+        let db = TempDb::new();
+        let journal = db.open();
+        let genesis = trusted_genesis();
+        let revoke = signed_revocation(1, 11, 3);
+        let snapshot = journal
+            .append(root_pin(), genesis, NewPolicyEvent::Revoke(&revoke))
+            .unwrap();
+        let root = append_revocation_root([0; 32], 1, &revoke.persistence_bytes()).unwrap();
+        let receipts = witness_receipts(1, snapshot.policy_head, root);
+        let model = cas_model(&genesis);
+        model.fail_once(WriteCrashPoint::CounterAfterWrite).unwrap();
+        assert_eq!(
+            cas_bound(&journal, genesis, &receipts, &model, CandidateCounterOperation::Begin),
+            Err(StoreError::PersistenceFailure)
+        );
+        model.reboot().unwrap();
+        assert_eq!(model.image().unwrap().counter, 10);
+        assert_eq!(
+            cas_bound(
+                &journal,
+                genesis,
+                &witness_receipts(1, [55; 32], root),
+                &model,
+                CandidateCounterOperation::Reconcile
+            ),
+            Err(StoreError::Conflict)
+        );
+        assert_eq!(model.image().unwrap().fence.minimum_record_sequence, 2);
+        assert_eq!(
+            cas_bound(
+                &journal,
+                genesis,
+                &receipts,
+                &model,
+                CandidateCounterOperation::Reconcile
+            ),
+            Ok(Diagnostic::MatchingCounterOnly)
+        );
+        assert_eq!(model.image().unwrap().counter, 10);
+        assert_eq!(model.image().unwrap().fence.minimum_record_sequence, 3);
+    }
 }

@@ -37,7 +37,7 @@ All failures return `PersistenceUncertain`, quarantine that boot's handles until
 
 ## Adversarial test evidence
 
-- Six initial model unit tests: successful authenticated Prepare/NV/Finalize with two fence steps; six fault-cut matrix and durable post-crash observations; restored raw signed-frame rollback; refused signer and malformed transition; deterministically interleaved concurrent signers with stale CAS refusal; rebooted stale handles plus double-increment rejection.
+- Eight model unit tests: successful authenticated Prepare/NV/Finalize with two fence steps; six fault-cut matrix and post-crash observations; restored raw signed-frame rollback; refused signer and malformed transition; deterministically interleaved concurrent signers with stale CAS refusal; rebooted stale handles plus double-increment rejection; signed-but-unfenced future Prepared cannot increment NV; a substituted signing key cannot publish a new record under the existing pin.
 - Three additional `UnifiedPolicyJournal` integration tests: successful signed Root/Owner replay and two-root-selected-Witness Begin+Reconcile; post-Prepare crash without re-increment; post-NV crash with Witness substitution refusal and successful later signed finalize.
 - Both model read/write and journal-bound operations **never enable ServiceOpen**.
 

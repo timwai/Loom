@@ -63,6 +63,12 @@ impl Medium {
     }
 }
 
+/// Handles are simulator boot-scoped; never re-use after a simulated crash.
+pub type SimulatorHandles = (
+    Arc<dyn CandidateMonotonicCounter>,
+    Arc<dyn CandidateIntentStore>,
+);
+
 /// Explicitly test-only. Enrollment must come from independent trusted
 /// provisioning; a real deployment MUST NOT construct a trusted high-water
 /// from backed-up SQLite content or this simulator.
@@ -94,15 +100,7 @@ impl CrashRecoverySimulator {
 
     /// Return handles bound to this boot generation. Old handles reject I/O
     /// after a reboot rather than silently resuming a crashed transaction.
-    pub fn handles(
-        &self,
-    ) -> Result<
-        (
-            Arc<dyn CandidateMonotonicCounter>,
-            Arc<dyn CandidateIntentStore>,
-        ),
-        BindingError,
-    > {
+    pub fn handles(&self) -> Result<SimulatorHandles, BindingError> {
         let generation = self.medium()?.generation;
         let handle = MediaHandle {
             medium: Arc::clone(&self.medium),

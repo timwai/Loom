@@ -1,6 +1,6 @@
 # Loom v1.1 — implementation and release acceptance gates
 
-> Updated 2026-10-18. **L-001 NOT COMPLETE.** The current `main` branch contains the bootstrap README; implemented Rust code is on stacked, unmerged **Draft** branches. A green PR workflow is not security-release approval. Source of truth: [status](STATUS.md), [machine-readable milestone](acceptance/l001.json), and [verification script](../scripts/l001_gate.py).
+> Updated 2026-10-18. **L-001 NOT COMPLETE.** The Rust PoC branches have been consolidated into `main`. Historical Draft PRs remain review evidence; code integration does **not** satisfy production security or platform acceptance. A green PR workflow is not security-release approval. Source of truth: [status](STATUS.md), [machine-readable milestone](acceptance/l001.json), and [verification script](../scripts/l001_gate.py).
 
 ## Fixed provenance and scope
 
@@ -31,7 +31,7 @@
 - L-001C / Draft #8–#34: signed journal replay, outbox/Audit, Root/Owner/Witness, counter/intent, signed record and recovery state models. No physical trusted durable CAS.
 - L-001D / post-#36 host portability smoke: GitHub Windows/macOS Rust workspace testing only; **PLATFORM-*** remains blocked.
 
-See the actual CI results in PRs and `docs/STATUS.md`. Do not label an accepted model test as physical hardware proof, nor merge stacked leaf Draft PRs directly into the README-only `main`.
+See the actual CI results in PRs and `docs/STATUS.md`. Do not label an accepted model test as physical hardware proof. The consolidated `main` is **NOT** approved for production runtime, TPM writes or ServiceOpen.
 
 ## Next development and no-go
 

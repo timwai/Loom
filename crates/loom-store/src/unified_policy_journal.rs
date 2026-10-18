@@ -8,15 +8,15 @@
 //! Synchronous APIs: call from a blocking pool, never on a Tokio runtime core.
 
 use crate::StoreError;
+use crate::legacy_migration::require_no_legacy_schema;
+use crate::policy_journal_codec::KIND_REVOKE;
+pub use crate::policy_journal_codec::NewPolicyEvent;
+use crate::policy_journal_codec::{MAX_EVIDENCE, encode_event, replay_event};
 use crate::tpm_counter_binding::{
     BindingError, CandidateIntentStore, CandidateMonotonicCounter, Diagnostic,
     PinnedCounterIdentity, StoredBinding, begin_candidate_advance, inspect_counter,
     reconcile_candidate_advance,
 };
-use crate::legacy_migration::require_no_legacy_schema;
-use crate::policy_journal_codec::KIND_REVOKE;
-pub use crate::policy_journal_codec::NewPolicyEvent;
-use crate::policy_journal_codec::{MAX_EVIDENCE, encode_event, replay_event};
 use crate::unified_policy_anchor::{
     IndependentUnifiedPolicyAnchor, UnifiedAnchorError, checked_unified_promotion,
 };
@@ -29,8 +29,8 @@ use loom_types::ResourceId;
 use loom_types::SpaceId;
 use rusqlite::{Connection, OptionalExtension, Transaction, TransactionBehavior, params};
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
 use std::sync::mpsc::{self, Receiver, Sender};
+use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
@@ -687,7 +687,6 @@ fn revocation_root_for_journal(
     }
     Ok(hash)
 }
-
 
 fn binding_error(error: BindingError) -> StoreError {
     match error {
@@ -2049,7 +2048,10 @@ mod tests {
                 self.foreign_write_blocked
                     .store(attempt.is_err(), std::sync::atomic::Ordering::SeqCst);
             }
-            if self.fail_after_increment.swap(false, std::sync::atomic::Ordering::SeqCst) {
+            if self
+                .fail_after_increment
+                .swap(false, std::sync::atomic::Ordering::SeqCst)
+            {
                 return Err(BindingError::PersistenceUncertain);
             }
             Ok(())
@@ -2125,7 +2127,9 @@ mod tests {
                     crate::tpm_counter_binding::Committed {
                         identity: pin,
                         counter: 9,
-                        policy: crate::unified_policy_anchor::UnifiedPolicyHighWater::initial(genesis),
+                        policy: crate::unified_policy_anchor::UnifiedPolicyHighWater::initial(
+                            genesis,
+                        ),
                     },
                 )),
             }),
@@ -2162,15 +2166,26 @@ mod tests {
         let store = db.open();
         let genesis = trusted_genesis();
         let revoke = signed_revocation(1, 11, 3);
-        store.append(root_pin(), genesis, NewPolicyEvent::Revoke(&revoke)).unwrap();
+        store
+            .append(root_pin(), genesis, NewPolicyEvent::Revoke(&revoke))
+            .unwrap();
         let cancel = signed_cancellation(2);
-        let state = store.append(root_pin(), genesis, NewPolicyEvent::Cancel(&cancel)).unwrap();
-        let revoke_root =
-            append_revocation_root([0; 32], 1, &revoke.persistence_bytes()).unwrap();
+        let state = store
+            .append(root_pin(), genesis, NewPolicyEvent::Cancel(&cancel))
+            .unwrap();
+        let revoke_root = append_revocation_root([0; 32], 1, &revoke.persistence_bytes()).unwrap();
         let receipts = witness_receipts(2, state.policy_head, revoke_root);
         let (counter, intent, pin) = model_counter_io(&genesis);
         assert_eq!(
-            bound_counter(&store, genesis, &receipts, &counter, &intent, pin, CandidateCounterOperation::Begin),
+            bound_counter(
+                &store,
+                genesis,
+                &receipts,
+                &counter,
+                &intent,
+                pin,
+                CandidateCounterOperation::Begin
+            ),
             Ok(Diagnostic::MatchingCounterOnly)
         );
         assert_eq!(*counter.number.lock().unwrap(), 10);
@@ -2181,7 +2196,15 @@ mod tests {
         assert_eq!(committed.policy.policy_head, state.policy_head);
         assert_eq!(committed.policy.revocation_root, revoke_root);
         assert_eq!(
-            bound_counter(&store, genesis, &receipts, &counter, &intent, pin, CandidateCounterOperation::Reconcile),
+            bound_counter(
+                &store,
+                genesis,
+                &receipts,
+                &counter,
+                &intent,
+                pin,
+                CandidateCounterOperation::Reconcile
+            ),
             Ok(Diagnostic::MatchingCounterOnly)
         );
         assert_eq!(*counter.number.lock().unwrap(), 10);
@@ -2194,7 +2217,9 @@ mod tests {
         let store = db.open();
         let genesis = trusted_genesis();
         let revoke = signed_revocation(1, 11, 3);
-        let state = store.append(root_pin(), genesis, NewPolicyEvent::Revoke(&revoke)).unwrap();
+        let state = store
+            .append(root_pin(), genesis, NewPolicyEvent::Revoke(&revoke))
+            .unwrap();
         let root = append_revocation_root([0; 32], 1, &revoke.persistence_bytes()).unwrap();
         let (counter, intent, pin) = model_counter_io(&genesis);
         for receipts in [
@@ -2203,12 +2228,23 @@ mod tests {
             witness_receipts(2, state.policy_head, root),
         ] {
             assert_eq!(
-                bound_counter(&store, genesis, &receipts, &counter, &intent, pin, CandidateCounterOperation::Begin),
+                bound_counter(
+                    &store,
+                    genesis,
+                    &receipts,
+                    &counter,
+                    &intent,
+                    pin,
+                    CandidateCounterOperation::Begin
+                ),
                 Err(StoreError::Conflict)
             );
         }
         assert_eq!(*counter.number.lock().unwrap(), 9);
-        assert!(matches!(intent.load().unwrap(), StoredBinding::Committed(_)));
+        assert!(matches!(
+            intent.load().unwrap(),
+            StoredBinding::Committed(_)
+        ));
     }
 
     #[test]
@@ -2217,19 +2253,33 @@ mod tests {
         let store = db.open();
         let genesis = trusted_genesis();
         let revoke = signed_revocation(1, 11, 3);
-        let state = store.append(root_pin(), genesis, NewPolicyEvent::Revoke(&revoke)).unwrap();
+        let state = store
+            .append(root_pin(), genesis, NewPolicyEvent::Revoke(&revoke))
+            .unwrap();
         let root = append_revocation_root([0; 32], 1, &revoke.persistence_bytes()).unwrap();
         let receipts = witness_receipts(1, state.policy_head, root);
         let (counter, intent, pin) = model_counter_io(&genesis);
         let conn = Connection::open(&db.0).unwrap();
-        conn.execute("DELETE FROM unified_policy_audit WHERE seq=1", []).unwrap();
+        conn.execute("DELETE FROM unified_policy_audit WHERE seq=1", [])
+            .unwrap();
         drop(conn);
         assert_eq!(
-            bound_counter(&store, genesis, &receipts, &counter, &intent, pin, CandidateCounterOperation::Begin),
+            bound_counter(
+                &store,
+                genesis,
+                &receipts,
+                &counter,
+                &intent,
+                pin,
+                CandidateCounterOperation::Begin
+            ),
             Err(StoreError::Conflict)
         );
         assert_eq!(*counter.number.lock().unwrap(), 9);
-        assert!(matches!(intent.load().unwrap(), StoredBinding::Committed(_)));
+        assert!(matches!(
+            intent.load().unwrap(),
+            StoredBinding::Committed(_)
+        ));
     }
 
     #[test]
@@ -2238,26 +2288,57 @@ mod tests {
         let store = db.open();
         let genesis = trusted_genesis();
         let revoke = signed_revocation(1, 11, 3);
-        let state = store.append(root_pin(), genesis, NewPolicyEvent::Revoke(&revoke)).unwrap();
+        let state = store
+            .append(root_pin(), genesis, NewPolicyEvent::Revoke(&revoke))
+            .unwrap();
         let root = append_revocation_root([0; 32], 1, &revoke.persistence_bytes()).unwrap();
         let receipts = witness_receipts(1, state.policy_head, root);
         let (counter, intent, pin) = model_counter_io(&genesis);
-        counter.fail_after_increment.store(true, std::sync::atomic::Ordering::SeqCst);
+        counter
+            .fail_after_increment
+            .store(true, std::sync::atomic::Ordering::SeqCst);
         assert_eq!(
-            bound_counter(&store, genesis, &receipts, &counter, &intent, pin, CandidateCounterOperation::Begin),
+            bound_counter(
+                &store,
+                genesis,
+                &receipts,
+                &counter,
+                &intent,
+                pin,
+                CandidateCounterOperation::Begin
+            ),
             Err(StoreError::PersistenceFailure)
         );
         assert_eq!(*counter.number.lock().unwrap(), 10);
         assert!(matches!(intent.load().unwrap(), StoredBinding::Prepared(_)));
         assert_eq!(
-            bound_counter(&store, genesis, &witness_receipts(1, [0; 32], root), &counter, &intent, pin, CandidateCounterOperation::Reconcile),
+            bound_counter(
+                &store,
+                genesis,
+                &witness_receipts(1, [0; 32], root),
+                &counter,
+                &intent,
+                pin,
+                CandidateCounterOperation::Reconcile
+            ),
             Err(StoreError::Conflict)
         );
         assert_eq!(
-            bound_counter(&store, genesis, &receipts, &counter, &intent, pin, CandidateCounterOperation::Reconcile),
+            bound_counter(
+                &store,
+                genesis,
+                &receipts,
+                &counter,
+                &intent,
+                pin,
+                CandidateCounterOperation::Reconcile
+            ),
             Ok(Diagnostic::MatchingCounterOnly)
         );
-        assert!(matches!(intent.load().unwrap(), StoredBinding::Committed(_)));
+        assert!(matches!(
+            intent.load().unwrap(),
+            StoredBinding::Committed(_)
+        ));
         assert_eq!(*counter.number.lock().unwrap(), 10);
     }
 
@@ -2267,16 +2348,30 @@ mod tests {
         let store = db.open();
         let genesis = trusted_genesis();
         let revoke = signed_revocation(1, 11, 3);
-        let state = store.append(root_pin(), genesis, NewPolicyEvent::Revoke(&revoke)).unwrap();
+        let state = store
+            .append(root_pin(), genesis, NewPolicyEvent::Revoke(&revoke))
+            .unwrap();
         let root = append_revocation_root([0; 32], 1, &revoke.persistence_bytes()).unwrap();
         let receipts = witness_receipts(1, state.policy_head, root);
         let (counter, intent, pin) = model_counter_io(&genesis);
         *counter.foreign_sqlite.lock().unwrap() = Some(db.0.clone());
         assert_eq!(
-            bound_counter(&store, genesis, &receipts, &counter, &intent, pin, CandidateCounterOperation::Begin),
+            bound_counter(
+                &store,
+                genesis,
+                &receipts,
+                &counter,
+                &intent,
+                pin,
+                CandidateCounterOperation::Begin
+            ),
             Ok(Diagnostic::MatchingCounterOnly)
         );
-        assert!(counter.foreign_write_blocked.load(std::sync::atomic::Ordering::SeqCst));
+        assert!(
+            counter
+                .foreign_write_blocked
+                .load(std::sync::atomic::Ordering::SeqCst)
+        );
         assert_eq!(store.pending_outbox().unwrap().len(), 1);
     }
 
@@ -2287,10 +2382,20 @@ mod tests {
         let genesis = trusted_genesis();
         let (counter, intent, pin) = model_counter_io(&genesis);
         let revoke = signed_revocation(1, 11, 3);
-        let state = store.append(root_pin(), genesis, NewPolicyEvent::Revoke(&revoke)).unwrap();
+        let state = store
+            .append(root_pin(), genesis, NewPolicyEvent::Revoke(&revoke))
+            .unwrap();
         let root = append_revocation_root([0; 32], 1, &revoke.persistence_bytes()).unwrap();
         assert_eq!(
-            bound_counter(&store, genesis, &witness_receipts(1, state.policy_head, root), &counter, &intent, pin, CandidateCounterOperation::Reconcile),
+            bound_counter(
+                &store,
+                genesis,
+                &witness_receipts(1, state.policy_head, root),
+                &counter,
+                &intent,
+                pin,
+                CandidateCounterOperation::Reconcile
+            ),
             Err(StoreError::Conflict)
         );
         assert_eq!(*counter.number.lock().unwrap(), 9);
@@ -2303,22 +2408,41 @@ mod tests {
         let genesis = trusted_genesis();
         let successor = signed_manifest(33, 4);
         let transfer = signed_transfer(&genesis, &successor, 1);
-        let snapshot = store.append(root_pin(), genesis, NewPolicyEvent::Transfer {
-            transfer: &transfer,
-            successor_manifest: &successor,
-        }).unwrap();
+        let snapshot = store
+            .append(
+                root_pin(),
+                genesis,
+                NewPolicyEvent::Transfer {
+                    transfer: &transfer,
+                    successor_manifest: &successor,
+                },
+            )
+            .unwrap();
         let receipts = witness_receipts(1, snapshot.policy_head, [0; 32]);
         let (counter, intent, pin) = model_counter_io(&genesis);
         assert_eq!(
-            bound_counter(&store, genesis, &receipts, &counter, &intent, pin, CandidateCounterOperation::Begin),
+            bound_counter(
+                &store,
+                genesis,
+                &receipts,
+                &counter,
+                &intent,
+                pin,
+                CandidateCounterOperation::Begin
+            ),
             Ok(Diagnostic::MatchingCounterOnly)
         );
         let StoredBinding::Committed(binding) = intent.load().unwrap() else {
             panic!("transfer did not finalize");
         };
         let current = verify_resource_trust_for_spike(&root_pin(), &successor, 150).unwrap();
-        assert_eq!(binding.policy.current_manifest, current.manifest_commitment());
-        assert_ne!(binding.policy.current_manifest, genesis.manifest_commitment());
+        assert_eq!(
+            binding.policy.current_manifest,
+            current.manifest_commitment()
+        );
+        assert_ne!(
+            binding.policy.current_manifest,
+            genesis.manifest_commitment()
+        );
     }
-
 }

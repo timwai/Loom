@@ -8,6 +8,11 @@
 //! Synchronous APIs: call from a blocking pool, never on a Tokio runtime core.
 
 use crate::StoreError;
+use crate::tpm_counter_binding::{
+    BindingError, CandidateIntentStore, CandidateMonotonicCounter, Diagnostic,
+    PinnedCounterIdentity, StoredBinding, begin_candidate_advance, inspect_counter,
+    reconcile_candidate_advance,
+};
 use crate::legacy_migration::require_no_legacy_schema;
 use crate::policy_journal_codec::KIND_REVOKE;
 pub use crate::policy_journal_codec::NewPolicyEvent;
@@ -24,7 +29,7 @@ use loom_types::ResourceId;
 use loom_types::SpaceId;
 use rusqlite::{Connection, OptionalExtension, Transaction, TransactionBehavior, params};
 use std::path::PathBuf;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
@@ -45,6 +50,22 @@ pub enum UnifiedRecoveryAssessment {
     LocalBehind,
     WitnessBehind,
     HistoryConflict,
+}
+
+/// L-001Q: a diagnostic-only transition. Neither variant enables ServiceOpen.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CandidateCounterOperation {
+    Begin,
+    Reconcile,
+}
+
+/// Test-only I/O contracts. Neither adapter is backed by production TPM NV or
+/// a durable authenticated intent store. Both must be independent of the
+/// SQLite connection held by the journal actor to avoid reentrant deadlocks.
+pub struct CandidateCounterIo {
+    pub pin: PinnedCounterIdentity,
+    pub counter: Arc<dyn CandidateMonotonicCounter>,
+    pub intent: Arc<dyn CandidateIntentStore>,
 }
 
 struct JournalCheckpointState {
@@ -78,6 +99,15 @@ enum Command {
         root: ExternallyPinnedRootForSpike,
         genesis: VerifiedResourceTrust,
         done: Sender<Result<JournalCheckpointState, StoreError>>,
+    },
+    BoundCounter {
+        root: ExternallyPinnedRootForSpike,
+        genesis: VerifiedResourceTrust,
+        receipts: Vec<SignedCheckpoint>,
+        now_ms: u64,
+        io: CandidateCounterIo,
+        operation: CandidateCounterOperation,
+        done: Sender<Result<Diagnostic, StoreError>>,
     },
     MarkWitness {
         root: ExternallyPinnedRootForSpike,
@@ -262,6 +292,47 @@ impl UnifiedPolicyJournal {
         Ok(UnifiedRecoveryAssessment::CandidateConsistent)
     }
 
+    /// Journal-bound *candidate* TPM transition, not a resource permit.
+    ///
+    /// Holds the journal actor's BEGIN IMMEDIATE SQLite transaction across
+    /// full signed-history replay, mirror parity validation, dual-witness
+    /// checkpoint comparison and the model counter's stage/increment/finalize.
+    /// Any error after staging may leave an ambiguous counter and intent:
+    /// callers MUST treat errors as quarantine, never retry an increment.
+    ///
+    /// This is deliberately NOT an operational TPM or independent anchor
+    /// implementation. The I/O traits have only in-memory model providers.
+    /// A real intent store using this same SQLite file would deadlock.
+    pub fn inspect_journal_bound_counter(
+        &self,
+        external_root: ExternallyPinnedRootForSpike,
+        genesis: VerifiedResourceTrust,
+        receipts: &[SignedCheckpoint],
+        now_ms: u64,
+        io: CandidateCounterIo,
+        operation: CandidateCounterOperation,
+    ) -> Result<Diagnostic, StoreError> {
+        let _barrier = self
+            .gate
+            .lock()
+            .map_err(|_| StoreError::PersistenceFailure)?;
+        let (send, recv) = mpsc::channel();
+        self.tx
+            .as_ref()
+            .ok_or(StoreError::PersistenceFailure)?
+            .send(Command::BoundCounter {
+                root: external_root,
+                genesis,
+                receipts: receipts.to_vec(),
+                now_ms,
+                io,
+                operation,
+                done: send,
+            })
+            .map_err(|_| StoreError::PersistenceFailure)?;
+        recv.recv().map_err(|_| StoreError::PersistenceFailure)?
+    }
+
     /// Read-only: no ACK is allowed without authenticated remote durable
     /// receipt and a separate fairness/priority retransmission protocol.
     pub fn pending_outbox(&self) -> Result<Vec<CriticalPolicyOutbox>, StoreError> {
@@ -325,6 +396,25 @@ fn worker(path: PathBuf, rx: Receiver<Command>, started: Sender<Result<(), Store
                         done,
                     } => {
                         let _ = done.send(inspect_checkpoint_db(&mut connection, root, genesis));
+                    }
+                    Command::BoundCounter {
+                        root,
+                        genesis,
+                        receipts,
+                        now_ms,
+                        io,
+                        operation,
+                        done,
+                    } => {
+                        let _ = done.send(journal_bound_counter_transaction(
+                            &mut connection,
+                            root,
+                            genesis,
+                            &receipts,
+                            now_ms,
+                            &io,
+                            operation,
+                        ));
                     }
                     Command::MarkWitness {
                         root,
@@ -596,6 +686,122 @@ fn revocation_root_for_journal(
         hash = append_revocation_root(hash, seq, &evidence).ok_or(StoreError::Conflict)?;
     }
     Ok(hash)
+}
+
+
+fn binding_error(error: BindingError) -> StoreError {
+    match error {
+        BindingError::CounterUnavailable
+        | BindingError::JournalUnavailable
+        | BindingError::PersistenceUncertain => StoreError::PersistenceFailure,
+        BindingError::MissingBinding
+        | BindingError::WrongCounterIdentity
+        | BindingError::CounterMismatch
+        | BindingError::CounterOverflow
+        | BindingError::BrokenIntent
+        | BindingError::InvalidWitnesses
+        | BindingError::InvalidPolicyTransition => StoreError::Conflict,
+    }
+}
+
+/// A full-policy identity comparison, not just a matching TPM number.
+fn binding_matches_replayed(
+    saved: StoredBinding,
+    pin: PinnedCounterIdentity,
+    genesis: &VerifiedResourceTrust,
+    current: &VerifiedResourceTrust,
+    checkpoint: Checkpoint,
+) -> bool {
+    let StoredBinding::Committed(binding) = saved else {
+        return false;
+    };
+    let policy = binding.policy;
+    binding.identity == pin
+        && policy.space == genesis.space()
+        && policy.resource == genesis.resource()
+        && policy.root_public_key == genesis.root_public_key()
+        && policy.root_key_epoch == genesis.root_key_epoch()
+        && policy.genesis_manifest == genesis.manifest_commitment()
+        && policy.current_manifest == current.manifest_commitment()
+        && policy.writer_epoch == genesis.writer_epoch()
+        && policy.policy_sequence == checkpoint.seq
+        && policy.policy_head == checkpoint.head_hash
+        && policy.revocation_root == checkpoint.revocation_root
+}
+
+/// A single DB write transaction covers the external *candidate* counter
+/// operation. A second SQLite writer cannot replace the verified snapshot
+/// between policy replay and increment. Counter and SQLite are still NOT
+/// a durable distributed transaction across a power failure.
+fn journal_bound_counter_transaction(
+    conn: &mut Connection,
+    root: ExternallyPinnedRootForSpike,
+    genesis: VerifiedResourceTrust,
+    receipts: &[SignedCheckpoint],
+    now_ms: u64,
+    io: &CandidateCounterIo,
+    operation: CandidateCounterOperation,
+) -> Result<Diagnostic, StoreError> {
+    let tx = conn
+        .transaction_with_behavior(TransactionBehavior::Immediate)
+        .map_err(|_| StoreError::PersistenceFailure)?;
+    let verified = replay(&tx, &root, genesis)?;
+    let current = verified.current_trust();
+    let checkpoint = verify_root_bound_witnesses(&genesis, receipts, now_ms)
+        .map_err(|_| StoreError::Conflict)?
+        .checkpoint();
+    let old_witnesses = genesis.witnesses();
+    let new_witnesses = current.witnesses();
+    if old_witnesses[0].public_key != new_witnesses[0].public_key
+        || old_witnesses[1].public_key != new_witnesses[1].public_key
+        || checkpoint.space != genesis.space()
+        || checkpoint.resource != genesis.resource()
+        || checkpoint.writer_epoch != genesis.writer_epoch()
+        || checkpoint.seq != verified.sequence()
+        || checkpoint.head_hash != verified.policy_head()
+        || checkpoint.revocation_root
+            != revocation_root_for_journal(&tx, &root, genesis.resource())?
+    {
+        return Err(StoreError::Conflict);
+    }
+
+    let outcome = match operation {
+        CandidateCounterOperation::Begin => begin_candidate_advance(
+            io.counter.as_ref(),
+            io.intent.as_ref(),
+            io.pin,
+            &genesis,
+            &current,
+            receipts,
+            now_ms,
+        ),
+        CandidateCounterOperation::Reconcile => reconcile_candidate_advance(
+            io.counter.as_ref(),
+            io.intent.as_ref(),
+            io.pin,
+            &genesis,
+            &current,
+            receipts,
+            now_ms,
+        ),
+    }
+    .map_err(binding_error)?;
+
+    // "MatchingCounterOnly" must never be emitted for an old committed
+    // policy while SQLite has moved on. The model's raw reconciliation
+    // routine may return it after a mere numeric equality.
+    if outcome == Diagnostic::MatchingCounterOnly {
+        let saved = io.intent.load().map_err(binding_error)?;
+        let observed = io.counter.read().map_err(binding_error)?;
+        if inspect_counter(io.pin, observed, saved).map_err(binding_error)?
+            != Diagnostic::MatchingCounterOnly
+            || !binding_matches_replayed(saved, io.pin, &genesis, &current, checkpoint)
+        {
+            return Err(StoreError::Conflict);
+        }
+    }
+    tx.commit().map_err(|_| StoreError::PersistenceFailure)?;
+    Ok(outcome)
 }
 
 fn inspect_checkpoint_db(

@@ -3750,7 +3750,7 @@ mod tests {
         crate::tpm_counter_binding::Committed,
         crate::tpm_counter_binding::Prepared,
     ) {
-        use crate::tpm_counter_binding::{Committed, Prepared};
+        use crate::tpm_counter_binding::Prepared;
         let proof = signed_revocation(1, 11, 3);
         let state = db
             .append(root_pin(), genesis, NewPolicyEvent::Revoke(&proof))
@@ -3867,7 +3867,14 @@ mod tests {
                 let transfer = signed_transfer(&genesis, &successor, 2);
                 assert_eq!(
                     journal
-                        .append(root_pin(), genesis, NewPolicyEvent::Transfer(&transfer))
+                        .append(
+                            root_pin(),
+                            genesis,
+                            NewPolicyEvent::Transfer {
+                                transfer: &transfer,
+                                successor_manifest: &successor,
+                            },
+                        )
                         .unwrap()
                         .sequence,
                     2

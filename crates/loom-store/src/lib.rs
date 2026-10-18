@@ -86,3 +86,7 @@ pub mod tpm_counter_binding;
 /// L-001S simulated independently durable Prepared-intent + NV crash boundary model.
 /// Deterministic test media only; never actual TPM or persistent trusted storage.
 pub mod durable_intent_simulator;
+
+/// L-001T canonical, versioned Ed25519 signed intent record verifier.
+/// Only diagnostic, requires externally pinned signer and replay fence.
+pub mod authenticated_intent_record;

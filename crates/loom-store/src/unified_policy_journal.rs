@@ -400,13 +400,8 @@ impl UnifiedPolicyJournal {
         now_ms: u64,
         expected: CandidateJournalPreflight,
     ) -> Result<(), StoreError> {
-        let current = self.preflight_candidate_journal(
-            root,
-            genesis,
-            receipts,
-            now_ms,
-            expected.prior,
-        )?;
+        let current =
+            self.preflight_candidate_journal(root, genesis, receipts, now_ms, expected.prior)?;
         if current != expected {
             return Err(StoreError::Conflict);
         }
@@ -3760,8 +3755,7 @@ mod tests {
         let state = db
             .append(root_pin(), genesis, NewPolicyEvent::Revoke(&proof))
             .unwrap();
-        let rev_root =
-            append_revocation_root([0; 32], 1, &proof.persistence_bytes()).unwrap();
+        let rev_root = append_revocation_root([0; 32], 1, &proof.persistence_bytes()).unwrap();
         let receipts = witness_receipts(1, state.policy_head, rev_root);
         let model = cas_model(&genesis);
         let (_, store) = model.handles().unwrap();
@@ -3800,9 +3794,7 @@ mod tests {
                     // WHILE the external signer callback is on the stack.
                     // L-001Q's old in-transaction signer would block here.
                     let other = Connection::open(&db.0).unwrap();
-                    other
-                        .execute_batch("BEGIN IMMEDIATE; ROLLBACK;")
-                        .unwrap();
+                    other.execute_batch("BEGIN IMMEDIATE; ROLLBACK;").unwrap();
                     Ok(prepared)
                 },
                 |candidate| {

@@ -4526,4 +4526,145 @@ mod tests {
         assert_eq!(model.image().unwrap().counter, 9);
         assert_eq!(journal.candidate_reservation_health(), Ok((true, true)));
     }
+
+    // L-001Z: a second actor or direct SQLite writer bypasses the L-001Y
+    // instance mutex. Post-publication replay can detect *observed* drift,
+    // but CANNOT undo the signed Prepared CAS or prevent later drift.
+    #[test]
+    fn independent_actor_append_during_cas_is_detected_and_quarantined() {
+        let db = TempDb::new();
+        let journal = db.open();
+        let competing_actor = db.open();
+        let genesis = trusted_genesis();
+        let (receipts, model, before, prepared) = nonblocking_fixture(&journal, genesis);
+        let request = || reservation_request(genesis, &receipts, before.policy);
+        let token = journal.reserve_candidate_journal(request()).unwrap();
+        let (_, intent) = model.handles().unwrap();
+        let result = journal.commit_candidate_reservation(request(), token, prepared, |p| {
+            let cancelled = signed_cancellation(2);
+            // A different actor can append because the L-001Y lock is
+            // local to this journal object, not the shared SQLite file.
+            assert_eq!(
+                competing_actor
+                    .append(root_pin(), genesis, NewPolicyEvent::Cancel(&cancelled))
+                    .unwrap()
+                    .sequence,
+                2
+            );
+            intent.prepare(before, p).map_err(binding_error)
+        });
+        assert_eq!(result, Err(StoreError::Conflict));
+        // Prepared may already be durable in the model, hence quarantining
+        // rather than a false claim that the CAS did not happen.
+        assert_eq!(intent.load(), Ok(StoredBinding::Prepared(prepared)));
+        assert_eq!(model.image().unwrap().counter, 9);
+        assert_eq!(journal.candidate_reservation_health(), Ok((true, true)));
+        assert_eq!(journal.reserve_candidate_journal(request()), Err(StoreError::Conflict));
+    }
+
+    #[test]
+    fn direct_sqlite_audit_tamper_during_cas_is_detected_after_publish() {
+        let db = TempDb::new();
+        let journal = db.open();
+        let genesis = trusted_genesis();
+        let (receipts, model, before, prepared) = nonblocking_fixture(&journal, genesis);
+        let request = || reservation_request(genesis, &receipts, before.policy);
+        let ticket = journal.reserve_candidate_journal(request()).unwrap();
+        let (_, intent) = model.handles().unwrap();
+        assert_eq!(
+            journal.commit_candidate_reservation(request(), ticket, prepared, |p| {
+                intent.prepare(before, p).map_err(binding_error)?;
+                // Bypass ALL typed signed journal writers. A stale Audit
+                // mirror must not pass the final signed history replay.
+                Connection::open(&db.0)
+                    .unwrap()
+                    .execute("DELETE FROM unified_policy_audit WHERE seq=1", [])
+                    .unwrap();
+                Ok(())
+            }),
+            Err(StoreError::Conflict)
+        );
+        assert_eq!(intent.load(), Ok(StoredBinding::Prepared(prepared)));
+        assert_eq!(journal.candidate_reservation_health(), Ok((true, true)));
+        assert_eq!(model.image().unwrap().counter, 9);
+    }
+
+    #[test]
+    fn second_actor_can_inspect_while_in_memory_publisher_is_running() {
+        let db = TempDb::new();
+        let journal = db.open();
+        let independent = db.open();
+        let genesis = trusted_genesis();
+        let (receipts, model, before, prepared) = nonblocking_fixture(&journal, genesis);
+        let request = || reservation_request(genesis, &receipts, before.policy);
+        let ticket = journal.reserve_candidate_journal(request()).unwrap();
+        let (_, intent) = model.handles().unwrap();
+        let committed = journal.commit_candidate_reservation(request(), ticket, prepared, |p| {
+            assert_eq!(independent.inspect(root_pin(), genesis).unwrap().sequence, 1);
+            intent.prepare(before, p).map_err(binding_error)
+        });
+        assert_eq!(committed.unwrap().sequence, 1);
+        assert_eq!(journal.candidate_reservation_health(), Ok((true, false)));
+        assert_eq!(model.image().unwrap().fence.minimum_record_sequence, 2);
+    }
+
+    #[test]
+    fn append_after_postflight_remains_unfenced_and_requires_independent_recheck() {
+        let db = TempDb::new();
+        let journal = db.open();
+        let competing_actor = db.open();
+        let genesis = trusted_genesis();
+        let (receipts, model, before, prepared) = nonblocking_fixture(&journal, genesis);
+        let request = || reservation_request(genesis, &receipts, before.policy);
+        let ticket = journal.reserve_candidate_journal(request()).unwrap();
+        let (_, intent) = model.handles().unwrap();
+        assert_eq!(
+            journal
+                .commit_candidate_reservation(request(), ticket, prepared, |p| {
+                    intent.prepare(before, p).map_err(binding_error)
+                })
+                .unwrap()
+                .sequence,
+            1
+        );
+        let cancelled = signed_cancellation(2);
+        competing_actor
+            .append(root_pin(), genesis, NewPolicyEvent::Cancel(&cancelled))
+            .unwrap();
+        // Another actor bypassed the volatile quarantine flag. A fresh
+        // signed revalidation detects stale Witness evidence, but no
+        // process-local ticket API can claim full cross-process fencing.
+        assert_eq!(journal.candidate_reservation_health(), Ok((true, false)));
+        assert_eq!(
+            journal.preflight_candidate_journal(
+                root_pin(), genesis, &receipts, 150, before.policy
+            ),
+            Err(StoreError::Conflict)
+        );
+        assert_eq!(model.image().unwrap().counter, 9);
+    }
+
+    #[test]
+    fn reopened_actor_has_no_durable_reservation_quarantine() {
+        let db = TempDb::new();
+        let journal = db.open();
+        let genesis = trusted_genesis();
+        let (receipts, model, before, prepared) = nonblocking_fixture(&journal, genesis);
+        let request = || reservation_request(genesis, &receipts, before.policy);
+        let token = journal.reserve_candidate_journal(request()).unwrap();
+        let (_, intent) = model.handles().unwrap();
+        journal
+            .commit_candidate_reservation(request(), token, prepared, |p| {
+                intent.prepare(before, p).map_err(binding_error)
+            })
+            .unwrap();
+        assert_eq!(journal.candidate_reservation_health(), Ok((true, false)));
+        drop(journal);
+        let reopened = db.open();
+        assert_eq!(reopened.candidate_reservation_health(), Ok((false, false)));
+        // This by itself is NOT safe enrollment: an external signed-intent
+        // verifier must supply the actual Prepared as the prior binding.
+        // Local-only reservation state has demonstrably vanished.
+        assert_eq!(model.image().unwrap().fence.minimum_record_sequence, 2);
+    }
 }

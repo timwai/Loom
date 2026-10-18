@@ -708,4 +708,55 @@ mod tests {
             Err(RecordError::ReplayOrFork)
         );
     }
+
+    #[test]
+    fn signed_record_recovery_binds_to_simulated_crash_image_and_nv_counter() {
+        use crate::durable_intent_simulator::{CrashPoint, CrashRecoverySimulator};
+
+        let (key, pin, committed) = fixture();
+        let simulator = CrashRecoverySimulator::enrolled_for_test(committed);
+        let (counter, intent) = simulator.handles().unwrap();
+        let after = future_intent(committed);
+        intent.prepare(committed, after).unwrap();
+        simulator.fail_once(CrashPoint::IncrementAfterWrite).unwrap();
+        assert_eq!(
+            counter.increment(),
+            Err(BindingError::PersistenceUncertain)
+        );
+        simulator.reboot().unwrap();
+
+        let image = simulator.durable_image().unwrap();
+        assert_eq!(image.nv_counter, 18);
+        assert_eq!(image.intent, StoredBinding::Prepared(after));
+        let record = signed(&key, committed, 10, 2, image.intent);
+        let verified = verify_signed_record(&record, &pin, initial_fence(), image.nv_counter)
+            .unwrap();
+        assert_eq!(
+            verified.diagnostic(),
+            Diagnostic::IncrementNeedsSignedRecheck
+        );
+        let fence = ExternalReplayFence {
+            minimum_record_sequence: 10,
+            minimum_counter: 18,
+            last_record_digest: verified.digest(),
+        };
+
+        // A restored old intent cannot override a later independently pinned
+        // record digest. The model's NV counter stays irreversibly advanced.
+        simulator
+            .restore_untrusted_intent_for_test(StoredBinding::Committed(committed))
+            .unwrap();
+        let restored = simulator.durable_image().unwrap();
+        assert_eq!(restored.nv_counter, 18);
+        let stale = signed(&key, committed, 9, 2, restored.intent);
+        assert_eq!(
+            verify_signed_record(&stale, &pin, fence, restored.nv_counter),
+            Err(RecordError::ReplayOrFork)
+        );
+        let conflicting = signed(&key, committed, 10, 2, restored.intent);
+        assert_eq!(
+            verify_signed_record(&conflicting, &pin, fence, restored.nv_counter),
+            Err(RecordError::ReplayOrFork)
+        );
+    }
 }

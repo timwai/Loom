@@ -949,4 +949,243 @@ mod tests {
         assert_eq!(model.image().unwrap().fence, fence);
         assert_eq!(intent.load(), Ok(StoredBinding::Committed(before)));
     }
+
+    fn rotation_approval(model: &AuthenticatedWriteSimulator) -> SimulatedRotationApproval {
+        let state = model.state.lock().unwrap();
+        SimulatedRotationApproval {
+            expected_pin: state.pin,
+            expected_fence: state.fence,
+            successor_public_key: SigningKey::from_bytes(&[65; 32])
+                .verifying_key()
+                .to_bytes(),
+        }
+    }
+
+    fn successor() -> Arc<dyn CandidateExternalIntentSigner> {
+        Arc::new(TestSigner(SigningKey::from_bytes(&[65; 32])))
+    }
+
+    #[test]
+    fn independently_approved_rotation_advances_signed_epoch_and_fence() {
+        let (model, original, prepared) = fixture();
+        let before = model.image().unwrap();
+        let approval = rotation_approval(&model);
+        model.rotate_signer_for_test(approval, successor()).unwrap();
+        let after = model.image().unwrap();
+        assert_eq!(after.counter, before.counter);
+        assert_eq!(after.fence.minimum_counter, 9);
+        assert_eq!(after.fence.minimum_record_sequence, 2);
+        assert_ne!(after.fence.last_record_digest, before.fence.last_record_digest);
+        let (counter, store) = model.handles().unwrap();
+        assert_eq!(store.load(), Ok(StoredBinding::Committed(original)));
+        let (raw, trust) = model.read_sources().unwrap();
+        let verifier = AuthenticatedReadOnlyIntent::new(original.identity, counter, raw, trust);
+        assert_eq!(verifier.load(), Ok(StoredBinding::Committed(original)));
+        let (pin, _) = {
+            let h = model.read_sources().unwrap().1;
+            h.read_trust().unwrap()
+        };
+        assert_eq!(pin.signer_epoch, 3);
+        assert_eq!(pin.signer_public_key, approval.successor_public_key);
+        // Normal signed transitions continue under the new independently
+        // enrolled key. The canonical old signer has no write access.
+        store.prepare(original, prepared).unwrap();
+        assert_eq!(model.image().unwrap().fence.minimum_record_sequence, 3);
+    }
+
+    #[test]
+    fn rotation_failures_cannot_publish_old_or_wrong_key() {
+        let (model, original, _) = fixture();
+        let approved = rotation_approval(&model);
+        let wrong = Arc::new(TestSigner(SigningKey::from_bytes(&[89; 32])));
+        assert_eq!(
+            model.rotate_signer_for_test(approved, wrong),
+            Err(BindingError::BrokenIntent)
+        );
+        assert_eq!(model.image().unwrap().fence, approved.expected_fence);
+        let mut forged = approved;
+        forged.expected_pin.device.device_binding[0] ^= 1;
+        assert_eq!(
+            model.rotate_signer_for_test(forged, successor()),
+            Err(BindingError::PersistenceUncertain)
+        );
+        let mut self_signed = approved;
+        self_signed.successor_public_key = approved.expected_pin.signer_public_key;
+        assert_eq!(
+            model.rotate_signer_for_test(self_signed, successor()),
+            Err(BindingError::PersistenceUncertain)
+        );
+        model.rotate_signer_for_test(approved, successor()).unwrap();
+        assert_eq!(
+            model.rotate_signer_for_test(approved, successor()),
+            Err(BindingError::PersistenceUncertain)
+        );
+        assert_eq!(
+            model.handles().unwrap().1.load(),
+            Ok(StoredBinding::Committed(original))
+        );
+    }
+
+    #[test]
+    fn rotation_is_refused_while_prepared_requires_signed_recovery() {
+        let (model, before, prepared) = fixture();
+        let (_, store) = model.handles().unwrap();
+        store.prepare(before, prepared).unwrap();
+        let approval = rotation_approval(&model);
+        assert_eq!(
+            model.rotate_signer_for_test(approval, successor()),
+            Err(BindingError::PersistenceUncertain)
+        );
+        let after = model.image().unwrap();
+        assert_eq!(after.counter, 9);
+        assert_eq!(after.fence.minimum_record_sequence, 2);
+        assert_eq!(store.load(), Ok(StoredBinding::Prepared(prepared)));
+    }
+
+    #[test]
+    fn rotation_before_and_after_cas_power_loss_are_distinguishable() {
+        for point in [
+            WriteCrashPoint::RotateBeforeCas,
+            WriteCrashPoint::RotateAfterCas,
+        ] {
+            let (model, old, _) = fixture();
+            let approval = rotation_approval(&model);
+            model.fail_once(point).unwrap();
+            assert_eq!(
+                model.rotate_signer_for_test(approval, successor()),
+                Err(BindingError::PersistenceUncertain)
+            );
+            assert_eq!(
+                model.handles().unwrap().1.load(),
+                Err(BindingError::PersistenceUncertain)
+            );
+            model.reboot().unwrap();
+            let frame = model.image().unwrap();
+            let (_, store) = model.handles().unwrap();
+            assert_eq!(store.load(), Ok(StoredBinding::Committed(old)));
+            match point {
+                WriteCrashPoint::RotateBeforeCas => {
+                    assert_eq!(frame.fence.minimum_record_sequence, 1);
+                    assert_eq!(
+                        model.read_sources().unwrap().1.read_trust().unwrap().0.signer_epoch,
+                        2
+                    );
+                }
+                WriteCrashPoint::RotateAfterCas => {
+                    assert_eq!(frame.fence.minimum_record_sequence, 2);
+                    assert_eq!(
+                        model.read_sources().unwrap().1.read_trust().unwrap().0.signer_epoch,
+                        3
+                    );
+                }
+                _ => unreachable!(),
+            }
+            assert_eq!(frame.counter, 9);
+        }
+    }
+
+    #[test]
+    fn old_signed_frame_and_reset_device_never_reenroll_rotated_key() {
+        let (model, old, _) = fixture();
+        let saved_frame = model.image().unwrap().signed_frame;
+        model
+            .rotate_signer_for_test(rotation_approval(&model), successor())
+            .unwrap();
+        model.restore_untrusted_frame_for_test(saved_frame).unwrap();
+        assert_eq!(
+            model.handles().unwrap().1.load(),
+            Err(BindingError::BrokenIntent)
+        );
+
+        let (model, old, next) = fixture();
+        let (counter, store) = model.handles().unwrap();
+        store.prepare(old, next).unwrap();
+        counter.increment().unwrap();
+        let fence = model.image().unwrap().fence;
+        model.reset_counter_for_test(8).unwrap();
+        assert_eq!(counter.read(), Err(BindingError::PersistenceUncertain));
+        let (rebooted_counter, rebooted_store) = model.handles().unwrap();
+        assert_eq!(rebooted_store.load(), Err(BindingError::BrokenIntent));
+        assert_eq!(rebooted_counter.increment(), Err(BindingError::BrokenIntent));
+        assert_eq!(model.image().unwrap().counter, 8);
+        assert_eq!(model.image().unwrap().fence, fence);
+    }
+
+    #[test]
+    fn concurrent_old_signing_must_not_block_rotation_or_publish_stale_record() {
+        let (key, pin, original, signed, fence) = base();
+        let (entered_tx, entered_rx) = mpsc::channel();
+        let (release_tx, release_rx) = mpsc::channel();
+        let model = AuthenticatedWriteSimulator::enrolled_for_test(
+            signed,
+            pin,
+            fence,
+            9,
+            Arc::new(PausingSigner {
+                key,
+                first: Mutex::new(Some(entered_tx)),
+                release: Mutex::new(release_rx),
+            }),
+        )
+        .unwrap();
+        let requested = Prepared {
+            before: original,
+            after_sequence: 1,
+            after_head: [66; 32],
+            after_revocation_root: [77; 32],
+            after_manifest: original.policy.current_manifest,
+        };
+        let (_, handle) = model.handles().unwrap();
+        let pending = thread::spawn(move || handle.prepare(original, requested));
+        entered_rx.recv().unwrap();
+        // Signing is suspended outside the model CAS lock. Rotation can win.
+        model
+            .rotate_signer_for_test(rotation_approval(&model), successor())
+            .unwrap();
+        release_tx.send(()).unwrap();
+        assert_eq!(
+            pending.join().unwrap(),
+            Err(BindingError::PersistenceUncertain)
+        );
+        let (counter, current) = model.handles().unwrap();
+        assert_eq!(counter.read(), Ok(9));
+        assert_eq!(current.load(), Ok(StoredBinding::Committed(original)));
+        assert_eq!(model.image().unwrap().fence.minimum_record_sequence, 2);
+        current.prepare(original, requested).unwrap();
+        assert_eq!(model.image().unwrap().fence.minimum_record_sequence, 3);
+    }
+
+    #[test]
+    fn record_sequence_and_signer_epoch_overflow_refuse_rotation() {
+        let (key, mut pin, original, _, _) = base();
+        pin.signer_epoch = u64::MAX;
+        let record = IntentRecord {
+            record_sequence: 1,
+            signer_epoch: pin.signer_epoch,
+            signer_public_key: pin.signer_public_key,
+            binding: StoredBinding::Committed(original),
+        };
+        let mut frame = signing_preimage(&record).unwrap();
+        let sig = key.sign(&frame).to_bytes();
+        frame.extend_from_slice(&sig);
+        let fence = ExternalReplayFence {
+            minimum_record_sequence: 1,
+            minimum_counter: 9,
+            last_record_digest: signed_record_digest(&frame),
+        };
+        let model = AuthenticatedWriteSimulator::enrolled_for_test(
+            frame,
+            pin,
+            fence,
+            9,
+            Arc::new(TestSigner(key)),
+        )
+        .unwrap();
+        assert_eq!(
+            model.rotate_signer_for_test(rotation_approval(&model), successor()),
+            Err(BindingError::CounterOverflow)
+        );
+        assert_eq!(model.image().unwrap().fence, fence);
+    }
+
 }

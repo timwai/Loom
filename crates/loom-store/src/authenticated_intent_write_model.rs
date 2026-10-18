@@ -46,6 +46,21 @@ pub enum WriteCrashPoint {
     CounterAfterWrite,
     FinalizeBeforeCas,
     FinalizeAfterCas,
+    /// Signed key-epoch rotation before committing new trusted pin + fence.
+    RotateBeforeCas,
+    /// New signed record and trusted pin + fence are already published.
+    RotateAfterCas,
+}
+
+/// An OUT-OF-BAND signer enrollment approval *fixture*. Construction of
+/// this value is NOT a trusted authorization procedure. A real external
+/// provider must independently authenticate the signer transition and
+/// make its approval nonreplayable across resets, hosts and processes.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct SimulatedRotationApproval {
+    pub expected_pin: ExternalSignerPin,
+    pub expected_fence: ExternalReplayFence,
+    pub successor_public_key: [u8; 32],
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -189,6 +204,39 @@ impl AuthenticatedWriteSimulator {
         })
     }
 
+    /// Simulated rotation with an externally approved successor signer.
+    /// A signer call is deliberately outside the model's exclusive CAS lock.
+    /// Calling this is NEVER proof that a real platform enrolled the key.
+    pub fn rotate_signer_for_test(
+        &self,
+        approval: SimulatedRotationApproval,
+        successor: Arc<dyn CandidateExternalIntentSigner>,
+    ) -> Result<(), BindingError> {
+        let generation = self.lock()?.generation;
+        WriteHandle {
+            state: Arc::clone(&self.state),
+            generation,
+        }
+        .rotate(approval, successor)
+    }
+
+    /// Simulate external TPM clear/replacement: a reset/older NV count must
+    /// fail all signed-record reads and writes rather than auto-enroll.
+    pub fn reset_counter_for_test(&self, reduced_counter: u64) -> Result<(), BindingError> {
+        let mut state = self.lock()?;
+        if reduced_counter >= state.counter {
+            return Err(BindingError::CounterMismatch);
+        }
+        state.counter = reduced_counter;
+        state.generation = state
+            .generation
+            .checked_add(1)
+            .ok_or(BindingError::PersistenceUncertain)?;
+        state.halted = false;
+        state.fault = None;
+        Ok(())
+    }
+
     /// Emulates replacing an ordinary storage backup. The authenticated
     /// independent replay fence and NV count remain untouched.
     pub fn restore_untrusted_frame_for_test(&self, older: Vec<u8>) -> Result<(), BindingError> {
@@ -249,6 +297,81 @@ impl WriteHandle {
             },
             current.record().binding,
         ))
+    }
+
+    /// A proposed *external* signer epoch update. The caller-supplied
+    /// approval is a test fixture, not self-authorizing or signed by Loom.
+    /// Only a fully committed slot may rotate: a Prepared intent must first
+    /// complete its signed witness reconciliation. No key controls its own
+    /// enrollment or recovery from reset.
+    fn rotate(
+        &self,
+        approval: SimulatedRotationApproval,
+        successor: Arc<dyn CandidateExternalIntentSigner>,
+    ) -> Result<(), BindingError> {
+        let (snapshot, binding) = self.snapshot()?;
+        let StoredBinding::Committed(_) = binding else {
+            return Err(BindingError::PersistenceUncertain);
+        };
+        if snapshot.pin != approval.expected_pin
+            || snapshot.fence != approval.expected_fence
+            || approval.successor_public_key == snapshot.pin.signer_public_key
+        {
+            return Err(BindingError::PersistenceUncertain);
+        }
+        let next_epoch = snapshot
+            .pin
+            .signer_epoch
+            .checked_add(1)
+            .ok_or(BindingError::CounterOverflow)?;
+        let next_sequence = snapshot
+            .fence
+            .minimum_record_sequence
+            .checked_add(1)
+            .ok_or(BindingError::CounterOverflow)?;
+        let mut next_pin = snapshot.pin;
+        next_pin.signer_epoch = next_epoch;
+        next_pin.signer_public_key = approval.successor_public_key;
+        let record = IntentRecord {
+            record_sequence: next_sequence,
+            signer_epoch: next_epoch,
+            signer_public_key: next_pin.signer_public_key,
+            binding,
+        };
+        let mut frame = signing_preimage(&record).map_err(|_| BindingError::BrokenIntent)?;
+        // No mutex or SQLite transaction is held across signing. Signing may
+        // race with a concurrent writer; the later snapshot CAS rejects it.
+        let signature = successor.sign(&frame)?;
+        frame.extend_from_slice(&signature);
+        let next_fence = ExternalReplayFence {
+            minimum_record_sequence: next_sequence,
+            minimum_counter: snapshot.counter,
+            last_record_digest: signed_record_digest(&frame),
+        };
+        let validated = verify_signed_record(&frame, &next_pin, next_fence, snapshot.counter)
+            .map_err(|_| BindingError::BrokenIntent)?;
+        if validated.record().binding != binding {
+            return Err(BindingError::BrokenIntent);
+        }
+
+        let mut state = self.lock()?;
+        if state.frame != snapshot.frame
+            || state.pin != snapshot.pin
+            || state.fence != snapshot.fence
+            || state.counter != snapshot.counter
+            || state.generation != snapshot.generation
+        {
+            return Err(BindingError::PersistenceUncertain);
+        }
+        state.inject(WriteCrashPoint::RotateBeforeCas)?;
+        // One in-process atomic model update, *not* physically independent
+        // durable pin/fence/intent atomicity.
+        state.frame = frame;
+        state.fence = next_fence;
+        state.pin = next_pin;
+        state.signer = successor;
+        state.inject(WriteCrashPoint::RotateAfterCas)?;
+        Ok(())
     }
 
     /// Sign outside the exclusive CAS region. The final compare includes

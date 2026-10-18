@@ -42,6 +42,12 @@
 
 **Branch topology caveat:** PRs #6 (wire), #7 (channel) and #16 (mirror integrity) branch from earlier ancestors; they are not all ancestors of PR #22. Count of open Draft PRs is not a count of integrated features. Do not merge leaf PRs into `main` out of order. Review and reconcile branches explicitly.
 
+## L-002C — challenge-bound external Witness high-water diagnostics
+
+- New `loom-store::challenge_witness_quorum` checks **two distinct externally pinned** Ed25519 Witness replies to one client-supplied single-use challenge nonce, exact Space/Resource/writer epoch and current signed policy head, revocation root and Witness generation.
+- Replayed response for another challenge, one missing Witness, duplicate pins, tampered signature, independent Witness split-brain, local SQLite backup rollback/fork or below-minimum externally trusted generation are **rejected**. Twelve Rust adversarial tests cover these cases.
+- The protocol verifies **diagnostics only** and does not mint `VerifiedProviderEvidence`, Root/Owner grants or admission. Real nonce lifecycle, independent Witness network/storage, signed writer append protocol, crash-durable remote CAS and anti-eclipse/Byzantine assumptions remain unsolved. No real network, TPM or ServiceOpen.
+
 ## L-002B — hardware-agnostic trusted state (optional TPM)
 
 - `crates/loom-store/src/trusted_state_provider.rs` defines optional `Software`, `Tpm2`, `SecureEnclave`, `AndroidKeystore` and `ExternalQuorum` provider descriptors; these are **descriptive, never trusted attestation**. Rust core does not need a TPM to run ordinary local operations.

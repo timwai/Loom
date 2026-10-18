@@ -4,7 +4,7 @@
 
 ## Executive status
 
-**L-001_ENGINEERING_COMPLETE / L-001_RELEASE_BLOCKED / L-002A_TEST_ONLY / NO_SERVICE_OPEN / NO_DEPLOYABLE_MESH**
+**L-001_ENGINEERING_COMPLETE / L-001_RELEASE_BLOCKED / L-002A-B_POC_ONLY / TPM_OPTIONAL / NO_SERVICE_OPEN**
 
 - **L-001 engineering integration completed**: all stacked Rust PoCs plus separate L-001A/B/J histories are on `main`, merge `d50eae4` with full Ubuntu/Windows/macOS CI green. All obsolete branches and 32 obsolete Draft PRs are closed. This is not final acceptance: the nine L-001A/B/C/D security/platform release gates and four signoffs are **still incomplete**.
 - The integrated workspace has eight Rust library crates, a `loomd` binary that does not start a service, signed protocol/Owner-lifecycle verifiers, SQLite policy journals, witness/rollback models and a **read-only** Linux TPM2 probe.
@@ -41,6 +41,14 @@
 | L-001AD, PR #37 | Add Windows/macOS hosted Rust workspace matrix with locked TLS/crypto/journal tests in GitHub Actions | Host Rust portability smoke only; neither actual Windows filter/macos Network Extension nor Android VpnService `PLATFORM-*` pass |
 
 **Branch topology caveat:** PRs #6 (wire), #7 (channel) and #16 (mirror integrity) branch from earlier ancestors; they are not all ancestors of PR #22. Count of open Draft PRs is not a count of integrated features. Do not merge leaf PRs into `main` out of order. Review and reconcile branches explicitly.
+
+## L-002B — hardware-agnostic trusted state (optional TPM)
+
+- `crates/loom-store/src/trusted_state_provider.rs` defines optional `Software`, `Tpm2`, `SecureEnclave`, `AndroidKeystore` and `ExternalQuorum` provider descriptors; these are **descriptive, never trusted attestation**. Rust core does not need a TPM to run ordinary local operations.
+- `SoftwareStateProvider` stores only volatile, bounded local settings and optimistic version CAS. It supplies **no protected key custody or rollback resistance** and **never** enables Resource authorization or ServiceOpen.
+- High-security operations require independently verified, scope-pinned state and separated key-protection vs antirollback proofs. **No production verifier currently mints that evidence**; fail closed rather than pretending software/TPM/SE/Keystore are equivalent.
+- `docs/acceptance/l001.json` records optional TPM and changes the mandatory review domain from a particular `hardware` mechanism to selected `trusted_state` assurance, without relaxing nine L-001 release gates. CI verifies no silent downgrade.
+- L-002A file-read/revoke model remains test-only; hardware-independent Peer Mesh is the target, not an unverified release claim.
 
 ## L-002 kickoff — two-Peer LAN file read and revoke
 

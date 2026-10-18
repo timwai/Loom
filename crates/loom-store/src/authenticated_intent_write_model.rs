@@ -819,7 +819,10 @@ mod tests {
             after_manifest: before.policy.current_manifest,
         };
         let (_, intent) = model.handles().unwrap();
-        assert_eq!(intent.prepare(before, prepared), Err(BindingError::BrokenIntent));
+        assert_eq!(
+            intent.prepare(before, prepared),
+            Err(BindingError::BrokenIntent)
+        );
         assert_eq!(model.image().unwrap().fence, fence);
         assert_eq!(intent.load(), Ok(StoredBinding::Committed(before)));
     }

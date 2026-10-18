@@ -718,19 +718,18 @@ mod tests {
         let (counter, intent) = simulator.handles().unwrap();
         let after = future_intent(committed);
         intent.prepare(committed, after).unwrap();
-        simulator.fail_once(CrashPoint::IncrementAfterWrite).unwrap();
-        assert_eq!(
-            counter.increment(),
-            Err(BindingError::PersistenceUncertain)
-        );
+        simulator
+            .fail_once(CrashPoint::IncrementAfterWrite)
+            .unwrap();
+        assert_eq!(counter.increment(), Err(BindingError::PersistenceUncertain));
         simulator.reboot().unwrap();
 
         let image = simulator.durable_image().unwrap();
         assert_eq!(image.nv_counter, 18);
         assert_eq!(image.intent, StoredBinding::Prepared(after));
         let record = signed(&key, committed, 10, 2, image.intent);
-        let verified = verify_signed_record(&record, &pin, initial_fence(), image.nv_counter)
-            .unwrap();
+        let verified =
+            verify_signed_record(&record, &pin, initial_fence(), image.nv_counter).unwrap();
         assert_eq!(
             verified.diagnostic(),
             Diagnostic::IncrementNeedsSignedRecheck

@@ -2537,4 +2537,325 @@ mod tests {
             genesis.manifest_commitment()
         );
     }
+
+    // L-001R: the prior counter state must be an actual SIGNED prefix of
+    // the current ledger. Valid latest witnesses alone do not prove this.
+    fn set_committed_prefix(
+        intent: &Arc<ModelIntent>,
+        sequence: u64,
+        head: [u8; 32],
+        revoke_root: [u8; 32],
+        manifest: [u8; 32],
+    ) {
+        let mut saved = intent.saved.lock().unwrap();
+        let StoredBinding::Committed(mut binding) = *saved else {
+            panic!("fixture requires a committed counter");
+        };
+        binding.policy.policy_sequence = sequence;
+        binding.policy.policy_head = head;
+        binding.policy.revocation_root = revoke_root;
+        binding.policy.current_manifest = manifest;
+        *saved = StoredBinding::Committed(binding);
+    }
+
+    #[test]
+    fn fabricated_earlier_policy_head_cannot_be_laundered_by_later_valid_witnesses() {
+        let db = TempDb::new();
+        let store = db.open();
+        let genesis = trusted_genesis();
+        let revoke = signed_revocation(1, 11, 3);
+        let earlier = store
+            .append(root_pin(), genesis, NewPolicyEvent::Revoke(&revoke))
+            .unwrap();
+        let revoke_root = append_revocation_root([0; 32], 1, &revoke.persistence_bytes()).unwrap();
+        let cancel = signed_cancellation(2);
+        let current = store
+            .append(root_pin(), genesis, NewPolicyEvent::Cancel(&cancel))
+            .unwrap();
+        let receipts = witness_receipts(2, current.policy_head, revoke_root);
+        let (counter, intent, pin) = model_counter_io(&genesis);
+        set_committed_prefix(
+            &intent,
+            1,
+            [92; 32],
+            revoke_root,
+            genesis.manifest_commitment(),
+        );
+        assert_ne!(earlier.policy_head, [92; 32]);
+        assert_eq!(
+            bound_counter(
+                &store,
+                genesis,
+                &receipts,
+                &counter,
+                &intent,
+                pin,
+                CandidateCounterOperation::Begin
+            ),
+            Err(StoreError::Conflict)
+        );
+        assert_eq!(*counter.number.lock().unwrap(), 9);
+        let StoredBinding::Committed(stored) = intent.load().unwrap() else {
+            panic!("forged prior changed its phase");
+        };
+        assert_eq!(stored.policy.policy_head, [92; 32]);
+    }
+
+    #[test]
+    fn fabricated_prior_revocation_root_and_manifest_are_rejected_before_staging() {
+        let db = TempDb::new();
+        let store = db.open();
+        let genesis = trusted_genesis();
+        let revoke = signed_revocation(1, 11, 3);
+        let earlier = store
+            .append(root_pin(), genesis, NewPolicyEvent::Revoke(&revoke))
+            .unwrap();
+        let revoke_root = append_revocation_root([0; 32], 1, &revoke.persistence_bytes()).unwrap();
+        let cancel = signed_cancellation(2);
+        let current = store
+            .append(root_pin(), genesis, NewPolicyEvent::Cancel(&cancel))
+            .unwrap();
+        let receipts = witness_receipts(2, current.policy_head, revoke_root);
+        for (prior_root, prior_manifest) in [
+            ([71; 32], genesis.manifest_commitment()),
+            (revoke_root, [63; 32]),
+        ] {
+            let (counter, intent, pin) = model_counter_io(&genesis);
+            set_committed_prefix(
+                &intent,
+                1,
+                earlier.policy_head,
+                prior_root,
+                prior_manifest,
+            );
+            assert_eq!(
+                bound_counter(
+                    &store,
+                    genesis,
+                    &receipts,
+                    &counter,
+                    &intent,
+                    pin,
+                    CandidateCounterOperation::Begin
+                ),
+                Err(StoreError::Conflict)
+            );
+            assert_eq!(*counter.number.lock().unwrap(), 9);
+            assert!(matches!(
+                intent.load().unwrap(),
+                StoredBinding::Committed(_)
+            ));
+        }
+    }
+
+    #[test]
+    fn authentic_prior_prefix_allows_subsequent_signed_cancellation() {
+        let db = TempDb::new();
+        let store = db.open();
+        let genesis = trusted_genesis();
+        let revoke = signed_revocation(1, 11, 3);
+        let earlier = store
+            .append(root_pin(), genesis, NewPolicyEvent::Revoke(&revoke))
+            .unwrap();
+        let revoke_root = append_revocation_root([0; 32], 1, &revoke.persistence_bytes()).unwrap();
+        let cancel = signed_cancellation(2);
+        let current = store
+            .append(root_pin(), genesis, NewPolicyEvent::Cancel(&cancel))
+            .unwrap();
+        let receipts = witness_receipts(2, current.policy_head, revoke_root);
+        let (counter, intent, pin) = model_counter_io(&genesis);
+        set_committed_prefix(
+            &intent,
+            1,
+            earlier.policy_head,
+            revoke_root,
+            genesis.manifest_commitment(),
+        );
+        assert_eq!(
+            bound_counter(
+                &store,
+                genesis,
+                &receipts,
+                &counter,
+                &intent,
+                pin,
+                CandidateCounterOperation::Begin
+            ),
+            Ok(Diagnostic::MatchingCounterOnly)
+        );
+        assert_eq!(*counter.number.lock().unwrap(), 10);
+    }
+
+    #[test]
+    fn owner_transfer_prefix_requires_actual_successor_manifest() {
+        let db = TempDb::new();
+        let store = db.open();
+        let genesis = trusted_genesis();
+        let successor = signed_manifest(33, 4);
+        let transfer = signed_transfer(&genesis, &successor, 1);
+        let earlier = store
+            .append(
+                root_pin(),
+                genesis,
+                NewPolicyEvent::Transfer {
+                    transfer: &transfer,
+                    successor_manifest: &successor,
+                },
+            )
+            .unwrap();
+        let revoke = signed_revocation(2, 33, 4);
+        let current = store
+            .append(root_pin(), genesis, NewPolicyEvent::Revoke(&revoke))
+            .unwrap();
+        let revoke_root = append_revocation_root([0; 32], 2, &revoke.persistence_bytes()).unwrap();
+        let receipts = witness_receipts(2, current.policy_head, revoke_root);
+        let verified_successor =
+            verify_resource_trust_for_spike(&root_pin(), &successor, 150).unwrap();
+        let (counter, intent, pin) = model_counter_io(&genesis);
+        set_committed_prefix(
+            &intent,
+            1,
+            earlier.policy_head,
+            [0; 32],
+            genesis.manifest_commitment(),
+        );
+        assert_eq!(
+            bound_counter(
+                &store,
+                genesis,
+                &receipts,
+                &counter,
+                &intent,
+                pin,
+                CandidateCounterOperation::Begin
+            ),
+            Err(StoreError::Conflict)
+        );
+        set_committed_prefix(
+            &intent,
+            1,
+            earlier.policy_head,
+            [0; 32],
+            verified_successor.manifest_commitment(),
+        );
+        assert_eq!(
+            bound_counter(
+                &store,
+                genesis,
+                &receipts,
+                &counter,
+                &intent,
+                pin,
+                CandidateCounterOperation::Begin
+            ),
+            Ok(Diagnostic::MatchingCounterOnly)
+        );
+        assert_eq!(*counter.number.lock().unwrap(), 10);
+    }
+
+    #[test]
+    fn prepared_without_increment_never_auto_increments_during_recovery() {
+        let db = TempDb::new();
+        let store = db.open();
+        let genesis = trusted_genesis();
+        let revoke = signed_revocation(1, 11, 3);
+        let current = store
+            .append(root_pin(), genesis, NewPolicyEvent::Revoke(&revoke))
+            .unwrap();
+        let revoke_root = append_revocation_root([0; 32], 1, &revoke.persistence_bytes()).unwrap();
+        let receipts = witness_receipts(1, current.policy_head, revoke_root);
+        let (counter, intent, pin) = model_counter_io(&genesis);
+        let StoredBinding::Committed(before) = intent.load().unwrap() else {
+            panic!("missing initial committed state");
+        };
+        *intent.saved.lock().unwrap() =
+            StoredBinding::Prepared(crate::tpm_counter_binding::Prepared {
+                before,
+                after_sequence: 1,
+                after_head: current.policy_head,
+                after_revocation_root: revoke_root,
+                after_manifest: genesis.manifest_commitment(),
+            });
+        assert_eq!(
+            bound_counter(
+                &store,
+                genesis,
+                &receipts,
+                &counter,
+                &intent,
+                pin,
+                CandidateCounterOperation::Reconcile
+            ),
+            Ok(Diagnostic::IntentBeforeIncrement)
+        );
+        assert_eq!(*counter.number.lock().unwrap(), 9);
+        assert!(matches!(intent.load().unwrap(), StoredBinding::Prepared(_)));
+        assert_eq!(
+            bound_counter(
+                &store,
+                genesis,
+                &receipts,
+                &counter,
+                &intent,
+                pin,
+                CandidateCounterOperation::Begin
+            ),
+            Err(StoreError::PersistenceFailure)
+        );
+        assert_eq!(*counter.number.lock().unwrap(), 9);
+    }
+
+    #[test]
+    fn counter_jump_and_missing_prepared_intent_fail_closed_on_restart() {
+        let db = TempDb::new();
+        let store = db.open();
+        let genesis = trusted_genesis();
+        let revoke = signed_revocation(1, 11, 3);
+        let current = store
+            .append(root_pin(), genesis, NewPolicyEvent::Revoke(&revoke))
+            .unwrap();
+        let revoke_root = append_revocation_root([0; 32], 1, &revoke.persistence_bytes()).unwrap();
+        let receipts = witness_receipts(1, current.policy_head, revoke_root);
+        let (counter, intent, pin) = model_counter_io(&genesis);
+        let StoredBinding::Committed(before) = intent.load().unwrap() else {
+            panic!("missing initial committed state");
+        };
+        *intent.saved.lock().unwrap() =
+            StoredBinding::Prepared(crate::tpm_counter_binding::Prepared {
+                before,
+                after_sequence: 1,
+                after_head: current.policy_head,
+                after_revocation_root: revoke_root,
+                after_manifest: genesis.manifest_commitment(),
+            });
+        *counter.number.lock().unwrap() = 11;
+        assert_eq!(
+            bound_counter(
+                &store,
+                genesis,
+                &receipts,
+                &counter,
+                &intent,
+                pin,
+                CandidateCounterOperation::Reconcile
+            ),
+            Err(StoreError::Conflict)
+        );
+        assert!(matches!(intent.load().unwrap(), StoredBinding::Prepared(_)));
+        *intent.saved.lock().unwrap() = StoredBinding::Missing;
+        assert_eq!(
+            bound_counter(
+                &store,
+                genesis,
+                &receipts,
+                &counter,
+                &intent,
+                pin,
+                CandidateCounterOperation::Reconcile
+            ),
+            Err(StoreError::Conflict)
+        );
+        assert_eq!(*counter.number.lock().unwrap(), 11);
+    }
+
 }

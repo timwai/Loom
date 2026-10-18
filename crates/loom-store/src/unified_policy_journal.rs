@@ -3103,4 +3103,253 @@ mod tests {
             StoredBinding::Committed(_)
         ));
     }
+
+    // L-001U: raw bytes may come from rollbackable media, but the signer pin
+    // and replay fence are deliberately supplied as a SEPARATE dependency.
+    // These are deterministic mocks, not trusted enrolled hardware.
+    struct TestSignedFrame {
+        frame: Mutex<Vec<u8>>,
+    }
+
+    impl crate::authenticated_intent_read_gate::CandidateSignedIntentReader for TestSignedFrame {
+        fn read_frame(&self) -> Result<Vec<u8>, BindingError> {
+            Ok(self.frame.lock().unwrap().clone())
+        }
+    }
+
+    struct TestSignedTrust {
+        state: Mutex<(
+            crate::authenticated_intent_record::ExternalSignerPin,
+            crate::authenticated_intent_record::ExternalReplayFence,
+        )>,
+    }
+
+    impl crate::authenticated_intent_read_gate::CandidateTrustedIntentReader for TestSignedTrust {
+        fn read_trust(
+            &self,
+        ) -> Result<
+            (
+                crate::authenticated_intent_record::ExternalSignerPin,
+                crate::authenticated_intent_record::ExternalReplayFence,
+            ),
+            BindingError,
+        > {
+            Ok(*self.state.lock().unwrap())
+        }
+    }
+
+    fn signed_read_only_io(
+        genesis: &VerifiedResourceTrust,
+        counter: &Arc<ModelCounter>,
+        binding: StoredBinding,
+    ) -> (
+        CandidateCounterIo,
+        Arc<TestSignedFrame>,
+        Arc<TestSignedTrust>,
+    ) {
+        use crate::authenticated_intent_read_gate::AuthenticatedReadOnlyIntent;
+        use crate::authenticated_intent_record::{
+            ExternalReplayFence, ExternalSignerPin, IntentRecord, signed_record_digest,
+            signing_preimage,
+        };
+        let signing_key = SigningKey::from_bytes(&[48; 32]);
+        let record = IntentRecord {
+            record_sequence: 3,
+            signer_epoch: 2,
+            signer_public_key: signing_key.verifying_key().to_bytes(),
+            binding,
+        };
+        let mut bytes = signing_preimage(&record).unwrap();
+        let signature = signing_key.sign(&bytes).to_bytes();
+        bytes.extend_from_slice(&signature);
+        let pin = counter.pin;
+        let source = Arc::new(TestSignedFrame {
+            frame: Mutex::new(bytes.clone()),
+        });
+        let trust = Arc::new(TestSignedTrust {
+            state: Mutex::new((
+                ExternalSignerPin {
+                    signer_public_key: signing_key.verifying_key().to_bytes(),
+                    signer_epoch: 2,
+                    device: pin,
+                    space: genesis.space(),
+                    resource: genesis.resource(),
+                    root_public_key: genesis.root_public_key(),
+                    root_key_epoch: genesis.root_key_epoch(),
+                    genesis_manifest: genesis.manifest_commitment(),
+                    writer_epoch: genesis.writer_epoch(),
+                },
+                ExternalReplayFence {
+                    minimum_record_sequence: 3,
+                    minimum_counter: 9,
+                    last_record_digest: signed_record_digest(&bytes),
+                },
+            )),
+        });
+        let adapter = AuthenticatedReadOnlyIntent::new(
+            pin,
+            counter.clone(),
+            source.clone(),
+            trust.clone(),
+        );
+        (
+            CandidateCounterIo {
+                pin,
+                counter: counter.clone(),
+                intent: Arc::new(adapter),
+            },
+            source,
+            trust,
+        )
+    }
+
+    #[test]
+    fn signed_committed_read_requires_authentication_and_exact_replayed_history() {
+        use crate::tpm_counter_binding::Committed;
+        let db = TempDb::new();
+        let store = db.open();
+        let genesis = trusted_genesis();
+        let revoke = signed_revocation(1, 11, 3);
+        let snapshot = store
+            .append(root_pin(), genesis, NewPolicyEvent::Revoke(&revoke))
+            .unwrap();
+        let revoke_root =
+            append_revocation_root([0; 32], 1, &revoke.persistence_bytes()).unwrap();
+        let receipts = witness_receipts(1, snapshot.policy_head, revoke_root);
+        let (counter, _, pin) = model_counter_io(&genesis);
+        let committed = Committed {
+            identity: pin,
+            counter: 9,
+            policy: crate::unified_policy_anchor::UnifiedPolicyHighWater {
+                policy_sequence: 1,
+                policy_head: snapshot.policy_head,
+                revocation_root: revoke_root,
+                ..crate::unified_policy_anchor::UnifiedPolicyHighWater::initial(&genesis)
+            },
+        };
+        let (io, source, trust) =
+            signed_read_only_io(&genesis, &counter, StoredBinding::Committed(committed));
+        assert_eq!(
+            store.inspect_journal_bound_counter(
+                root_pin(),
+                genesis,
+                &receipts,
+                150,
+                CandidateCounterIo {
+                    pin: io.pin,
+                    counter: io.counter.clone(),
+                    intent: io.intent.clone(),
+                },
+                CandidateCounterOperation::Reconcile,
+            ),
+            Ok(Diagnostic::MatchingCounterOnly)
+        );
+        source.frame.lock().unwrap()[70] ^= 0x40;
+        assert_eq!(
+            store.inspect_journal_bound_counter(
+                root_pin(),
+                genesis,
+                &receipts,
+                150,
+                CandidateCounterIo {
+                    pin: io.pin,
+                    counter: io.counter.clone(),
+                    intent: io.intent.clone(),
+                },
+                CandidateCounterOperation::Reconcile,
+            ),
+            Err(StoreError::Conflict)
+        );
+        source.frame.lock().unwrap()[70] ^= 0x40;
+        trust.state.lock().unwrap().1.minimum_record_sequence = 4;
+        assert_eq!(
+            store.inspect_journal_bound_counter(
+                root_pin(),
+                genesis,
+                &receipts,
+                150,
+                io,
+                CandidateCounterOperation::Reconcile,
+            ),
+            Err(StoreError::Conflict)
+        );
+        assert_eq!(*counter.number.lock().unwrap(), 9);
+    }
+
+    #[test]
+    fn signed_prepared_read_does_not_finalize_or_retry_irreversible_increment() {
+        use crate::tpm_counter_binding::{Committed, Prepared};
+        let db = TempDb::new();
+        let store = db.open();
+        let genesis = trusted_genesis();
+        let revoke = signed_revocation(1, 11, 3);
+        let snapshot = store
+            .append(root_pin(), genesis, NewPolicyEvent::Revoke(&revoke))
+            .unwrap();
+        let revoke_root =
+            append_revocation_root([0; 32], 1, &revoke.persistence_bytes()).unwrap();
+        let receipts = witness_receipts(1, snapshot.policy_head, revoke_root);
+        let (counter, _, pin) = model_counter_io(&genesis);
+        let prepared = Prepared {
+            before: Committed {
+                identity: pin,
+                counter: 9,
+                policy: crate::unified_policy_anchor::UnifiedPolicyHighWater::initial(&genesis),
+            },
+            after_sequence: 1,
+            after_head: snapshot.policy_head,
+            after_revocation_root: revoke_root,
+            after_manifest: genesis.manifest_commitment(),
+        };
+        let (io, source, _) =
+            signed_read_only_io(&genesis, &counter, StoredBinding::Prepared(prepared));
+        assert_eq!(
+            store.inspect_journal_bound_counter(
+                root_pin(),
+                genesis,
+                &receipts,
+                150,
+                CandidateCounterIo {
+                    pin,
+                    counter: io.counter.clone(),
+                    intent: io.intent.clone(),
+                },
+                CandidateCounterOperation::Reconcile,
+            ),
+            Ok(Diagnostic::IntentBeforeIncrement)
+        );
+        assert_eq!(*counter.number.lock().unwrap(), 9);
+        *counter.number.lock().unwrap() = 10;
+        // A fully verified post-increment record is STILL read-only:
+        // finalization demands a separate authenticated write design.
+        assert_eq!(
+            store.inspect_journal_bound_counter(
+                root_pin(),
+                genesis,
+                &receipts,
+                150,
+                CandidateCounterIo {
+                    pin,
+                    counter: io.counter.clone(),
+                    intent: io.intent.clone(),
+                },
+                CandidateCounterOperation::Reconcile,
+            ),
+            Err(StoreError::PersistenceFailure)
+        );
+        assert_eq!(*counter.number.lock().unwrap(), 10);
+        assert_eq!(
+            store.inspect_journal_bound_counter(
+                root_pin(),
+                genesis,
+                &receipts,
+                150,
+                io,
+                CandidateCounterOperation::Begin,
+            ),
+            Err(StoreError::PersistenceFailure)
+        );
+        assert_eq!(*counter.number.lock().unwrap(), 10);
+        assert!(!source.frame.lock().unwrap().is_empty());
+    }
 }

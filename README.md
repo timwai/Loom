@@ -2,7 +2,7 @@
 
 Rust-first, **peer-oriented** private networking and device services platform. Loom is the new independent project for the RelayProxy Rust rewrite and decentralized Peer Mesh design.
 
-**Status: L-001 engineering-integrated / L-001 release BLOCKED / L-002A model development underway.** The historical stacked development branches have been consolidated into the default branch. This is a source-code integration, **not** an L-001 release approval. `loomd` remains disabled: no network listener, ServiceOpen, resource admission, proxy modification, operating-system driver, or VPN is enabled. Real independent anti-rollback storage, hardware acceptance and reviewed authorization remain NO-GO.
+**Status: L-001 engineering-integrated / L-001 release BLOCKED / L-002A–B model development underway.** The historical stacked development branches have been consolidated into the default branch. This is a source-code integration, **not** an L-001 release approval. `loomd` remains disabled: no network listener, ServiceOpen, resource admission, proxy modification, operating-system driver, or VPN is enabled. Real independent anti-rollback storage, hardware acceptance and reviewed authorization remain NO-GO.
 
 ## Architecture
 
@@ -11,6 +11,8 @@ Rust-first, **peer-oriented** private networking and device services platform. L
 - Target platforms: Windows, macOS, Linux Rust daemon + Tauri/React desktop, Android Kotlin/VpnService with Rust core; browser extension remains TypeScript.
 - Future transport: Quinn QUIC, secure inner Peer channel, optional trusted Relay; no trust-all shortcuts.
 - Security: Owner authorization, signed membership, revocation-first state, rollback protection, per-Space isolation.
+- **Hardware-agnostic trusted state:** no mandatory TPM chip. Portable software settings and optional TPM 2.0, Apple Secure Enclave, Android Keystore, or independently verified quorum backends are isolated by a Rust capability gate. Self-declared hardware/key protection **never** upgrades authorization or proves antirollback; sensitive operations still require independently verified trust evidence.
+
 - Migrating existing RelayProxy configurations or wire protocols is **not** implemented or implicitly trusted.
 
 ## Development

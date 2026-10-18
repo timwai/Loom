@@ -24,6 +24,18 @@ pub trait CandidateExternalIntentSigner: Send + Sync {
     fn sign(&self, canonical_preimage: &[u8]) -> Result<[u8; 64], BindingError>;
 }
 
+/// Boot-scoped trait handles used by the candidate counter protocol.
+pub type CandidateWriteHandles = (
+    Arc<dyn CandidateMonotonicCounter>,
+    Arc<dyn CandidateIntentStore>,
+);
+
+/// Read-only sources for the independently verifying L-001U adapter.
+pub type CandidateReadSources = (
+    Arc<dyn CandidateSignedIntentReader>,
+    Arc<dyn CandidateTrustedIntentReader>,
+);
+
 /// A one-shot simulated crash; both BEFORE and AFTER outcomes return an
 /// ambiguous error, and writes are quarantined until reboot.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -127,15 +139,7 @@ impl AuthenticatedWriteSimulator {
     }
 
     /// Independent trait handles for existing candidate journal-bound path.
-    pub fn handles(
-        &self,
-    ) -> Result<
-        (
-            Arc<dyn CandidateMonotonicCounter>,
-            Arc<dyn CandidateIntentStore>,
-        ),
-        BindingError,
-    > {
+    pub fn handles(&self) -> Result<CandidateWriteHandles, BindingError> {
         let generation = self.lock()?.generation;
         let h = Arc::new(WriteHandle {
             state: Arc::clone(&self.state),
@@ -145,15 +149,7 @@ impl AuthenticatedWriteSimulator {
     }
 
     /// A read-only view still passes through L-001U's strict double-read gate.
-    pub fn read_sources(
-        &self,
-    ) -> Result<
-        (
-            Arc<dyn CandidateSignedIntentReader>,
-            Arc<dyn CandidateTrustedIntentReader>,
-        ),
-        BindingError,
-    > {
+    pub fn read_sources(&self) -> Result<CandidateReadSources, BindingError> {
         let generation = self.lock()?.generation;
         let h = Arc::new(WriteHandle {
             state: Arc::clone(&self.state),

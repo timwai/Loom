@@ -317,7 +317,7 @@ fn worker(path: PathBuf, rx: Receiver<Command>, started: Sender<Result<(), Store
                         let _ = done.send(inspect_db(&mut connection, root, genesis));
                     }
                     Command::Pending(done) => {
-                        let _ = done.send(read_outbox(&connection));
+                        let _ = done.send(read_outbox(&mut connection));
                     }
                     Command::InspectWitness {
                         root,
@@ -502,7 +502,49 @@ fn replay(
         None if state.sequence() == 0 => {}
         None => return Err(StoreError::Conflict),
     }
+    // All durable mirrors must agree with the signed history in this transaction.
+    verify_side_tables(tx)?;
     Ok(state)
+}
+
+/// Ensure that every event has exactly one matching Outbox and Audit row and
+/// that there are no orphaned mirror rows, across every stored resource.
+/// This is NOT an external high-water anchor or proof against full rollback.
+fn verify_side_tables(conn: &Connection) -> Result<(), StoreError> {
+    let diverged: i64 = conn
+        .query_row(
+            "SELECT
+               EXISTS (
+                 SELECT 1 FROM unified_policy_events AS e
+                 LEFT JOIN unified_policy_outbox AS o
+                   ON o.space=e.space AND o.resource=e.resource AND o.seq=e.seq
+                 LEFT JOIN unified_policy_audit AS a
+                   ON a.space=e.space AND a.resource=e.resource AND a.seq=e.seq
+                 WHERE o.seq IS NULL OR o.kind!=e.kind OR o.evidence!=e.evidence
+                    OR a.seq IS NULL OR a.kind!=e.kind OR a.policy_head!=e.policy_head
+               )
+               OR EXISTS (
+                 SELECT 1 FROM unified_policy_outbox AS o
+                 WHERE NOT EXISTS (
+                   SELECT 1 FROM unified_policy_events AS e
+                   WHERE e.space=o.space AND e.resource=o.resource AND e.seq=o.seq
+                 )
+               )
+               OR EXISTS (
+                 SELECT 1 FROM unified_policy_audit AS a
+                 WHERE NOT EXISTS (
+                   SELECT 1 FROM unified_policy_events AS e
+                   WHERE e.space=a.space AND e.resource=a.resource AND e.seq=a.seq
+                 )
+               )",
+            [],
+            |row| row.get(0),
+        )
+        .map_err(|_| StoreError::PersistenceFailure)?;
+    if diverged != 0 {
+        return Err(StoreError::Conflict);
+    }
+    Ok(())
 }
 
 fn inspect_db(
@@ -679,31 +721,44 @@ fn append_transaction(
         params![space, resource, seq, kind, head.as_slice()],
     )
     .map_err(|_| StoreError::PersistenceFailure)?;
+    // SQLite triggers can mutate a mirror after earlier writes succeeded.
+    // Reject the whole transaction before COMMIT on any divergence.
+    verify_side_tables(&tx)?;
     tx.commit().map_err(|_| StoreError::PersistenceFailure)?;
     Ok(snapshot(&state))
 }
 
-fn read_outbox(conn: &Connection) -> Result<Vec<CriticalPolicyOutbox>, StoreError> {
-    let mut stmt = conn
-        .prepare("SELECT seq,kind,evidence FROM unified_policy_outbox ORDER BY id ASC")
+fn read_outbox(conn: &mut Connection) -> Result<Vec<CriticalPolicyOutbox>, StoreError> {
+    // Verify and read the mirrors under one SQLite transaction to prevent
+    // a concurrent external writer from changing them between the two steps.
+    let tx = conn
+        .transaction_with_behavior(TransactionBehavior::Immediate)
         .map_err(|_| StoreError::PersistenceFailure)?;
-    let rows = stmt
-        .query_map([], |row| {
-            let seq: i64 = row.get(0)?;
-            let kind: i64 = row.get(1)?;
-            let evidence: Vec<u8> = row.get(2)?;
-            Ok((seq, kind, evidence))
-        })
-        .map_err(|_| StoreError::PersistenceFailure)?;
-    let mut outbox = Vec::new();
-    for row in rows {
-        let (seq, kind, evidence) = row.map_err(|_| StoreError::PersistenceFailure)?;
-        outbox.push(CriticalPolicyOutbox {
-            sequence: u64::try_from(seq).map_err(|_| StoreError::Conflict)?,
-            kind: u8::try_from(kind).map_err(|_| StoreError::Conflict)?,
-            evidence,
-        });
-    }
+    verify_side_tables(&tx)?;
+    let outbox = {
+        let mut stmt = tx
+            .prepare("SELECT seq,kind,evidence FROM unified_policy_outbox ORDER BY id ASC")
+            .map_err(|_| StoreError::PersistenceFailure)?;
+        let rows = stmt
+            .query_map([], |row| {
+                let seq: i64 = row.get(0)?;
+                let kind: i64 = row.get(1)?;
+                let evidence: Vec<u8> = row.get(2)?;
+                Ok((seq, kind, evidence))
+            })
+            .map_err(|_| StoreError::PersistenceFailure)?;
+        let mut outbox = Vec::new();
+        for row in rows {
+            let (seq, kind, evidence) = row.map_err(|_| StoreError::PersistenceFailure)?;
+            outbox.push(CriticalPolicyOutbox {
+                sequence: u64::try_from(seq).map_err(|_| StoreError::Conflict)?,
+                kind: u8::try_from(kind).map_err(|_| StoreError::Conflict)?,
+                evidence,
+            });
+        }
+        outbox
+    };
+    tx.commit().map_err(|_| StoreError::PersistenceFailure)?;
     Ok(outbox)
 }
 
@@ -1608,5 +1663,151 @@ mod tests {
         );
         assert_eq!(local_confirmed_seq(&db.0), None);
         assert_eq!(anchor.state.lock().unwrap().policy_sequence, 0);
+    }
+
+    #[test]
+    fn mirror_rewrite_trigger_rolls_back_entire_append() {
+        let db = TempDb::new();
+        let store = db.open();
+        let genesis = trusted_genesis();
+        let conn = Connection::open(&db.0).unwrap();
+        conn.execute_batch(
+            "CREATE TRIGGER tamper_outbox_after_audit
+             AFTER INSERT ON unified_policy_audit
+             BEGIN
+               UPDATE unified_policy_outbox SET evidence=x'01'
+               WHERE space=NEW.space AND resource=NEW.resource AND seq=NEW.seq;
+             END;",
+        )
+        .unwrap();
+        drop(conn);
+        assert_eq!(
+            store.append(
+                root_pin(),
+                genesis,
+                NewPolicyEvent::Revoke(&signed_revocation(1, 11, 3)),
+            ),
+            Err(StoreError::Conflict)
+        );
+        // The changed Outbox was in the same rolled-back transaction.
+        assert_eq!(store.inspect(root_pin(), genesis).unwrap().sequence, 0);
+        assert!(store.pending_outbox().unwrap().is_empty());
+
+        let conn = Connection::open(&db.0).unwrap();
+        conn.execute_batch("DROP TRIGGER tamper_outbox_after_audit")
+            .unwrap();
+        drop(conn);
+        assert_eq!(
+            store
+                .append(
+                    root_pin(),
+                    genesis,
+                    NewPolicyEvent::Revoke(&signed_revocation(1, 11, 3)),
+                )
+                .unwrap()
+                .sequence,
+            1
+        );
+    }
+
+    #[test]
+    fn mirrored_outbox_and_audit_tampering_fail_closed() {
+        // Tamper with one local SQL mirror while leaving signed events intact.
+        let attacks = [
+            "DELETE FROM unified_policy_outbox WHERE seq=1",
+            "UPDATE unified_policy_outbox SET evidence=x'01' WHERE seq=1",
+            "UPDATE unified_policy_outbox SET kind=3 WHERE seq=1",
+            "INSERT INTO unified_policy_outbox(space,resource,seq,kind,evidence)
+             SELECT space,resource,2,kind,evidence FROM unified_policy_events WHERE seq=1",
+            "DELETE FROM unified_policy_audit WHERE seq=1",
+            "UPDATE unified_policy_audit SET policy_head=zeroblob(32) WHERE seq=1",
+            "UPDATE unified_policy_audit SET kind=3 WHERE seq=1",
+            "INSERT INTO unified_policy_audit(space,resource,seq,kind,policy_head)
+             SELECT space,resource,2,kind,policy_head FROM unified_policy_events WHERE seq=1",
+        ];
+        for attack in attacks {
+            let db = TempDb::new();
+            let genesis = trusted_genesis();
+            {
+                let store = db.open();
+                store
+                    .append(
+                        root_pin(),
+                        genesis,
+                        NewPolicyEvent::Revoke(&signed_revocation(1, 11, 3)),
+                    )
+                    .unwrap();
+                assert_eq!(store.pending_outbox().unwrap().len(), 1);
+            }
+            let conn = Connection::open(&db.0).unwrap();
+            conn.execute_batch(attack).unwrap();
+            drop(conn);
+
+            let store = db.open();
+            assert_eq!(
+                store.inspect(root_pin(), genesis),
+                Err(StoreError::Conflict),
+                "{attack}"
+            );
+            assert_eq!(
+                store.pending_outbox(),
+                Err(StoreError::Conflict),
+                "{attack}"
+            );
+            assert_eq!(
+                store.append(
+                    root_pin(),
+                    genesis,
+                    NewPolicyEvent::Cancel(&signed_cancellation(2)),
+                ),
+                Err(StoreError::Conflict),
+                "{attack}"
+            );
+        }
+    }
+
+    #[test]
+    fn empty_journal_with_injected_outbox_or_audit_is_not_trusted() {
+        for table in ["unified_policy_outbox", "unified_policy_audit"] {
+            let db = TempDb::new();
+            let store = db.open();
+            let conn = Connection::open(&db.0).unwrap();
+            let (kind, evidence) =
+                encode_event(NewPolicyEvent::Revoke(&signed_revocation(1, 11, 3)));
+            let space = root_pin().space;
+            let resource = trusted_genesis().resource();
+            if table == "unified_policy_outbox" {
+                conn.execute(
+                    "INSERT INTO unified_policy_outbox(space,resource,seq,kind,evidence)
+                     VALUES(?1,?2,1,?3,?4)",
+                    params![
+                        space.as_bytes().as_slice(),
+                        resource.as_bytes().as_slice(),
+                        kind,
+                        evidence
+                    ],
+                )
+                .unwrap();
+            } else {
+                conn.execute(
+                    "INSERT INTO unified_policy_audit(space,resource,seq,kind,policy_head)
+                     VALUES(?1,?2,1,?3,?4)",
+                    params![
+                        space.as_bytes().as_slice(),
+                        resource.as_bytes().as_slice(),
+                        kind,
+                        [9_u8; 32].as_slice()
+                    ],
+                )
+                .unwrap();
+            }
+            drop(conn);
+            assert_eq!(
+                store.inspect(root_pin(), trusted_genesis()),
+                Err(StoreError::Conflict),
+                "{table}"
+            );
+            assert_eq!(store.pending_outbox(), Err(StoreError::Conflict), "{table}");
+        }
     }
 }

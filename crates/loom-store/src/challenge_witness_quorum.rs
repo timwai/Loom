@@ -178,8 +178,8 @@ pub fn verify_challenge_bound_quorum(
         if obs.high_water.sequence == 0 {
             return Err(QuorumError::InvalidState);
         }
-        let key = VerifyingKey::from_bytes(&pin.public_key)
-            .map_err(|_| QuorumError::UntrustedWitness)?;
+        let key =
+            VerifyingKey::from_bytes(&pin.public_key).map_err(|_| QuorumError::UntrustedWitness)?;
         key.verify_strict(
             &quorum_observation_transcript(&obs),
             &Signature::from_bytes(&receipt.signature),
@@ -330,8 +330,11 @@ mod tests {
         let f = Fixture::new();
         assert_eq!(
             verify_challenge_bound_quorum(
-                &f.pins(), challenge(OTHER_NONCE), &f.receipts(NEW_NONCE),
-                4, state(8, [9; 32])
+                &f.pins(),
+                challenge(OTHER_NONCE),
+                &f.receipts(NEW_NONCE),
+                4,
+                state(8, [9; 32])
             ),
             Err(QuorumError::WrongChallenge)
         );
@@ -349,8 +352,11 @@ mod tests {
         let responses = f.receipts(NEW_NONCE);
         assert_eq!(
             verify_challenge_bound_quorum(
-                &f.pins(), challenge(NEW_NONCE), &responses[..1],
-                4, state(8, [9; 32])
+                &f.pins(),
+                challenge(NEW_NONCE),
+                &responses[..1],
+                4,
+                state(8, [9; 32])
             ),
             Err(QuorumError::MissingOrDuplicateWitness)
         );
@@ -362,7 +368,11 @@ mod tests {
         let [a, _] = f.receipts(NEW_NONCE);
         assert_eq!(
             verify_challenge_bound_quorum(
-                &f.pins(), challenge(NEW_NONCE), &[a, a], 4, state(8, [9; 32])
+                &f.pins(),
+                challenge(NEW_NONCE),
+                &[a, a],
+                4,
+                state(8, [9; 32])
             ),
             Err(QuorumError::MissingOrDuplicateWitness)
         );
@@ -370,8 +380,11 @@ mod tests {
         pins.witnesses[1] = pins.witnesses[0];
         assert_eq!(
             verify_challenge_bound_quorum(
-                &pins, challenge(NEW_NONCE), &f.receipts(NEW_NONCE),
-                4, state(8, [9; 32])
+                &pins,
+                challenge(NEW_NONCE),
+                &f.receipts(NEW_NONCE),
+                4,
+                state(8, [9; 32])
             ),
             Err(QuorumError::MissingOrDuplicateWitness)
         );
@@ -379,8 +392,11 @@ mod tests {
         pins.witnesses[1].public_key = [5; 32];
         assert_eq!(
             verify_challenge_bound_quorum(
-                &pins, challenge(NEW_NONCE), &f.receipts(NEW_NONCE),
-                4, state(8, [9; 32])
+                &pins,
+                challenge(NEW_NONCE),
+                &f.receipts(NEW_NONCE),
+                4,
+                state(8, [9; 32])
             ),
             Err(QuorumError::MissingOrDuplicateWitness)
         );
@@ -393,7 +409,11 @@ mod tests {
         replies[1].signature[2] ^= 1;
         assert_eq!(
             verify_challenge_bound_quorum(
-                &f.pins(), challenge(NEW_NONCE), &replies, 4, state(8, [9; 32])
+                &f.pins(),
+                challenge(NEW_NONCE),
+                &replies,
+                4,
+                state(8, [9; 32])
             ),
             Err(QuorumError::InvalidSignature)
         );
@@ -401,7 +421,11 @@ mod tests {
         replies[0].witness_key_id = [4; 32];
         assert_eq!(
             verify_challenge_bound_quorum(
-                &f.pins(), challenge(NEW_NONCE), &replies, 4, state(8, [9; 32])
+                &f.pins(),
+                challenge(NEW_NONCE),
+                &replies,
+                4,
+                state(8, [9; 32])
             ),
             Err(QuorumError::MissingOrDuplicateWitness)
         );
@@ -421,15 +445,22 @@ mod tests {
         f.b.advance_for_test(4, state(9, [11; 32])).unwrap();
         assert_eq!(
             verify_challenge_bound_quorum(
-                &f.pins(), challenge(NEW_NONCE), &f.receipts(NEW_NONCE),
-                4, state(8, [9; 32])
+                &f.pins(),
+                challenge(NEW_NONCE),
+                &f.receipts(NEW_NONCE),
+                4,
+                state(8, [9; 32])
             ),
             Err(QuorumError::LocalRollbackOrFork)
         );
         let verified = verify_challenge_bound_quorum(
-            &f.pins(), challenge(NEW_NONCE), &f.receipts(NEW_NONCE),
-            5, state(9, [11; 32])
-        ).unwrap();
+            &f.pins(),
+            challenge(NEW_NONCE),
+            &f.receipts(NEW_NONCE),
+            5,
+            state(9, [11; 32]),
+        )
+        .unwrap();
         assert_eq!(verified.generation(), 5);
     }
 
@@ -438,8 +469,11 @@ mod tests {
         let f = Fixture::new();
         assert_eq!(
             verify_challenge_bound_quorum(
-                &f.pins(), challenge(NEW_NONCE), &f.receipts(NEW_NONCE),
-                5, state(8, [9; 32])
+                &f.pins(),
+                challenge(NEW_NONCE),
+                &f.receipts(NEW_NONCE),
+                5,
+                state(8, [9; 32])
             ),
             Err(QuorumError::StaleGeneration)
         );
@@ -452,7 +486,11 @@ mod tests {
         query.expected_space = SpaceId::from_bytes([8; 16]);
         assert_eq!(
             verify_challenge_bound_quorum(
-                &f.pins(), query, &f.receipts(NEW_NONCE), 4, state(8, [9; 32])
+                &f.pins(),
+                query,
+                &f.receipts(NEW_NONCE),
+                4,
+                state(8, [9; 32])
             ),
             Err(QuorumError::WrongScope)
         );
@@ -460,7 +498,11 @@ mod tests {
         query.expected_resource = ResourceId::from_bytes([8; 16]);
         assert_eq!(
             verify_challenge_bound_quorum(
-                &f.pins(), query, &f.receipts(NEW_NONCE), 4, state(8, [9; 32])
+                &f.pins(),
+                query,
+                &f.receipts(NEW_NONCE),
+                4,
+                state(8, [9; 32])
             ),
             Err(QuorumError::WrongScope)
         );
@@ -468,7 +510,11 @@ mod tests {
         query.expected_writer_epoch = 9;
         assert_eq!(
             verify_challenge_bound_quorum(
-                &f.pins(), query, &f.receipts(NEW_NONCE), 4, state(8, [9; 32])
+                &f.pins(),
+                query,
+                &f.receipts(NEW_NONCE),
+                4,
+                state(8, [9; 32])
             ),
             Err(QuorumError::WrongScope)
         );
@@ -499,14 +545,21 @@ mod tests {
         receipts[0].observation.high_water.policy_head = [3; 32];
         assert_eq!(
             verify_challenge_bound_quorum(
-                &f.pins(), challenge(NEW_NONCE), &receipts, 4, state(8, [9; 32])
+                &f.pins(),
+                challenge(NEW_NONCE),
+                &receipts,
+                4,
+                state(8, [9; 32])
             ),
             Err(QuorumError::InvalidSignature)
         );
         assert_eq!(
             verify_challenge_bound_quorum(
-                &f.pins(), challenge(NEW_NONCE), &f.receipts(NEW_NONCE),
-                4, state(8, [31; 32])
+                &f.pins(),
+                challenge(NEW_NONCE),
+                &f.receipts(NEW_NONCE),
+                4,
+                state(8, [31; 32])
             ),
             Err(QuorumError::LocalRollbackOrFork)
         );

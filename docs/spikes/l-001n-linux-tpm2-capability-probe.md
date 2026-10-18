@@ -18,6 +18,17 @@ The Rust tests inject TPM response frames and cover a correct fixed-property/NV 
 
 For independent reference, the Linux kernel documents `tpm_version_major` at `Documentation/ABI/stable/sysfs-class-tpm`. The upstream tpm2-tools `tpm2_getcap` documentation shows `properties-fixed` and `handles-nv-index` capability queries; `tpm2_nvreadpublic` describes inspection of NV metadata. The actual Loom probe does not spawn shell commands or depend on tpm2-tools.
 
+
+### Run the read-only experiment on Linux
+
+On an opted-in disposable Linux test system with permission to access the TPM resource-manager device, invoke:
+
+```bash
+cargo run -p loom-store --example probe_tpm2 --locked
+```
+
+The example prints only the device index, family and manufacturer IDs, an NV handle page and explicit `Hardware verified: false`, `Safe independent high-water: false`, `ServiceOpen: disabled`. Missing device, denied permissions, unsupported platform, malformed TPM response or wrong reported family exits nonzero (code 2). This example is *not* invoked by the default `loomd` bootstrap, and writes no NV. Run it under external supervision, because a faulty kernel/driver may block indefinitely.
+
 ## Real-device test gate (not executed in GitHub CI)
 
 1. Record exact Linux kernel, TPM vendor/firmware, `/sys/class/tpm` and `/dev/tpmrmN` permissions. Run `probe_linux_tpm2` against a **disposable test device** and record family, manufacturer, the NV handle page, TPM error status and read-only log. No secrets or private authorization values may be logged.

@@ -4478,11 +4478,13 @@ mod tests {
         let (started_tx, started_rx) = mpsc::channel::<()>();
         let (finished_tx, finished_rx) = mpsc::channel::<()>();
         thread::scope(|scope| {
-            let writer = scope.spawn(|| {
+            let writer_journal = &journal;
+            let writer = scope.spawn(move || {
                 go_rx.recv().unwrap();
                 started_tx.send(()).unwrap();
                 let cancel = signed_cancellation(2);
-                let result = journal.append(root_pin(), genesis, NewPolicyEvent::Cancel(&cancel));
+                let result =
+                    writer_journal.append(root_pin(), genesis, NewPolicyEvent::Cancel(&cancel));
                 finished_tx.send(()).unwrap();
                 result
             });

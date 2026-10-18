@@ -118,7 +118,9 @@ fn parse_response(
     if count > max_count {
         return Err(TpmProbeError::MalformedResponse);
     }
-    let item_len = if capability == TPM_CAP_HANDLES { 4usize } else if capability == TPM_CAP_PROPERTIES {
+    let item_len = if capability == TPM_CAP_HANDLES {
+        4usize
+    } else if capability == TPM_CAP_PROPERTIES {
         8usize
     } else {
         return Err(TpmProbeError::CapabilityMismatch);
@@ -135,16 +137,17 @@ fn parse_response(
             values.push((u32_at(offset), u32_at(offset + 4)));
         }
     }
-    Ok(CapabilityPage { more: bytes[10] == 1, values })
+    Ok(CapabilityPage {
+        more: bytes[10] == 1,
+        values,
+    })
 }
 
-fn property(
-    io: &mut impl TpmTransport,
-    property: u32,
-) -> Result<u32, TpmProbeError> {
+fn property(io: &mut impl TpmTransport, property: u32) -> Result<u32, TpmProbeError> {
     let message = io.exchange(&request(TPM_CAP_PROPERTIES, property, 1))?;
     let page = parse_response(&message, TPM_CAP_PROPERTIES, 1)?;
-    if page.more || page.values.as_slice().first().map(|&(key, _)| key) != Some(property)
+    if page.more
+        || page.values.as_slice().first().map(|&(key, _)| key) != Some(property)
         || page.values.len() != 1
     {
         return Err(TpmProbeError::CapabilityMismatch);
@@ -201,14 +204,20 @@ mod linux {
 
     impl TpmTransport for Device {
         fn exchange(&mut self, command: &[u8]) -> Result<Vec<u8>, TpmProbeError> {
-            let written = self.0.write(command).map_err(|_| TpmProbeError::PermissionOrIo)?;
+            let written = self
+                .0
+                .write(command)
+                .map_err(|_| TpmProbeError::PermissionOrIo)?;
             if written != command.len() {
                 return Err(TpmProbeError::PermissionOrIo);
             }
             // A single read is used: the Linux TPM character-device ABI
             // presents a response message, not a streaming protocol.
             let mut response = [0u8; MAX_REPLY];
-            let count = self.0.read(&mut response).map_err(|_| TpmProbeError::PermissionOrIo)?;
+            let count = self
+                .0
+                .read(&mut response)
+                .map_err(|_| TpmProbeError::PermissionOrIo)?;
             if count < 10 {
                 return Err(TpmProbeError::MalformedResponse);
             }
@@ -224,7 +233,9 @@ mod linux {
                 Err(e) if e.kind() == std::io::ErrorKind::NotFound => continue,
                 Err(_) => return Err(TpmProbeError::PermissionOrIo),
             };
-            let version: u32 = version.trim().parse()
+            let version: u32 = version
+                .trim()
+                .parse()
                 .map_err(|_| TpmProbeError::MalformedResponse)?;
             if version != 2 {
                 continue;
@@ -241,7 +252,10 @@ mod linux {
             if !metadata.file_type().is_char_device() {
                 return Err(TpmProbeError::NotCharacterDevice);
             }
-            let file = OpenOptions::new().read(true).write(true).open(path)
+            let file = OpenOptions::new()
+                .read(true)
+                .write(true)
+                .open(path)
                 .map_err(|_| TpmProbeError::PermissionOrIo)?;
             return probe_with_transport(version, index, &mut Device(file));
         }
@@ -274,12 +288,17 @@ mod tests {
     }
     impl Mock {
         fn new(frames: Vec<Vec<u8>>) -> Self {
-            Self { frames, calls: Vec::new() }
+            Self {
+                frames,
+                calls: Vec::new(),
+            }
         }
     }
     impl TpmTransport for Mock {
         fn exchange(&mut self, command: &[u8]) -> Result<Vec<u8>, TpmProbeError> {
-            let command: [u8; 22] = command.try_into().map_err(|_| TpmProbeError::MalformedResponse)?;
+            let command: [u8; 22] = command
+                .try_into()
+                .map_err(|_| TpmProbeError::MalformedResponse)?;
             self.calls.push(command);
             if self.frames.is_empty() {
                 return Err(TpmProbeError::PermissionOrIo);
@@ -308,9 +327,21 @@ mod tests {
 
     fn valid() -> Mock {
         Mock::new(vec![
-            response(TPM_CAP_PROPERTIES, &[(TPM_PT_FAMILY_INDICATOR, TPM_FAMILY_20)], false),
-            response(TPM_CAP_PROPERTIES, &[(TPM_PT_MANUFACTURER, 0x494e5443)], false),
-            response(TPM_CAP_HANDLES, &[(TPM_NV_FIRST + 1, 0), (TPM_NV_FIRST + 3, 0)], false),
+            response(
+                TPM_CAP_PROPERTIES,
+                &[(TPM_PT_FAMILY_INDICATOR, TPM_FAMILY_20)],
+                false,
+            ),
+            response(
+                TPM_CAP_PROPERTIES,
+                &[(TPM_PT_MANUFACTURER, 0x494e5443)],
+                false,
+            ),
+            response(
+                TPM_CAP_HANDLES,
+                &[(TPM_NV_FIRST + 1, 0), (TPM_NV_FIRST + 3, 0)],
+                false,
+            ),
         ])
     }
 
@@ -322,19 +353,34 @@ mod tests {
         assert_eq!(result.manufacturer, 0x494e5443);
         assert!(!result.device_certified && !result.anchor_ready);
         assert_eq!(mock.calls.len(), 3);
-        assert_eq!(mock.calls[0], request(TPM_CAP_PROPERTIES, TPM_PT_FAMILY_INDICATOR, 1));
-        assert_eq!(mock.calls[1], request(TPM_CAP_PROPERTIES, TPM_PT_MANUFACTURER, 1));
-        assert_eq!(mock.calls[2], request(TPM_CAP_HANDLES, TPM_NV_FIRST, MAX_NV_PAGE));
+        assert_eq!(
+            mock.calls[0],
+            request(TPM_CAP_PROPERTIES, TPM_PT_FAMILY_INDICATOR, 1)
+        );
+        assert_eq!(
+            mock.calls[1],
+            request(TPM_CAP_PROPERTIES, TPM_PT_MANUFACTURER, 1)
+        );
+        assert_eq!(
+            mock.calls[2],
+            request(TPM_CAP_HANDLES, TPM_NV_FIRST, MAX_NV_PAGE)
+        );
     }
 
     #[test]
     fn cannot_fallback_to_v1_or_wrong_reported_family() {
         let mut mock = valid();
-        assert_eq!(probe_with_transport(1, 0, &mut mock), Err(TpmProbeError::VersionNotTwo));
+        assert_eq!(
+            probe_with_transport(1, 0, &mut mock),
+            Err(TpmProbeError::VersionNotTwo)
+        );
         assert_eq!(mock.calls.len(), 0);
         let mut mock = valid();
         mock.frames[0] = response(TPM_CAP_PROPERTIES, &[(TPM_PT_FAMILY_INDICATOR, 0)], false);
-        assert_eq!(probe_with_transport(2, 0, &mut mock), Err(TpmProbeError::VersionNotTwo));
+        assert_eq!(
+            probe_with_transport(2, 0, &mut mock),
+            Err(TpmProbeError::VersionNotTwo)
+        );
     }
 
     #[test]
@@ -349,10 +395,16 @@ mod tests {
         let mut wrong_tag = good.clone();
         wrong_tag[0..2].copy_from_slice(&0x8002u16.to_be_bytes());
         assert!(parse_response(&wrong_tag, TPM_CAP_HANDLES, MAX_NV_PAGE).is_err());
-        assert!(matches!(parse_response(&good, TPM_CAP_PROPERTIES, 32), Err(TpmProbeError::CapabilityMismatch)));
+        assert!(matches!(
+            parse_response(&good, TPM_CAP_PROPERTIES, 32),
+            Err(TpmProbeError::CapabilityMismatch)
+        ));
         let mut error = good;
         error[6..10].copy_from_slice(&0x922u32.to_be_bytes());
-        assert_eq!(parse_response(&error, TPM_CAP_HANDLES, 32).err(), Some(TpmProbeError::TpmRejected(0x922)));
+        assert_eq!(
+            parse_response(&error, TPM_CAP_HANDLES, 32).err(),
+            Some(TpmProbeError::TpmRejected(0x922))
+        );
     }
 
     #[test]
@@ -364,7 +416,10 @@ mod tests {
         ] {
             let mut mock = valid();
             mock.frames[2] = response(TPM_CAP_HANDLES, &items, false);
-            assert_eq!(probe_with_transport(2, 0, &mut mock), Err(TpmProbeError::MalformedResponse));
+            assert_eq!(
+                probe_with_transport(2, 0, &mut mock),
+                Err(TpmProbeError::MalformedResponse)
+            );
         }
     }
 
@@ -382,13 +437,25 @@ mod tests {
         let candidate = probe_with_transport(2, 0, &mut mock).unwrap();
         let space = SpaceId::from_bytes([1; 16]);
         let resource = ResourceId::from_bytes([2; 16]);
-        assert_eq!(candidate.read(space, resource), Err(UnifiedAnchorError::MissingOrUntrusted));
+        assert_eq!(
+            candidate.read(space, resource),
+            Err(UnifiedAnchorError::MissingOrUntrusted)
+        );
         let placeholder = UnifiedPolicyHighWater {
-            space, resource, root_public_key: [1; 32], root_key_epoch: 1,
-            genesis_manifest: [2; 32], current_manifest: [2; 32], writer_epoch: 1,
-            policy_sequence: 0, policy_head: [0; 32], revocation_root: [0; 32],
+            space,
+            resource,
+            root_public_key: [1; 32],
+            root_key_epoch: 1,
+            genesis_manifest: [2; 32],
+            current_manifest: [2; 32],
+            writer_epoch: 1,
+            policy_sequence: 0,
+            policy_head: [0; 32],
+            revocation_root: [0; 32],
         };
-        assert_eq!(candidate.compare_and_advance(placeholder, placeholder),
-            Err(UnifiedAnchorError::MissingOrUntrusted));
+        assert_eq!(
+            candidate.compare_and_advance(placeholder, placeholder),
+            Err(UnifiedAnchorError::MissingOrUntrusted)
+        );
     }
 }

@@ -73,3 +73,6 @@ pub mod legacy_migration;
 
 /// Read-only signed legacy evidence inspection; no automatic schema conversion.
 pub mod legacy_history_audit;
+
+/// L-001M behavioral adapter probe; never physical device certification.
+pub mod anchor_conformance;

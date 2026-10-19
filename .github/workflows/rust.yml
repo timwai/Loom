@@ -83,7 +83,7 @@ jobs:
   prune-integrated-branches:
     name: Remove already integrated legacy branch refs
     if: github.event_name == 'push' && github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, '[loom-branch-prune]')
-    needs: [lint-and-test, dependency-policy, wire01-four-languages, l001-milestone-truth, rust-host-portability]
+    needs: [lint-and-test, dependency-policy, wire01-four-languages, l001-milestone-truth]
     runs-on: ubuntu-latest
     permissions:
       contents: write

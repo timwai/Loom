@@ -105,3 +105,7 @@ pub mod independent_reservation_fence_model;
 /// L-002B cross-platform provider capability model and volatile software
 /// settings implementation. No real trusted platform provider or admission.
 pub mod trusted_state_provider;
+
+/// L-002C TPM-free, two-pinned-Witness challenge/response high-water verifier.
+/// Signature and state checks are diagnostics only, not ServiceOpen authority.
+pub mod challenge_witness_quorum;

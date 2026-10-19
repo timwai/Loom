@@ -1,6 +1,6 @@
 # Loom v1.1 — implementation and release acceptance gates
 
-> Updated 2026-10-18. **L-001 NOT COMPLETE.** The Rust PoC branches have been consolidated into `main`. Historical Draft PRs remain review evidence; code integration does **not** satisfy production security or platform acceptance. A green PR workflow is not security-release approval. Source of truth: [status](STATUS.md), [machine-readable milestone](acceptance/l001.json), and [verification script](../scripts/l001_gate.py).
+> Updated 2026-10-18. **L-001 ENGINEERING INTEGRATION COMPLETE; L-001 PRODUCTION RELEASE NOT ACCEPTED.** All PoC branches were consolidated into `main` by PR #38 with full host CI. This is source-code completion, **not** signed security/hardware/platform acceptance; the independent L-001 release manifest stays blocked. A green PR workflow is not security-release approval. Source of truth: [status](STATUS.md), [machine-readable milestone](acceptance/l001.json), and [verification script](../scripts/l001_gate.py).
 
 ## Fixed provenance and scope
 
@@ -39,4 +39,4 @@ Engineering can advance the original L-001A/B/C/D code, but real TPM sacrificial
 
 **No-Go:** public WAN relay, traffic interception without OS approval, auto-ban of self-reported RDP IP, automatic trust restoration from legacy databases, unverifiable signer/witness credentials, claimed Rust performance superiority without measurement, or any production ServiceOpen before nine-gate and human release sign-off.
 
-L-002 (separate milestone) targets two-Peer LAN file read with Owner ACL and revocation; it does not relax L-001 prerequisites.
+**L-002A has started:** twelve test-only Rust model cases for two-Peer LAN file reads with simulated Owner ACL, exact Space/Peer/Resource/Epoch binding and revoke-on-next-chunk behavior. This is not a real LAN transfer and cannot relax any L-001 release gate; see [L-002A test plan](spikes/l-002a-lan-file-read-model.md).

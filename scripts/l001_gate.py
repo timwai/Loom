@@ -19,6 +19,14 @@ STATES = {"blocked", "partial", "passed"}
 def validate() -> tuple[bool, list[str]]:
     data = json.loads(MANIFEST.read_text(encoding="utf-8"))
     assert data["milestone"] == "L-001", "wrong milestone"
+    engineering = data.get("engineering", {})
+    if engineering:
+        assert engineering.get("status") in {"pending", "complete"}, "invalid engineering state"
+        if engineering["status"] == "complete":
+            main_sha = engineering.get("integrated_main_commit", "")
+            assert isinstance(main_sha, str) and len(main_sha) == 40
+            assert all(c in "0123456789abcdef" for c in main_sha), "invalid integration SHA"
+            assert engineering.get("scope"), "missing engineering-only scope"
     checks = data["checks"]
     ids = [item["id"] for item in checks]
     assert set(ids) == REQUIRED and len(ids) == len(REQUIRED), "gate set incomplete"

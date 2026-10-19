@@ -2,7 +2,7 @@
 
 Rust-first, **peer-oriented** private networking and device services platform. Loom is the new independent project for the RelayProxy Rust rewrite and decentralized Peer Mesh design.
 
-**Status: integrated Rust security-engineering PoCs on `main` / NOT production-ready.** The historical stacked development branches have been consolidated into the default branch. This is a source-code integration, **not** an L-001 release approval. `loomd` remains disabled: no network listener, ServiceOpen, resource admission, proxy modification, operating-system driver, or VPN is enabled. Real independent anti-rollback storage, hardware acceptance and reviewed authorization remain NO-GO.
+**Status: L-001 engineering-integrated / L-001 release BLOCKED / L-002A model development underway.** The historical stacked development branches have been consolidated into the default branch. This is a source-code integration, **not** an L-001 release approval. `loomd` remains disabled: no network listener, ServiceOpen, resource admission, proxy modification, operating-system driver, or VPN is enabled. Real independent anti-rollback storage, hardware acceptance and reviewed authorization remain NO-GO.
 
 ## Architecture
 
@@ -32,7 +32,7 @@ The `loomd` bootstrap command only prints its disabled-runtime state. A passing 
 - [Review tracker](docs/review-tracker.md)
 - [Implementation status](docs/STATUS.md)
 
-**Next gates:** reconcile sibling security PRs (including mirror integrity), independently authenticate/replay a single unified policy journal, design a durable high-water provider with signed recovery, then run real OS networking and two-Peer LAN validation. See [current development progress](docs/STATUS.md) and [L-001P integration notes](docs/spikes/l-001p-unified-mirror-reconciliation.md). Do not merge a leaf Draft PR directly to `main` without its dependencies and threat-model review.
+**Next development:** L-002A begins a deliberately test-only two-Peer LAN file-read/revocation model. Engineering integration of the L-001 PoCs is complete; its separate hardware, cross-platform, signed-authorization and ServiceOpen release acceptance remains BLOCKED. See [implementation gates](docs/implementation-gates.md), [L-001 evidence](docs/acceptance/l001.json) and [L-002A test plan](docs/spikes/l-002a-lan-file-read-model.md).
 
 ## Compatibility and licensing
 

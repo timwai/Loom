@@ -1,18 +1,18 @@
 # Loom — implementation status and security gates
 
-> Updated: **2026-10-18**, through Draft PR #37 (L-001AD). Source of truth: repository branches, pull requests and GitHub Actions. Historic PR stages below describe how the PoC was developed. The branches are being consolidated onto **`main`**; this does **not** mean production readiness or L-001 acceptance.
+> Updated: **2026-10-18**. L-001 PoC engineering integration finished in [PR #38](https://github.com/timwai/Loom/pull/38) at `d50eae4`; all historical branches were safely pruned. L-001 formal security/platform **release acceptance remains BLOCKED**. L-002A development has begun on a new feature branch.
 
 ## Executive status
 
-**SECURITY_ENGINEERING_POC / INTEGRATED_MAIN / L-001_BLOCKED / NO_SERVICE_OPEN / NO_DEPLOYABLE_MESH**
+**L-001_ENGINEERING_COMPLETE / L-001_RELEASE_BLOCKED / L-002A_TEST_ONLY / NO_SERVICE_OPEN / NO_DEPLOYABLE_MESH**
 
-- The full stacked Rust PoC plus independent L-001A/B/J sibling histories is integrated on `main`. CI remains mandatory; **L-001A/B/C/D release gates remain incomplete**.
+- **L-001 engineering integration completed**: all stacked Rust PoCs plus separate L-001A/B/J histories are on `main`, merge `d50eae4` with full Ubuntu/Windows/macOS CI green. All obsolete branches and 32 obsolete Draft PRs are closed. This is not final acceptance: the nine L-001A/B/C/D security/platform release gates and four signoffs are **still incomplete**.
 - The integrated workspace has eight Rust library crates, a `loomd` binary that does not start a service, signed protocol/Owner-lifecycle verifiers, SQLite policy journals, witness/rollback models and a **read-only** Linux TPM2 probe.
 - Latest L-001O branch head `4683c432dd4b2530fcd4bd8db39c6bf03b5a3945` passed GitHub Actions (Rust fmt, workspace tests, Clippy with `-D warnings`, docs, dependency policy); see [run 39083991175](https://github.com/timwai/Loom/actions/runs/39083991175).
 - **L-001P / PR #23** restored L-001J mirror-integrity checks; L-001Q / PR #24 tied SQLite signed journal replay to candidate counter steps; L-001R / PR #25 requires the prior committed policy to match the actual signed historical prefix. **L-001S** adds a deterministic simulated durable Prepared-intent medium with eight power-cut points, boot-bound handles and signed journal integration tests. **L-001T** adds fixed-width Ed25519 signed intent record parsing and independent signer, scope and replay-fence verification. **L-001U** introduces a read-only CandidateIntentStore adapter that authenticates every load before signed journal-bound recovery may inspect it; all writes are refused. **L-001V** separately models externally signed Prepared/Committed writes and record+replay-fence atomic CAS. **L-001W** models out-of-band-approved signer epoch rotation, two additional crash cuts, concurrent old-signer race refusal and device-reset fail-closed behavior. **L-001X** adds independent short journal preflight and signed revalidation around external work. **L-001Y** adds a process-local versioned single-use journal reservation sharing append's gate: signed append invalidates tickets, final replay and simulated CAS are serialized, and post-Prepared revocation marks the candidate stale. **L-001Z** detects signed journal/mirror changes made by a second actor or raw SQLite writer during model Prepared CAS through a final full replay, rejecting stale success and quarantining. **L-001AA** adds a separate restart-retained *logical in-memory* reservation fence, six simulated crash cuts and explicit tests of non-participating writers. No cross-process durable reservation or physical TPM writes exist.
 - A green test suite verifies isolated PoCs only. There is no production-admission authorization, usable Mesh service, production TPM anchor, deployment or hardware security certificate.
 
-## What exists on development branches
+## Historical milestones integrated into main
 
 | Area | Existing evidence / implementation | Actual status |
 |---|---|---|
@@ -41,6 +41,12 @@
 | L-001AD, PR #37 | Add Windows/macOS hosted Rust workspace matrix with locked TLS/crypto/journal tests in GitHub Actions | Host Rust portability smoke only; neither actual Windows filter/macos Network Extension nor Android VpnService `PLATFORM-*` pass |
 
 **Branch topology caveat:** PRs #6 (wire), #7 (channel) and #16 (mirror integrity) branch from earlier ancestors; they are not all ancestors of PR #22. Count of open Draft PRs is not a count of integrated features. Do not merge leaf PRs into `main` out of order. Review and reconcile branches explicitly.
+
+## L-002 kickoff — two-Peer LAN file read and revoke
+
+- L-002A starts with `crates/loom-core/src/lan_file_read_model.rs`, a **`#[cfg(test)]`-only** in-memory single-resource file-read protocol with explicit fake Owner grants, Peer/Space/resource/epoch scoping, bounded chunks and per-chunk authorization rechecks.
+- Twelve negative and positive tests cover default deny, exact Peer scope, partial reads, revoke-kills-active-stream, re-grant replay prevention, membership epoch changes, concurrent revocation, input bounds, fresh-process default deny and preserved production DenyAllPolicy.
+- **This is not a production Peer-to-Peer server**. The fake grant is not signed, membership is caller-supplied, no real disk/path is accessed, and no network/TLS/ServiceOpen is used. L-001 release acceptance still blocks deployment.
 
 ## Current P0 update after L-001AD
 

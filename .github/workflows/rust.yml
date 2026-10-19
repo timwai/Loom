@@ -92,13 +92,17 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const expected = {"chore/consolidate-loom-branches":"STAGE_SHA_REPLACE","feat/l-000-rust-foundation":"505aaa15fe1cb0d995b96ee0e4ea405e4dfc0a73","feat/l-001a-secure-peer-channel":"465117ac8dad8feea58029d8b092f7cce33f2061","feat/l-001aa-restart-retained-fence-model":"be5b72041661df545353dc3fc69cfe9bf7926ef0","feat/l-001ab-wire01-multilang-conformance":"e08f85f7ad95e3ce0a0e8b4d8db391934ad381d7","feat/l-001abc-verified-revocations":"e00a433b5ab53e73fe46f3a43ec4b704a6e1e103","feat/l-001ac-secure-channel-stack-integration":"0b2ae658d2ff670edd4b03a6bbe4c185a10c250e","feat/l-001ad-host-portability-smoke":"64d650130e31e2bb97b683cf0c09600ba33764c6","feat/l-001b-canonical-wire":"fb2fce356678461ad82889ab8aa3cb632e066883","feat/l-001c-revocation-store":"5e312625c155c9e47c114a85d05e697186686bad","feat/l-001d-owner-revocation-chain":"916a2371fd12195eae361abc07dd74688596fda2","feat/l-001e-witnessed-rollback-recovery":"6ee90e013ef13e6059c93f53c0e34ac3b5aba632","feat/l-001f-root-bound-witness-replay":"7eb7e0d4fbc2fa3b4ac4252148c6b64f420749d8","feat/l-001g-root-rotation-highwater":"c7472ee700c04b25860bd3dc6061b19c9b5c4f22","feat/l-001h-owner-lifecycle":"6df545d05e4651230029b31130cb813f3aa3e942","feat/l-001i-unified-policy-journal":"5f07242caaaf52fba61ef711e33046f85ed2b8da","feat/l-001j-journal-integrity":"e435d3de2003144bb155bc72c56672774aca04e5","feat/l-001j-unified-witness-anchor":"ad36854a0a29d64ef13d79d534aa1e0d7878f31f","feat/l-001k-recovery-migration-guard":"dc94dae5f2e529ca2e8a2fc83fb3f88ea9868514","feat/l-001l-legacy-migration-audit":"24b56b364f2eb9f3e92a276dc12ec3ff0f823c77","feat/l-001m-anchor-conformance-harness":"26c5887eae6c016231d100a8d13308b0efc369f5","feat/l-001n-linux-tpm-probe":"ef29c9f87212ac4e38098013c3defd41ef8b69ee","feat/l-001o-tpm-counter-binding-model":"4683c432dd4b2530fcd4bd8db39c6bf03b5a3945","feat/l-001p-unified-mirror-reconciliation":"b5c6083ceaded8ee4be3e575709d4c0508fc2d7a","feat/l-001q-journal-bound-counter-gate":"d2c9840721b691752d8eb5bffb977e00b4adffaf","feat/l-001r-signed-prefix-crash-matrix":"a860dfbeb330522aeb6d55e0df7563fb3520f12b","feat/l-001s-durable-intent-crash-simulator":"2f10d0680d072d24573fcc479404577ef95e8285","feat/l-001t-authenticated-intent-record":"88cd660c8525d18f95b15f81991d097efb43a835","feat/l-001u-authenticated-intent-read-gate":"3a591f51ba8b27d3b682c3796cf93e9fc939d114","feat/l-001v-authenticated-write-cas-model":"104aeded6d0b9e147cc6d9810d687522276bbf23","feat/l-001w-rotation-fence-protocol":"5f679e831f027e22957eb603246c10555d04da91","feat/l-001x-nonblocking-journal-preflight":"d425a6e9639a70b58580d0d2503721878fb084f1","feat/l-001y-versioned-journal-reservation":"8eb72dde322c0def2884ab64fd2383d4eb4a6454","feat/l-001z-cross-instance-postflight":"77ec67875bd671605b70bf164dd6ba0a45c37d28"};
+            const expected = {"feat/l-002a-lan-file-read-revoke-model":"5e5d2142fe128988b6abc10d4594999f94a3c2a7","feat/l-002b-hardware-agnostic-trust-provider":"1bdafeb10c80265a90d5253de2629de65eb2381c","feat/l-002c-challenge-bound-witness-quorum":"563c9bc4b96c5831313b419cb86a4756e5d93def"};
             const { owner, repo } = context.repo;
             const deleted = [], skipped = [];
             for (const [name, sha] of Object.entries(expected)) {
               try {
+                if (name === 'main' || !name.startsWith('feat/l-002')) {
+                  skipped.push(name + ': unexpected deletion target');
+                  continue;
+                }
                 const ref = await github.rest.git.getRef({owner, repo, ref: 'heads/' + name});
-                if (sha !== 'STAGE_SHA_REPLACE' && ref.data.object.sha !== sha) {
+                if (ref.data.object.sha !== sha) {
                   skipped.push(name + ': changed since inventory');
                   continue;
                 }

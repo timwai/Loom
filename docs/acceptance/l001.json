@@ -31,13 +31,13 @@
       "id": "AUTHZ-CRASH-02",
       "phase": "L-001C",
       "state": "partial",
-      "reason": "No physical power-cut recovery acceptance"
+      "reason": "Real crash/power-loss recovery unverified for any independently trusted-state backend (TPM optional, verified quorum alternative)"
     },
     {
       "id": "ROLLBACK-01",
       "phase": "L-001C",
       "state": "partial",
-      "reason": "No real independently protected anti-rollback anchor"
+      "reason": "No independently verified nonrollbackable anchor: TPM 2.0 is optional; vetted platform or external Witness quorum required for equivalent assurance"
     },
     {
       "id": "PLATFORM-ANDROID-01",
@@ -60,14 +60,28 @@
   ],
   "signoffs": {
     "security": null,
-    "hardware": null,
     "interop": null,
-    "platform": null
+    "platform": null,
+    "trusted_state": null
   },
   "engineering": {
     "status": "complete",
     "completed_on": "2026-10-18",
     "integrated_main_commit": "d50eae4ac1668fb596c829f9e09e93b85bd59dc8",
     "scope": "Rust proof-of-concept engineering and consolidation completed; this is NOT L-001 security/platform release acceptance."
+  },
+  "provider_policy": {
+    "mode": "hardware_agnostic",
+    "tpm_required": false,
+    "software_baseline": "portable_local_only",
+    "high_assurance": "independently_verified_scoped_freshness_and_crash_recovery",
+    "no_silent_downgrade": true,
+    "provider_backends": [
+      "software",
+      "optional_tpm2",
+      "optional_secure_enclave",
+      "optional_android_keystore",
+      "optional_independent_quorum"
+    ]
   }
 }

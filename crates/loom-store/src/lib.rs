@@ -101,3 +101,7 @@ pub mod authenticated_intent_write_model;
 /// L-001AA logical restart-retained journal reservation CAS simulator.
 /// No real durable independent fence or TPM NV hardware is implemented.
 pub mod independent_reservation_fence_model;
+
+/// L-002B cross-platform provider capability model and volatile software
+/// settings implementation. No real trusted platform provider or admission.
+pub mod trusted_state_provider;

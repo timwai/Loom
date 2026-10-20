@@ -1,0 +1,9 @@
+Starting: Intent { act=android.settings.VPN_SETTINGS }
+Status: ok
+LaunchState: WARM
+Activity: com.android.settings/.Settings$VpnSettingsActivity
+TotalTime: 349
+WaitTime: 351
+Complete
+
+STDERR:

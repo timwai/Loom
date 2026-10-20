@@ -65,3 +65,9 @@ pub mod root_rotation;
 
 /// Candidate ordered Owner transfer/delegation cancellation verifier (no ServiceOpen).
 pub mod owner_lifecycle;
+
+/// Candidate Root-delegated membership credential verifier; no Resource grant.
+pub mod membership;
+
+/// Candidate Owner grant verification; does not construct an admission permit.
+pub mod resource_grant;

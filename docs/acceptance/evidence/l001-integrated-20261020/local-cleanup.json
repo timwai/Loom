@@ -1,0 +1,38 @@
+[
+  {
+    "argv": [
+      "docker",
+      "rm",
+      "-f",
+      "loom-l001-integrated-builder"
+    ],
+    "exit_code": 0,
+    "stdout": "loom-l001-integrated-builder\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/Users/will/Library/Android/sdk/platform-tools/adb",
+      "disconnect",
+      "127.0.0.1:15556"
+    ],
+    "exit_code": 0,
+    "stdout": "disconnected 127.0.0.1:15556\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "ssh",
+      "-S",
+      "target/l001-remote/ssh.sock",
+      "-p",
+      "22",
+      "-O",
+      "exit",
+      "root@jp.tingjusting.fun"
+    ],
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": "Exit request sent.\n"
+  }
+]

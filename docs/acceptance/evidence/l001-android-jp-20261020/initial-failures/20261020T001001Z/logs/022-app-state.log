@@ -1,0 +1,2 @@
+{"lab_only":true,"uid":10087,"mode":"probe","prepare_requires_consent":true,"consent_result_ok":true,"foreground_started":true,"prepared_after_consent":true,"protect_before_connect":true,"error":"java.lang.IllegalStateException: Cannot create interface","state":"failed","protected_socket_closed":true,"on_destroy":true}
+STDERR:

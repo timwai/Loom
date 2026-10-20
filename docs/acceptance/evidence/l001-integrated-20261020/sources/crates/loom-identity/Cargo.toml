@@ -1,0 +1,13 @@
+[package]
+name = "loom-identity"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+
+[dependencies]
+loom-types = { path = "../loom-types" }
+loom-crypto = { path = "../loom-crypto" }
+
+[lints]
+workspace = true

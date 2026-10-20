@@ -1,0 +1,13 @@
+{"listening":"0.0.0.0:38443","lab_only":true}
+
+STDERR:
+lab association rejected: HandshakeFailed
+lab association rejected: HandshakeFailed
+lab association rejected: InvalidSpace
+lab association rejected: InvalidEpoch
+lab association rejected: HandshakeFailed
+lab association rejected: HandshakeFailed
+lab association rejected: HandshakeFailed
+lab association rejected: InvalidSpace
+lab association rejected: InvalidEpoch
+lab association rejected: HandshakeFailed

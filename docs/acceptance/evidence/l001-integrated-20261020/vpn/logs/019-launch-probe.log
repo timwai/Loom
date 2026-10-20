@@ -1,0 +1,9 @@
+Starting: Intent { flg=0x10008000 cmp=fun.loom.lab/.ProbeActivity (has extras) }
+Status: ok
+LaunchState: COLD
+Activity: com.android.vpndialogs/.ConfirmDialog
+TotalTime: 651
+WaitTime: 656
+Complete
+
+STDERR:

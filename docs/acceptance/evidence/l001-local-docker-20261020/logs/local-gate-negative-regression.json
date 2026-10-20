@@ -1,0 +1,30 @@
+{
+  "failed_build": {
+    "rejected": true,
+    "reason": "missing or failed command: host-release-build"
+  },
+  "missing_quorum_refusal": {
+    "rejected": true,
+    "reason": "'valid_old_local_backup'"
+  },
+  "rollback_accepted": {
+    "rejected": true,
+    "reason": "missing quorum refusal: valid_old_local_backup"
+  },
+  "falsified_release": {
+    "rejected": true,
+    "reason": "lab run cannot certify release or invent performance thresholds"
+  },
+  "changed_source": {
+    "rejected": true,
+    "reason": "source freshness unverified"
+  },
+  "missing_network_negative": {
+    "rejected": true,
+    "reason": "channel rejection coverage: linux-host"
+  },
+  "nan_benchmark": {
+    "rejected": true,
+    "reason": "invalid performance samples"
+  }
+}

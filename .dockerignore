@@ -1,0 +1,7 @@
+.git
+target
+**/target
+**/__pycache__
+.env
+.env.*
+.DS_Store

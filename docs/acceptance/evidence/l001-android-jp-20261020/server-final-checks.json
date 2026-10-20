@@ -1,0 +1,62 @@
+{
+  "state": "passed",
+  "captured_epoch": 1792455554.4916914,
+  "kernel": "6.17.0-1011-oracle",
+  "host_rebooted": false,
+  "installed_packages": "linux-modules-extra-6.17.0-1011-oracle\t6.17.0-1011.11~24.04.1\nwireless-regdb\t2026.05.30-0ubuntu1~24.04.1",
+  "psi": "some avg10=0.00 avg60=0.00 avg300=0.00 total=778524519\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=742714212\n",
+  "business_containers": [
+    {
+      "name": "relay-agent",
+      "id": "76f12e1d2543560f6cf963ad58b9c5a57b9b2e1a5f92df96c5f445481bccaf6d",
+      "started_at": "2026-10-18T13:18:42.636007045Z",
+      "restart_count": 0,
+      "running": true
+    },
+    {
+      "name": "aigc_all",
+      "id": "417404125e4d405e6fe1653642ebbe030b6b980d81bb6be71be050773f4c81d5",
+      "started_at": "2026-08-22T14:09:00.549039742Z",
+      "restart_count": 0,
+      "running": true
+    },
+    {
+      "name": "aigc_milvus",
+      "id": "51405f2cbf2fb3bbe36f4c485175f5726f2728fefdab63c718c5feb1540954d5",
+      "started_at": "2026-08-22T14:09:00.263667143Z",
+      "restart_count": 0,
+      "running": true
+    },
+    {
+      "name": "nginx",
+      "id": "27d17ac3deeda016074b220c9a623f14760550760710d54b6e1df7eee94d383c",
+      "started_at": "2026-08-20T08:02:49.350798894Z",
+      "restart_count": 0,
+      "running": true
+    }
+  ],
+  "business_container_identity_and_start_unchanged": true,
+  "android": {
+    "id": "a962f1268280f5913863ffb27adda4671aed7d2af917f662c8186359d02eea62",
+    "started_at": "2026-10-20T00:16:58.165351037Z",
+    "ports": {
+      "18443/tcp": [
+        {
+          "HostIp": "127.0.0.1",
+          "HostPort": "18443"
+        }
+      ],
+      "5555/tcp": [
+        {
+          "HostIp": "127.0.0.1",
+          "HostPort": "15555"
+        }
+      ]
+    },
+    "memory": 3221225472,
+    "cpu": 2000000000,
+    "pids_limit": 4096,
+    "framework": "1\nrunning\n234\n0\nmax 0\nlow 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\ncrw-rw-rw- 1 root root 10, 200 2026-10-20 00:17 /dev/tun\n1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN mode DEFAULT group default qlen 1000\\    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00\n2: eth0@if290: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP mode DEFAULT group default \\    link/ether ce:d5:a7:fa:3c:61 brd ff:ff:ff:ff:ff:ff link-netnsid 0"
+  },
+  "module_vermagic": "6.17.0-1011-oracle SMP mod_unload modversions aarch64"
+}

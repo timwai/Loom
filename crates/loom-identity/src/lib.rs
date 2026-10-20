@@ -1,5 +1,6 @@
 //! Peer identity and space membership proof abstraction.
-//! Real certificate/key binding, revocation and membership verification are NOT implemented.
+//! Signed credential checking is experimental; enrollment, durable revocation
+//! and a coordinated admission barrier remain unimplemented.
 
 use loom_crypto::CryptoError;
 use loom_types::{PeerId, SpaceId};
@@ -13,7 +14,26 @@ pub struct PeerPrincipal {
 
 pub trait MembershipVerifier: Send + Sync {
     fn verify_membership(&self, principal: &PeerPrincipal) -> Result<(), CryptoError>;
+
+    /// Resolve TLS key epoch separately from membership epoch. The default
+    /// preserves legacy diagnostic verifiers; signed credentials override it.
+    fn resolve_principal(
+        &self,
+        peer_id: PeerId,
+        space_id: SpaceId,
+        key_epoch: u64,
+    ) -> Result<PeerPrincipal, CryptoError> {
+        let principal = PeerPrincipal {
+            peer_id,
+            space_id,
+            membership_epoch: key_epoch,
+        };
+        self.verify_membership(&principal)?;
+        Ok(principal)
+    }
 }
+
+pub mod signed_membership;
 
 pub struct RejectUnverifiedMembership;
 

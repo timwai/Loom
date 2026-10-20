@@ -1,0 +1,49 @@
+[
+    {
+        "Id": "sha256:0a611199ba2e0b5d60af39b3327a517f6407231f4352114ed3bd3cbfe2be69aa",
+        "RepoTags": [
+            "redroid/redroid@sha256:0a611199ba2e0b5d60af39b3327a517f6407231f4352114ed3bd3cbfe2be69aa"
+        ],
+        "RepoDigests": [
+            "redroid/redroid@sha256:0a611199ba2e0b5d60af39b3327a517f6407231f4352114ed3bd3cbfe2be69aa"
+        ],
+        "Created": "2024-05-27T16:35:45.060714617Z",
+        "Author": "Ziyang Zhou <ziyang.zhou@outlook.com>",
+        "Config": {
+            "Entrypoint": [
+                "/init",
+                "qemu=1",
+                "androidboot.hardware=redroid"
+            ],
+            "Labels": {
+                "io.buildah.version": "1.33.1"
+            }
+        },
+        "Architecture": "arm64",
+        "Os": "linux",
+        "Size": 674553971,
+        "RootFS": {
+            "Type": "layers",
+            "Layers": [
+                "sha256:2cf13fc966edb94bf8776a3bcecba859dd53cd2cdbcffccb501d4bf80163fc80"
+            ]
+        },
+        "Metadata": {
+            "LastTagTime": "2026-10-20T00:01:55.924556625Z"
+        },
+        "Descriptor": {
+            "mediaType": "application/vnd.oci.image.index.v1+json",
+            "digest": "sha256:0a611199ba2e0b5d60af39b3327a517f6407231f4352114ed3bd3cbfe2be69aa",
+            "size": 491
+        },
+        "Identity": {
+            "Pull": [
+                {
+                    "Repository": "docker.io/redroid/redroid"
+                }
+            ]
+        }
+    }
+]
+
+STDERR:

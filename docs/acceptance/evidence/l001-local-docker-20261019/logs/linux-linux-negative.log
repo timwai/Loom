@@ -1,0 +1,3 @@
+{"negative_cases":[{"case":"wrong_server_pin","rejected":true,"error":"HandshakeFailed"},{"case":"untrusted_client","rejected":true,"error":"HandshakeFailed"},{"case":"wrong_space","rejected":true,"error":"HandshakeFailed"},{"case":"wrong_epoch","rejected":true,"error":"HandshakeFailed"},{"case":"membership_denied","rejected":true,"error":"UntrustedMembership"}]}
+
+STDERR:

@@ -1,0 +1,47 @@
+10-19 23:47:06.470  6593  6593 I lowmemorykiller: No kernel memory.pressure_level support (errno=2)
+10-19 23:47:06.470  6593  6593 E lowmemorykiller: Kernel does not support memory pressure events or in-kernel low memory killer
+10-19 23:47:06.470  6593  6593 I lowmemorykiller: exiting
+10-19 23:47:11.480  6603  6603 I lowmemorykiller: No kernel memory.pressure_level support (errno=2)
+10-19 23:47:11.480  6603  6603 E lowmemorykiller: Kernel does not support memory pressure events or in-kernel low memory killer
+10-19 23:47:11.480  6603  6603 I lowmemorykiller: exiting
+10-19 23:47:16.490  6604  6604 I lowmemorykiller: No kernel memory.pressure_level support (errno=2)
+10-19 23:47:16.490  6604  6604 E lowmemorykiller: Kernel does not support memory pressure events or in-kernel low memory killer
+10-19 23:47:16.490  6604  6604 I lowmemorykiller: exiting
+10-19 23:47:21.500  6629  6629 I lowmemorykiller: No kernel memory.pressure_level support (errno=2)
+10-19 23:47:21.500  6629  6629 E lowmemorykiller: Kernel does not support memory pressure events or in-kernel low memory killer
+10-19 23:47:21.500  6629  6629 I lowmemorykiller: exiting
+10-19 23:47:26.510  6660  6660 I lowmemorykiller: No kernel memory.pressure_level support (errno=2)
+10-19 23:47:26.510  6660  6660 E lowmemorykiller: Kernel does not support memory pressure events or in-kernel low memory killer
+10-19 23:47:26.510  6660  6660 I lowmemorykiller: exiting
+10-19 23:47:31.522  6661  6661 I lowmemorykiller: No kernel memory.pressure_level support (errno=2)
+10-19 23:47:31.522  6661  6661 E lowmemorykiller: Kernel does not support memory pressure events or in-kernel low memory killer
+10-19 23:47:31.522  6661  6661 I lowmemorykiller: exiting
+10-19 23:47:36.546  6674  6674 I lowmemorykiller: No kernel memory.pressure_level support (errno=2)
+10-19 23:47:36.546  6674  6674 E lowmemorykiller: Kernel does not support memory pressure events or in-kernel low memory killer
+10-19 23:47:36.546  6674  6674 I lowmemorykiller: exiting
+10-19 23:47:41.553  6681  6681 I lowmemorykiller: No kernel memory.pressure_level support (errno=2)
+10-19 23:47:41.553  6681  6681 E lowmemorykiller: Kernel does not support memory pressure events or in-kernel low memory killer
+10-19 23:47:41.553  6681  6681 I lowmemorykiller: exiting
+10-19 23:47:46.562  6702  6702 I lowmemorykiller: No kernel memory.pressure_level support (errno=2)
+10-19 23:47:46.562  6702  6702 E lowmemorykiller: Kernel does not support memory pressure events or in-kernel low memory killer
+10-19 23:47:46.562  6702  6702 I lowmemorykiller: exiting
+10-19 23:47:51.570  6703  6703 I lowmemorykiller: No kernel memory.pressure_level support (errno=2)
+10-19 23:47:51.570  6703  6703 E lowmemorykiller: Kernel does not support memory pressure events or in-kernel low memory killer
+10-19 23:47:51.570  6703  6703 I lowmemorykiller: exiting
+10-19 23:47:56.579  6718  6718 I lowmemorykiller: No kernel memory.pressure_level support (errno=2)
+10-19 23:47:56.579  6718  6718 E lowmemorykiller: Kernel does not support memory pressure events or in-kernel low memory killer
+10-19 23:47:56.579  6718  6718 I lowmemorykiller: exiting
+10-19 23:48:01.596  6719  6719 I lowmemorykiller: No kernel memory.pressure_level support (errno=2)
+10-19 23:48:01.596  6719  6719 E lowmemorykiller: Kernel does not support memory pressure events or in-kernel low memory killer
+10-19 23:48:01.596  6719  6719 I lowmemorykiller: exiting
+10-19 23:48:06.608  6721  6721 I lowmemorykiller: No kernel memory.pressure_level support (errno=2)
+10-19 23:48:06.608  6721  6721 E lowmemorykiller: Kernel does not support memory pressure events or in-kernel low memory killer
+10-19 23:48:06.608  6721  6721 I lowmemorykiller: exiting
+10-19 23:48:11.623  6730  6730 I lowmemorykiller: No kernel memory.pressure_level support (errno=2)
+10-19 23:48:11.623  6730  6730 E lowmemorykiller: Kernel does not support memory pressure events or in-kernel low memory killer
+10-19 23:48:11.623  6730  6730 I lowmemorykiller: exiting
+10-19 23:48:16.632  6734  6734 I lowmemorykiller: No kernel memory.pressure_level support (errno=2)
+10-19 23:48:16.632  6734  6734 E lowmemorykiller: Kernel does not support memory pressure events or in-kernel low memory killer
+10-19 23:48:16.632  6734  6734 I lowmemorykiller: exiting
+
+STDERR:

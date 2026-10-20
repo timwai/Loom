@@ -1,0 +1,12 @@
+membership_is_rechecked_after_asynchronous_association: test
+owner_grant_binds_root_resource_member_epochs_actions_and_time: test
+owner_grant_refuses_signed_field_substitution: test
+owner_grant_refuses_stale_policy_and_membership_writer_authority: test
+owner_grant_refuses_tampered_truncated_and_noncanonical_input: test
+paused_membership_refuses_real_tls_association: test
+signed_credentials_bind_tls_key_and_distinct_membership_epoch: test
+tls_key_epoch_cannot_impersonate_membership_epoch: test
+
+8 tests, 0 benchmarks
+
+STDERR:

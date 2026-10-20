@@ -1,0 +1,5 @@
+tests::no_state_can_open_a_resource_without_real_credential: test
+
+1 test, 0 benchmarks
+
+STDERR:

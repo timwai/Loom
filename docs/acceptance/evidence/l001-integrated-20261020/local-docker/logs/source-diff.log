@@ -1,0 +1,1268 @@
+diff --git a/Cargo.lock b/Cargo.lock
+index 68cd29e..78c7053 100644
+--- a/Cargo.lock
++++ b/Cargo.lock
+@@ -14,7 +14,7 @@ dependencies = [
+  "nom",
+  "num-traits",
+  "rusticata-macros",
+- "thiserror",
++ "thiserror 2.0.21",
+  "time",
+ ]
+ 
+@@ -115,6 +115,12 @@ dependencies = [
+  "shlex",
+ ]
+ 
++[[package]]
++name = "cesu8"
++version = "1.1.0"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "6d43a04d8753f35258c91f8ec639f792891f748a1edbd759cf1dcea3382ad83c"
++
+ [[package]]
+ name = "cfg-if"
+ version = "1.0.5"
+@@ -130,6 +136,16 @@ dependencies = [
+  "cc",
+ ]
+ 
++[[package]]
++name = "combine"
++version = "4.6.9"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "4356eba6976435498d05a311ee9fc486da3bc81c200d3f0d7dd9703b41913f92"
++dependencies = [
++ "bytes",
++ "memchr",
++]
++
+ [[package]]
+ name = "const-oid"
+ version = "0.9.6"
+@@ -355,6 +371,50 @@ dependencies = [
+  "hashbrown",
+ ]
+ 
++[[package]]
++name = "jni"
++version = "0.21.1"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "1a87aa2bb7d2af34197c04845522473242e1aa17c12f4935d5856491a7fb8c97"
++dependencies = [
++ "cesu8",
++ "cfg-if",
++ "combine",
++ "jni-sys 0.3.1",
++ "log",
++ "thiserror 1.0.69",
++ "walkdir",
++ "windows-sys 0.45.0",
++]
++
++[[package]]
++name = "jni-sys"
++version = "0.3.1"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "41a652e1f9b6e0275df1f15b32661cf0d4b78d4d87ddec5e0c3c20f097433258"
++dependencies = [
++ "jni-sys 0.4.1",
++]
++
++[[package]]
++name = "jni-sys"
++version = "0.4.1"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "c6377a88cb3910bee9b0fa88d4f42e1d2da8e79915598f65fb0c7ee14c878af2"
++dependencies = [
++ "jni-sys-macros",
++]
++
++[[package]]
++name = "jni-sys-macros"
++version = "0.4.1"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "38c0b942f458fe50cdac086d2f946512305e5631e720728f2a61aabcd47a6264"
++dependencies = [
++ "quote",
++ "syn 2.0.119",
++]
++
+ [[package]]
+ name = "jobserver"
+ version = "0.1.35"
+@@ -394,6 +454,17 @@ version = "0.4.34"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "f9f8bd3e56ce4dfc153cf470fffbfa98c7620958b312ca5c3a4b8d5181fd13c6"
+ 
++[[package]]
++name = "loom-android"
++version = "0.1.0"
++dependencies = [
++ "ed25519-dalek",
++ "jni",
++ "loom-crypto",
++ "loom-types",
++ "loom-wire",
++]
++
+ [[package]]
+ name = "loom-core"
+ version = "0.1.0"
+@@ -449,9 +520,11 @@ dependencies = [
+ name = "loom-transport"
+ version = "0.1.0"
+ dependencies = [
++ "ed25519-dalek",
+  "loom-crypto",
+  "loom-identity",
+  "loom-types",
++ "loom-wire",
+  "rcgen",
+  "sha2",
+  "tokio",
+@@ -486,6 +559,17 @@ version = "0.2.1"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "68354c5c6bd36d73ff3feceb05efa59b6acb7626617f4962be322a825e61f79a"
+ 
++[[package]]
++name = "mio"
++version = "1.2.0"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "50b7e5b27aa02a74bac8c3f23f448f8d87ff11f92d3aac1a6ed369ee08cc56c1"
++dependencies = [
++ "libc",
++ "wasi",
++ "windows-sys 0.61.2",
++]
++
+ [[package]]
+ name = "nom"
+ version = "7.1.3"
+@@ -640,7 +724,7 @@ dependencies = [
+  "getrandom 0.2.17",
+  "libc",
+  "untrusted",
+- "windows-sys",
++ "windows-sys 0.52.0",
+ ]
+ 
+ [[package]]
+@@ -711,6 +795,15 @@ dependencies = [
+  "untrusted",
+ ]
+ 
++[[package]]
++name = "same-file"
++version = "1.0.6"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "93fc1dc3aaa9bfed95e02e6eadabb4baf7e3078b0bd1b4d7b6b0b68378900502"
++dependencies = [
++ "winapi-util",
++]
++
+ [[package]]
+ name = "semver"
+ version = "1.0.28"
+@@ -778,6 +871,16 @@ version = "1.16.3"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "5b3dc8af474f516a851ff4bd12db780f948b9250ad37211e4eec0bccea54e01b"
+ 
++[[package]]
++name = "socket2"
++version = "0.6.3"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "3a766e1110788c36f4fa1c2b71b387a7815aa65f88ce0229841826633d93723e"
++dependencies = [
++ "libc",
++ "windows-sys 0.61.2",
++]
++
+ [[package]]
+ name = "spki"
+ version = "0.7.3"
+@@ -827,13 +930,33 @@ dependencies = [
+  "syn 2.0.119",
+ ]
+ 
++[[package]]
++name = "thiserror"
++version = "1.0.69"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "b6aaf5339b578ea85b50e080feb250a3e8ae8cfcdff9a461c9ec2904bc923f52"
++dependencies = [
++ "thiserror-impl 1.0.69",
++]
++
+ [[package]]
+ name = "thiserror"
+ version = "2.0.21"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "09e52cb86a36cede5cb101bf8908837b3e4c6e5e59fe7fd85c23fb56200d189e"
+ dependencies = [
+- "thiserror-impl",
++ "thiserror-impl 2.0.21",
++]
++
++[[package]]
++name = "thiserror-impl"
++version = "1.0.69"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "4fee6c4efc90059e10f81e6d42c60a18f76588c3d74cb83a0b242a2b6c7504c1"
++dependencies = [
++ "proc-macro2",
++ "quote",
++ "syn 2.0.119",
+ ]
+ 
+ [[package]]
+@@ -884,8 +1007,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "ce3335fa71841cda333a58d7615b03901380ecf09d59b3296d21f8bbac0dde4e"
+ dependencies = [
+  "bytes",
++ "libc",
++ "mio",
+  "pin-project-lite",
++ "socket2",
+  "tokio-macros",
++ "windows-sys 0.61.2",
+ ]
+ 
+ [[package]]
+@@ -939,19 +1066,77 @@ version = "0.9.5"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
+ 
++[[package]]
++name = "walkdir"
++version = "2.5.0"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "29790946404f91d9c5d06f9874efddea1dc06c5efe94541a7d6863108e3a5e4b"
++dependencies = [
++ "same-file",
++ "winapi-util",
++]
++
+ [[package]]
+ name = "wasi"
+ version = "0.11.1+wasi-snapshot-preview1"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "ccf3ec651a847eb01de73ccad15eb7d99f80485de043efb2f370cd654f4ea44b"
+ 
++[[package]]
++name = "winapi-util"
++version = "0.1.11"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
++dependencies = [
++ "windows-sys 0.61.2",
++]
++
++[[package]]
++name = "windows-link"
++version = "0.2.1"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "f0805222e57f7521d6a62e36fa9163bc891acd422f971defe97d64e70d0a4fe5"
++
++[[package]]
++name = "windows-sys"
++version = "0.45.0"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "75283be5efb2831d37ea142365f009c02ec203cd29a3ebecbc093d52315b66d0"
++dependencies = [
++ "windows-targets 0.42.2",
++]
++
+ [[package]]
+ name = "windows-sys"
+ version = "0.52.0"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "282be5f36a8ce781fad8c8ae18fa3f9beff57ec1b52cb3de0789201425d9a33d"
+ dependencies = [
+- "windows-targets",
++ "windows-targets 0.52.6",
++]
++
++[[package]]
++name = "windows-sys"
++version = "0.61.2"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "ae137229bcbd6cdf0f7b80a31df61766145077ddf49416a728b02cb3921ff3fc"
++dependencies = [
++ "windows-link",
++]
++
++[[package]]
++name = "windows-targets"
++version = "0.42.2"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "8e5180c00cd44c9b1c88adb3693291f1cd93605ded80c250a75d472756b4d071"
++dependencies = [
++ "windows_aarch64_gnullvm 0.42.2",
++ "windows_aarch64_msvc 0.42.2",
++ "windows_i686_gnu 0.42.2",
++ "windows_i686_msvc 0.42.2",
++ "windows_x86_64_gnu 0.42.2",
++ "windows_x86_64_gnullvm 0.42.2",
++ "windows_x86_64_msvc 0.42.2",
+ ]
+ 
+ [[package]]
+@@ -960,28 +1145,46 @@ version = "0.52.6"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "9b724f72796e036ab90c1021d4780d4d3d648aca59e491e6b98e725b84e99973"
+ dependencies = [
+- "windows_aarch64_gnullvm",
+- "windows_aarch64_msvc",
+- "windows_i686_gnu",
++ "windows_aarch64_gnullvm 0.52.6",
++ "windows_aarch64_msvc 0.52.6",
++ "windows_i686_gnu 0.52.6",
+  "windows_i686_gnullvm",
+- "windows_i686_msvc",
+- "windows_x86_64_gnu",
+- "windows_x86_64_gnullvm",
+- "windows_x86_64_msvc",
++ "windows_i686_msvc 0.52.6",
++ "windows_x86_64_gnu 0.52.6",
++ "windows_x86_64_gnullvm 0.52.6",
++ "windows_x86_64_msvc 0.52.6",
+ ]
+ 
++[[package]]
++name = "windows_aarch64_gnullvm"
++version = "0.42.2"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "597a5118570b68bc08d8d59125332c54f1ba9d9adeedeef5b99b02ba2b0698f8"
++
+ [[package]]
+ name = "windows_aarch64_gnullvm"
+ version = "0.52.6"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "32a4622180e7a0ec044bb555404c800bc9fd9ec262ec147edd5989ccd0c02cd3"
+ 
++[[package]]
++name = "windows_aarch64_msvc"
++version = "0.42.2"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "e08e8864a60f06ef0d0ff4ba04124db8b0fb3be5776a5cd47641e942e58c4d43"
++
+ [[package]]
+ name = "windows_aarch64_msvc"
+ version = "0.52.6"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "09ec2a7bb152e2252b53fa7803150007879548bc709c039df7627cabbd05d469"
+ 
++[[package]]
++name = "windows_i686_gnu"
++version = "0.42.2"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "c61d927d8da41da96a81f029489353e68739737d3beca43145c8afec9a31a84f"
++
+ [[package]]
+ name = "windows_i686_gnu"
+ version = "0.52.6"
+@@ -994,24 +1197,48 @@ version = "0.52.6"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "0eee52d38c090b3caa76c563b86c3a4bd71ef1a819287c19d586d7334ae8ed66"
+ 
++[[package]]
++name = "windows_i686_msvc"
++version = "0.42.2"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "44d840b6ec649f480a41c8d80f9c65108b92d89345dd94027bfe06ac444d1060"
++
+ [[package]]
+ name = "windows_i686_msvc"
+ version = "0.52.6"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "240948bc05c5e7c6dabba28bf89d89ffce3e303022809e73deaefe4f6ec56c66"
+ 
++[[package]]
++name = "windows_x86_64_gnu"
++version = "0.42.2"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "8de912b8b8feb55c064867cf047dda097f92d51efad5b491dfb98f6bbb70cb36"
++
+ [[package]]
+ name = "windows_x86_64_gnu"
+ version = "0.52.6"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "147a5c80aabfbf0c7d901cb5895d1de30ef2907eb21fbbab29ca94c5b08b1a78"
+ 
++[[package]]
++name = "windows_x86_64_gnullvm"
++version = "0.42.2"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "26d41b46a36d453748aedef1486d5c7a85db22e56aff34643984ea85514e94a3"
++
+ [[package]]
+ name = "windows_x86_64_gnullvm"
+ version = "0.52.6"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "24d5b23dc417412679681396f2b49f3de8c1473deb516bd34410872eff51ed0d"
+ 
++[[package]]
++name = "windows_x86_64_msvc"
++version = "0.42.2"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "9aec5da331524158c6d1a4ac0ab1541149c0b9505fde06423b02f5ef0106b9f0"
++
+ [[package]]
+ name = "windows_x86_64_msvc"
+ version = "0.52.6"
+@@ -1031,7 +1258,7 @@ dependencies = [
+  "nom",
+  "oid-registry",
+  "rusticata-macros",
+- "thiserror",
++ "thiserror 2.0.21",
+  "time",
+ ]
+ 
+diff --git a/Cargo.toml b/Cargo.toml
+index 7d1954b..34040d1 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -10,6 +10,7 @@ members = [
+   "crates/loom-transport",
+   "crates/loom-core",
+   "apps/loomd",
++  "crates/loom-android",
+ ]
+ default-members = ["apps/loomd"]
+ 
+diff --git a/README.md b/README.md
+index ed47526..f74feba 100644
+--- a/README.md
++++ b/README.md
+@@ -2,7 +2,7 @@
+ 
+ Rust-first, **peer-oriented** private networking and device services platform. Loom is the new independent project for the RelayProxy Rust rewrite and decentralized Peer Mesh design.
+ 
+-**Status: L-001 engineering-integrated / L-001 release BLOCKED / L-002A–B model development underway.** The historical stacked development branches have been consolidated into the default branch. This is a source-code integration, **not** an L-001 release approval. `loomd` remains disabled: no network listener, ServiceOpen, resource admission, proxy modification, operating-system driver, or VPN is enabled. Real independent anti-rollback storage, hardware acceptance and reviewed authorization remain NO-GO.
++**Status: L-001 engineering-integrated / L-001 release BLOCKED / L-002A–C models integrated.** The historical stacked development branches have been consolidated into the default branch. This is a source-code integration, **not** an L-001 release approval. `loomd` remains disabled: no network listener, ServiceOpen, resource admission, proxy modification, operating-system driver, or VPN is enabled. Real independent anti-rollback storage, hardware acceptance and reviewed authorization remain NO-GO.
+ 
+ ## Architecture
+ 
+@@ -33,8 +33,10 @@ The `loomd` bootstrap command only prints its disabled-runtime state. A passing
+ - [Implementation gates](docs/implementation-gates.md)
+ - [Review tracker](docs/review-tracker.md)
+ - [Implementation status](docs/STATUS.md)
++- [L-001 local macOS / Docker repair and revalidation](docs/acceptance/evidence/l001-local-docker-20261020/REPORT.md) — local profile passed: 248 tests per OS, fresh-quorum recovery, real TCP and process/container crash experiments; formal release remains blocked.
++- [Android Docker laboratory](docs/acceptance/android-docker-lab.md) — Android 14 ARM64/Bionic: 248 tests, TLS, SQLite and recovery experiments; the JP Linux host also passed a standalone VPN API APK. Production JNI/VPN and real-device acceptance remain blocked.
+ 
+-**Next development:** L-002A begins a deliberately test-only two-Peer LAN file-read/revocation model. Engineering integration of the L-001 PoCs is complete; its separate hardware, cross-platform, signed-authorization and ServiceOpen release acceptance remains BLOCKED. See [implementation gates](docs/implementation-gates.md), [L-001 evidence](docs/acceptance/l001.json) and [L-002A test plan](docs/spikes/l-002a-lan-file-read-model.md).
++**Next development:** L-002D will address authenticated Witness append and durable crash recovery; L-002A file-read/revocation, L-002B provider gating and L-002C challenge-bound Witness diagnostics are integrated models. Engineering integration of the L-001 PoCs is complete; its separate hardware, cross-platform, signed-authorization and ServiceOpen release acceptance remains BLOCKED. See [implementation gates](docs/implementation-gates.md), [L-001 evidence](docs/acceptance/l001.json) and [L-002A test plan](docs/spikes/l-002a-lan-file-read-model.md).
+ 
+ ## Compatibility and licensing
+ 
+diff --git a/crates/loom-crypto/src/lib.rs b/crates/loom-crypto/src/lib.rs
+index ea5dfd8..89437d5 100644
+--- a/crates/loom-crypto/src/lib.rs
++++ b/crates/loom-crypto/src/lib.rs
+@@ -65,3 +65,9 @@ pub mod root_rotation;
+ 
+ /// Candidate ordered Owner transfer/delegation cancellation verifier (no ServiceOpen).
+ pub mod owner_lifecycle;
++
++/// Candidate Root-delegated membership credential verifier; no Resource grant.
++pub mod membership;
++
++/// Candidate Owner grant verification; does not construct an admission permit.
++pub mod resource_grant;
+diff --git a/crates/loom-crypto/src/space_trust.rs b/crates/loom-crypto/src/space_trust.rs
+index aba4865..597be74 100644
+--- a/crates/loom-crypto/src/space_trust.rs
++++ b/crates/loom-crypto/src/space_trust.rs
+@@ -108,6 +108,10 @@ impl VerifiedResourceTrust {
+     pub fn valid_at(&self, now_ms: u64) -> bool {
+         self.manifest.issued_at_ms <= now_ms && now_ms < self.manifest.expires_at_ms
+     }
++
++    pub fn validity_interval(&self) -> (u64, u64) {
++        (self.manifest.issued_at_ms, self.manifest.expires_at_ms)
++    }
+ }
+ 
+ /// Domain-separated fixed-width transcript, without ambiguous protobuf map
+diff --git a/crates/loom-identity/src/lib.rs b/crates/loom-identity/src/lib.rs
+index 4c771a3..5430620 100644
+--- a/crates/loom-identity/src/lib.rs
++++ b/crates/loom-identity/src/lib.rs
+@@ -1,5 +1,6 @@
+ //! Peer identity and space membership proof abstraction.
+-//! Real certificate/key binding, revocation and membership verification are NOT implemented.
++//! Signed credential checking is experimental; enrollment, durable revocation
++//! and a coordinated admission barrier remain unimplemented.
+ 
+ use loom_crypto::CryptoError;
+ use loom_types::{PeerId, SpaceId};
+@@ -13,8 +14,27 @@ pub struct PeerPrincipal {
+ 
+ pub trait MembershipVerifier: Send + Sync {
+     fn verify_membership(&self, principal: &PeerPrincipal) -> Result<(), CryptoError>;
++
++    /// Resolve TLS key epoch separately from membership epoch. The default
++    /// preserves legacy diagnostic verifiers; signed credentials override it.
++    fn resolve_principal(
++        &self,
++        peer_id: PeerId,
++        space_id: SpaceId,
++        key_epoch: u64,
++    ) -> Result<PeerPrincipal, CryptoError> {
++        let principal = PeerPrincipal {
++            peer_id,
++            space_id,
++            membership_epoch: key_epoch,
++        };
++        self.verify_membership(&principal)?;
++        Ok(principal)
++    }
+ }
+ 
++pub mod signed_membership;
++
+ pub struct RejectUnverifiedMembership;
+ 
+ impl MembershipVerifier for RejectUnverifiedMembership {
+diff --git a/crates/loom-store/src/linux_tpm2_probe.rs b/crates/loom-store/src/linux_tpm2_probe.rs
+index b9a52bd..48b980a 100644
+--- a/crates/loom-store/src/linux_tpm2_probe.rs
++++ b/crates/loom-store/src/linux_tpm2_probe.rs
+@@ -11,16 +11,27 @@ use crate::unified_policy_anchor::{
+ };
+ use loom_types::{ResourceId, SpaceId};
+ 
++#[cfg(any(target_os = "linux", test))]
+ const TPM_ST_NO_SESSIONS: u16 = 0x8001;
++#[cfg(any(target_os = "linux", test))]
+ const TPM_CC_GET_CAPABILITY: u32 = 0x0000_017a;
++#[cfg(any(target_os = "linux", test))]
+ const TPM_CAP_HANDLES: u32 = 1;
++#[cfg(any(target_os = "linux", test))]
+ const TPM_CAP_PROPERTIES: u32 = 6;
++#[cfg(any(target_os = "linux", test))]
+ const TPM_PT_FAMILY_INDICATOR: u32 = 0x0000_0100;
++#[cfg(any(target_os = "linux", test))]
+ const TPM_PT_MANUFACTURER: u32 = 0x0000_0105;
++#[cfg(any(target_os = "linux", test))]
+ const TPM_NV_FIRST: u32 = 0x0100_0000;
++#[cfg(any(target_os = "linux", test))]
+ const TPM_NV_LAST: u32 = 0x01ff_ffff;
++#[cfg(any(target_os = "linux", test))]
+ const TPM_FAMILY_20: u32 = 0x322e_3000; // "2.0\0"
++#[cfg(any(target_os = "linux", test))]
+ const MAX_NV_PAGE: u32 = 32;
++#[cfg(any(target_os = "linux", test))]
+ const MAX_REPLY: usize = 4096;
+ 
+ #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+@@ -68,6 +79,7 @@ impl IndependentUnifiedPolicyAnchor for LinuxTpm2Candidate {
+ 
+ /// The TPM chip command is a *read-only* TPM2_GetCapability. Its request and
+ /// response contain no passwords, data writes or authorization sessions.
++#[cfg(any(target_os = "linux", test))]
+ fn request(capability: u32, property: u32, count: u32) -> [u8; 22] {
+     let mut output = [0u8; 22];
+     output[0..2].copy_from_slice(&TPM_ST_NO_SESSIONS.to_be_bytes());
+@@ -81,15 +93,18 @@ fn request(capability: u32, property: u32, count: u32) -> [u8; 22] {
+ 
+ /// Low-level raw read-only TPM command transport. A mock is used in CI;
+ /// the actual Linux provider uses a Linux TPM resource-manager char device.
++#[cfg(any(target_os = "linux", test))]
+ trait TpmTransport {
+     fn exchange(&mut self, command: &[u8]) -> Result<Vec<u8>, TpmProbeError>;
+ }
+ 
++#[cfg(any(target_os = "linux", test))]
+ struct CapabilityPage {
+     more: bool,
+     values: Vec<(u32, u32)>,
+ }
+ 
++#[cfg(any(target_os = "linux", test))]
+ fn parse_response(
+     bytes: &[u8],
+     expected_cap: u32,
+@@ -148,6 +163,7 @@ fn parse_response(
+     })
+ }
+ 
++#[cfg(any(target_os = "linux", test))]
+ fn property(io: &mut impl TpmTransport, property: u32) -> Result<u32, TpmProbeError> {
+     let message = io.exchange(&request(TPM_CAP_PROPERTIES, property, 1))?;
+     let page = parse_response(&message, TPM_CAP_PROPERTIES, 1)?;
+@@ -160,6 +176,7 @@ fn property(io: &mut impl TpmTransport, property: u32) -> Result<u32, TpmProbeEr
+     Ok(page.values[0].1)
+ }
+ 
++#[cfg(any(target_os = "linux", test))]
+ fn probe_with_transport(
+     version: u32,
+     device_index: u8,
+diff --git a/crates/loom-store/src/unified_policy_journal.rs b/crates/loom-store/src/unified_policy_journal.rs
+index eeee69e..b964b9f 100644
+--- a/crates/loom-store/src/unified_policy_journal.rs
++++ b/crates/loom-store/src/unified_policy_journal.rs
+@@ -8,6 +8,10 @@
+ //! Synchronous APIs: call from a blocking pool, never on a Tokio runtime core.
+ 
+ use crate::StoreError;
++use crate::challenge_witness_quorum::{
++    PinnedQuorum, QuorumChallenge, QuorumError, QuorumHighWater, SignedQuorumObservation,
++    VerifiedQuorumDiagnostic, verify_challenge_bound_quorum,
++};
+ use crate::legacy_migration::require_no_legacy_schema;
+ use crate::policy_journal_codec::KIND_REVOKE;
+ pub use crate::policy_journal_codec::NewPolicyEvent;
+@@ -58,6 +62,23 @@ pub enum UnifiedRecoveryAssessment {
+     HistoryConflict,
+ }
+ 
++/// Fresh-response recovery inputs. Nonces must come from an unpredictable,
++/// single-use source outside the restored journal. This is diagnostic only.
++pub struct ChallengeBoundRecoveryRequest<'a> {
++    pub root: ExternallyPinnedRootForSpike,
++    pub genesis: VerifiedResourceTrust,
++    pub challenge: QuorumChallenge,
++    pub replies: &'a [SignedQuorumObservation],
++    pub minimum_generation: u64,
++    pub now_ms: u64,
++}
++
++#[derive(Clone, Copy, Debug, Eq, PartialEq)]
++pub enum ChallengeBoundRecoveryError {
++    Journal(StoreError),
++    Quorum(QuorumError),
++}
++
+ /// L-001Q: a diagnostic-only transition. Neither variant enables ServiceOpen.
+ #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+ pub enum CandidateCounterOperation {
+@@ -300,6 +321,69 @@ impl UnifiedPolicyJournal {
+         Ok(result)
+     }
+ 
++    /// Replay the signed journal and all mirrors before comparing fresh replies
++    /// from the Root-selected Witness pair. The caller cannot substitute a raw
++    /// local high-water or its own Witness pins. No durable marker, enrollment,
++    /// trusted-provider proof or admission permission is created on success.
++    ///
++    /// Like `inspect`, this describes one replayed snapshot. The process-local
++    /// gate does not fence other SQLite processes or authorize later actions.
++    pub fn inspect_challenge_bound_recovery(
++        &self,
++        request: ChallengeBoundRecoveryRequest<'_>,
++    ) -> Result<VerifiedQuorumDiagnostic, ChallengeBoundRecoveryError> {
++        use ChallengeBoundRecoveryError::{Journal, Quorum};
++        let _barrier = self
++            .gate
++            .lock()
++            .map_err(|_| Journal(StoreError::PersistenceFailure))?;
++        if !request.genesis.valid_at(request.now_ms) {
++            return Err(Journal(StoreError::Conflict));
++        }
++        let (send, recv) = mpsc::channel();
++        self.tx
++            .as_ref()
++            .ok_or(Journal(StoreError::PersistenceFailure))?
++            .send(Command::InspectWitness {
++                root: request.root,
++                genesis: request.genesis,
++                done: send,
++            })
++            .map_err(|_| Journal(StoreError::PersistenceFailure))?;
++        let local = recv
++            .recv()
++            .map_err(|_| Journal(StoreError::PersistenceFailure))?
++            .map_err(Journal)?;
++        let current = local.current_trust;
++        if !current.valid_at(request.now_ms)
++            || current.witnesses().map(|w| w.public_key)
++                != request.genesis.witnesses().map(|w| w.public_key)
++        {
++            return Err(Journal(StoreError::Conflict));
++        }
++        let state = QuorumHighWater {
++            space: current.space(),
++            resource: current.resource(),
++            writer_epoch: current.writer_epoch(),
++            sequence: local.snapshot.sequence,
++            policy_head: local.snapshot.policy_head,
++            revocation_root: local.revocation_root,
++        };
++        verify_challenge_bound_quorum(
++            &PinnedQuorum {
++                witnesses: current.witnesses(),
++                space: state.space,
++                resource: state.resource,
++                writer_epoch: state.writer_epoch,
++            },
++            request.challenge,
++            request.replies,
++            request.minimum_generation,
++            state,
++        )
++        .map_err(Quorum)
++    }
++
+     /// Verify two Root-selected signed checkpoints against a fully replayed,
+     /// mixed control+revocation policy chain, then compare and atomically
+     /// advance an independently trusted high-water record.
+@@ -1934,6 +2018,217 @@ mod tests {
+         }
+     }
+ 
++    fn quorum_receipts(
++        nonce: u8,
++        sequence: u64,
++        policy_head: [u8; 32],
++        revocation_root: [u8; 32],
++    ) -> [SignedQuorumObservation; 2] {
++        use crate::challenge_witness_quorum::{QuorumObservation, quorum_observation_transcript};
++        let genesis = trusted_genesis();
++        let observation = QuorumObservation {
++            challenge: QuorumChallenge {
++                nonce: [nonce; 32],
++                expected_space: genesis.space(),
++                expected_resource: genesis.resource(),
++                expected_writer_epoch: genesis.writer_epoch(),
++            },
++            generation: sequence,
++            high_water: QuorumHighWater {
++                space: genesis.space(),
++                resource: genesis.resource(),
++                writer_epoch: genesis.writer_epoch(),
++                sequence,
++                policy_head,
++                revocation_root,
++            },
++        };
++        [21, 22].map(|seed| {
++            let key = SigningKey::from_bytes(&[seed; 32]);
++            SignedQuorumObservation {
++                witness_key_id: genesis.witnesses()[usize::from(seed - 21)].key_id,
++                observation,
++                signature: key
++                    .sign(&quorum_observation_transcript(&observation))
++                    .to_bytes(),
++            }
++        })
++    }
++
++    fn challenged<'a>(replies: &'a [SignedQuorumObservation]) -> ChallengeBoundRecoveryRequest<'a> {
++        ChallengeBoundRecoveryRequest {
++            root: root_pin(),
++            genesis: trusted_genesis(),
++            challenge: quorum_receipts(71, 1, [0; 32], [0; 32])[0]
++                .observation
++                .challenge,
++            replies,
++            minimum_generation: 1,
++            now_ms: 150,
++        }
++    }
++
++    #[test]
++    fn challenge_recovery_replays_mixed_history_and_root_selected_witnesses() {
++        let file = TempDb::new();
++        let journal = file.open();
++        let genesis = trusted_genesis();
++        journal
++            .append(
++                root_pin(),
++                genesis,
++                NewPolicyEvent::Revoke(&signed_revocation(1, 11, 3)),
++            )
++            .unwrap();
++        let evidence = journal.pending_outbox().unwrap().remove(0).evidence;
++        let root = append_revocation_root([0; 32], 1, &evidence).unwrap();
++        let after = journal
++            .append(
++                root_pin(),
++                genesis,
++                NewPolicyEvent::Cancel(&signed_cancellation(2)),
++            )
++            .unwrap();
++        let replies = quorum_receipts(71, 2, after.policy_head, root);
++        let diagnostic = journal
++            .inspect_challenge_bound_recovery(challenged(&replies))
++            .unwrap();
++        assert_eq!(diagnostic.high_water(), replies[0].observation.high_water);
++        assert!(
++            journal
++                .inspect(root_pin(), genesis)
++                .unwrap()
++                .admission_paused
++        );
++        // Correct policy head cannot mask a substituted revocation accumulator.
++        let wrong_root = quorum_receipts(71, 2, after.policy_head, [99; 32]);
++        assert_eq!(
++            journal.inspect_challenge_bound_recovery(challenged(&wrong_root)),
++            Err(ChallengeBoundRecoveryError::Quorum(
++                QuorumError::LocalRollbackOrFork
++            ))
++        );
++    }
++
++    #[test]
++    fn challenge_recovery_refuses_valid_old_signed_prefix() {
++        let old_file = TempDb::new();
++        let current_file = TempDb::new();
++        let old = old_file.open();
++        let current = current_file.open();
++        let genesis = trusted_genesis();
++        for journal in [&old, &current] {
++            journal
++                .append(
++                    root_pin(),
++                    genesis,
++                    NewPolicyEvent::Revoke(&signed_revocation(1, 11, 3)),
++                )
++                .unwrap();
++        }
++        let after = current
++            .append(
++                root_pin(),
++                genesis,
++                NewPolicyEvent::Revoke(&signed_revocation(2, 11, 3)),
++            )
++            .unwrap();
++        let mut revoke_root = [0; 32];
++        for entry in current.pending_outbox().unwrap() {
++            revoke_root =
++                append_revocation_root(revoke_root, entry.sequence, &entry.evidence).unwrap();
++        }
++        let fresh = quorum_receipts(71, 2, after.policy_head, revoke_root);
++        assert!(
++            current
++                .inspect_challenge_bound_recovery(challenged(&fresh))
++                .is_ok()
++        );
++        assert_eq!(old.inspect(root_pin(), genesis).unwrap().sequence, 1);
++        assert_eq!(
++            old.inspect_challenge_bound_recovery(challenged(&fresh)),
++            Err(ChallengeBoundRecoveryError::Quorum(
++                QuorumError::LocalRollbackOrFork
++            ))
++        );
++    }
++
++    #[test]
++    fn challenge_recovery_never_uses_replies_to_bypass_bad_mirrors() {
++        let file = TempDb::new();
++        let journal = file.open();
++        let after = journal
++            .append(
++                root_pin(),
++                trusted_genesis(),
++                NewPolicyEvent::Cancel(&signed_cancellation(1)),
++            )
++            .unwrap();
++        let fresh = quorum_receipts(71, 1, after.policy_head, [0; 32]);
++        assert!(
++            journal
++                .inspect_challenge_bound_recovery(challenged(&fresh))
++                .is_ok()
++        );
++        Connection::open(&file.0)
++            .unwrap()
++            .execute("DELETE FROM unified_policy_outbox WHERE seq=1", [])
++            .unwrap();
++        assert_eq!(
++            journal.inspect_challenge_bound_recovery(challenged(&fresh)),
++            Err(ChallengeBoundRecoveryError::Journal(StoreError::Conflict))
++        );
++    }
++
++    #[test]
++    fn challenge_recovery_refuses_replay_split_missing_and_invalid_signatures() {
++        let file = TempDb::new();
++        let journal = file.open();
++        let after = journal
++            .append(
++                root_pin(),
++                trusted_genesis(),
++                NewPolicyEvent::Cancel(&signed_cancellation(1)),
++            )
++            .unwrap();
++        let fresh = quorum_receipts(71, 1, after.policy_head, [0; 32]);
++        let stale = quorum_receipts(72, 1, after.policy_head, [0; 32]);
++        let split = [fresh[0], quorum_receipts(71, 2, [99; 32], [0; 32])[1]];
++        let mut bad = fresh;
++        bad[0].signature[0] ^= 1;
++        for (replies, error) in [
++            (&stale[..], QuorumError::WrongChallenge),
++            (&fresh[..1], QuorumError::MissingOrDuplicateWitness),
++            (&split[..], QuorumError::SplitWitnesses),
++            (&bad[..], QuorumError::InvalidSignature),
++        ] {
++            assert_eq!(
++                journal.inspect_challenge_bound_recovery(challenged(replies)),
++                Err(ChallengeBoundRecoveryError::Quorum(error))
++            );
++        }
++        let mut expired = challenged(&fresh);
++        expired.now_ms = 301;
++        assert_eq!(
++            journal.inspect_challenge_bound_recovery(expired),
++            Err(ChallengeBoundRecoveryError::Journal(StoreError::Conflict))
++        );
++        let mut wrong_root = challenged(&fresh);
++        wrong_root.root.public_key = SigningKey::from_bytes(&[80; 32]).verifying_key().to_bytes();
++        assert_eq!(
++            journal.inspect_challenge_bound_recovery(wrong_root),
++            Err(ChallengeBoundRecoveryError::Journal(StoreError::Conflict))
++        );
++        let mut floor = challenged(&fresh);
++        floor.minimum_generation = 2;
++        assert_eq!(
++            journal.inspect_challenge_bound_recovery(floor),
++            Err(ChallengeBoundRecoveryError::Quorum(
++                QuorumError::StaleGeneration
++            ))
++        );
++    }
++
+     fn witness_receipts(
+         seq: u64,
+         policy_head: [u8; 32],
+diff --git a/crates/loom-transport/Cargo.toml b/crates/loom-transport/Cargo.toml
+index 2292e58..d50ba64 100644
+--- a/crates/loom-transport/Cargo.toml
++++ b/crates/loom-transport/Cargo.toml
+@@ -15,8 +15,10 @@ sha2 = "0.10.9"
+ x509-parser = "0.17.0"
+ 
+ [dev-dependencies]
+-tokio = { version = "1.48.0", features = ["macros", "rt", "time", "io-util", "sync"] }
++tokio = { version = "1.48.0", features = ["macros", "rt", "time", "io-util", "sync", "net"] }
+ rcgen = "0.13.2"
++ed25519-dalek = "2.2.0"
++loom-wire = { path = "../loom-wire" }
+ 
+ [lints]
+ workspace = true
+diff --git a/crates/loom-transport/src/secure_channel.rs b/crates/loom-transport/src/secure_channel.rs
+index 9eadbd6..d28957a 100644
+--- a/crates/loom-transport/src/secure_channel.rs
++++ b/crates/loom-transport/src/secure_channel.rs
+@@ -111,6 +111,7 @@ pub struct SecurePeerContext {
+ pub struct SecurePeerChannel<S> {
+     stream: S,
+     remote: PeerPrincipal,
++    remote_key_epoch: u64,
+ }
+ 
+ impl<S> SecurePeerChannel<S> {
+@@ -125,6 +126,25 @@ impl<S> SecurePeerChannel<S> {
+     pub fn into_inner(self) -> S {
+         self.stream
+     }
++
++    /// Revalidate before each diagnostic operation. The caller still needs a
++    /// ResourceOwner decision and a coordinated revocation/session barrier.
++    pub fn revalidate_membership(
++        &self,
++        membership: &dyn MembershipVerifier,
++    ) -> Result<(), SecurePeerError> {
++        let current = membership
++            .resolve_principal(
++                self.remote.peer_id,
++                self.remote.space_id,
++                self.remote_key_epoch,
++            )
++            .map_err(|_| SecurePeerError::UntrustedMembership)?;
++        if current != self.remote {
++            return Err(SecurePeerError::UntrustedMembership);
++        }
++        Ok(())
++    }
+ }
+ 
+ impl<S: Send + Sync> super::VerifiedChannel for SecurePeerChannel<S> {
+@@ -153,14 +173,15 @@ fn matched_principal(
+     {
+         return Err(SecurePeerError::InvalidPeer);
+     }
+-    let principal = PeerPrincipal {
+-        peer_id: expected.peer_id,
+-        space_id,
+-        membership_epoch: expected.key_epoch,
+-    };
+-    membership
+-        .verify_membership(&principal)
++    let principal = membership
++        .resolve_principal(expected.peer_id, space_id, expected.key_epoch)
+         .map_err(|_: CryptoError| SecurePeerError::UntrustedMembership)?;
++    if principal.peer_id != expected.peer_id
++        || principal.space_id != space_id
++        || principal.membership_epoch == 0
++    {
++        return Err(SecurePeerError::UntrustedMembership);
++    }
+     Ok(principal)
+ }
+ 
+@@ -277,10 +298,13 @@ where
+         membership,
+     )?;
+     exchange_association(&mut stream, local_id, &context, local.key_epoch, true).await?;
+-    Ok(SecurePeerChannel {
++    let channel = SecurePeerChannel {
+         stream,
+         remote: principal,
+-    })
++        remote_key_epoch: context.expected_remote.key_epoch,
++    };
++    channel.revalidate_membership(membership)?;
++    Ok(channel)
+ }
+ 
+ /// Accept a mutual TLS peer; a stream is returned only after both membership and
+@@ -314,10 +338,13 @@ where
+         membership,
+     )?;
+     exchange_association(&mut stream, local_id, &context, local.key_epoch, false).await?;
+-    Ok(SecurePeerChannel {
++    let channel = SecurePeerChannel {
+         stream,
+         remote: principal,
+-    })
++        remote_key_epoch: context.expected_remote.key_epoch,
++    };
++    channel.revalidate_membership(membership)?;
++    Ok(channel)
+ }
+ 
+ #[cfg(test)]
+diff --git a/docs/STATUS.md b/docs/STATUS.md
+index 2aff337..8f232d7 100644
+--- a/docs/STATUS.md
++++ b/docs/STATUS.md
+@@ -1,14 +1,20 @@
+ # Loom — implementation status and security gates
+ 
+-> Updated: **2026-10-18**. L-001 PoC engineering integration finished in [PR #38](https://github.com/timwai/Loom/pull/38) at `d50eae4`; all historical branches were safely pruned. L-001 formal security/platform **release acceptance remains BLOCKED**. L-002A development has begun on a new feature branch.
++> **2026-10-20 JP Android Docker revalidation: PASSED (native + standalone VPN API lab).** The authorized `jp.tingjusting.fun` ARM64 Linux host provides PSI and Binder. Android 14 passed **248 Rust tests**, three TLS paths, 15 refusals, three SIGKILL recoveries and ten Witness cases, including a full rerun after container restart. A separate debug APK passed real system VPN consent/cancel, TUN/protect routing, Settings revocation and app-SIGKILL cleanup as an application UID. [Report and raw evidence](acceptance/evidence/l001-android-jp-20261020/REPORT.md). This resolves the local OrbStack kernel limitation for these lab tests; no production Rust/JNI VPN integration, full DNS/IPv6 leak coverage or physical Android acceptance exists. Release remains **BLOCKED**.
++
++> **2026-10-20 Android Docker native runtime: PASSED (`L-001-android-bionic-docker-v1`).** ReDroid Android 14 / API 34 / ARM64 ran **248 Rust tests** as shell UID 2000, three real TLS paths, 15 refusals, three SIGKILL recoveries and ten fresh Witness recovery cases. [Report](acceptance/evidence/l001-android-docker-20261020/REPORT.md) and [reproduction](acceptance/android-docker-lab.md). OrbStack lacks memory pressure events and Android lmkd repeatedly exits; application/VpnService lifecycle, APK/JNI integration and real-device acceptance remain **BLOCKED**.
++
++> **2026-10-20 local revalidation: PASSED (`L-001-local-docker-v1`).** macOS and Docker Linux ARM64 each passed **248 Rust tests** and strict Clippy, four real TCP/mTLS paths, 20 membership-fixture refusals, nine SIGKILL recoveries and **20 fresh-quorum recovery cases**. The new journal recovery diagnostic derives Root-selected Witness pins and the full local signed state before comparison; a restored old local backup is refused while the Witness histories retain the latest state. [Fixes, measured results and boundaries](acceptance/evidence/l001-local-docker-20261020/REPORT.md); [initial baseline](acceptance/evidence/l001-local-docker-20261019/REPORT.md). L-001 release remains **BLOCKED**: same-host Witness files are not an independently trusted high-water, and fixture tests do not establish production Owner/ServiceOpen admission.
++
++> Updated: **2026-10-18**. L-001 PoC engineering integration finished in [PR #38](https://github.com/timwai/Loom/pull/38) at `d50eae4`; all historical branches were safely pruned. L-001 formal security/platform **release acceptance remains BLOCKED**. L-002A/B/C models are now integrated into main.
+ 
+ ## Executive status
+ 
+-**L-001_ENGINEERING_COMPLETE / L-001_RELEASE_BLOCKED / L-002A-B_POC_ONLY / TPM_OPTIONAL / NO_SERVICE_OPEN**
++**L-001_ENGINEERING_COMPLETE / L-001_RELEASE_BLOCKED / L-002A-C_POC_ONLY / TPM_OPTIONAL / NO_SERVICE_OPEN**
+ 
+ - **L-001 engineering integration completed**: all stacked Rust PoCs plus separate L-001A/B/J histories are on `main`, merge `d50eae4` with full Ubuntu/Windows/macOS CI green. All obsolete branches and 32 obsolete Draft PRs are closed. This is not final acceptance: the nine L-001A/B/C/D security/platform release gates and four signoffs are **still incomplete**.
+ - The integrated workspace has eight Rust library crates, a `loomd` binary that does not start a service, signed protocol/Owner-lifecycle verifiers, SQLite policy journals, witness/rollback models and a **read-only** Linux TPM2 probe.
+-- Latest L-001O branch head `4683c432dd4b2530fcd4bd8db39c6bf03b5a3945` passed GitHub Actions (Rust fmt, workspace tests, Clippy with `-D warnings`, docs, dependency policy); see [run 39083991175](https://github.com/timwai/Loom/actions/runs/39083991175).
++- Historical L-001O branch head `4683c432dd4b2530fcd4bd8db39c6bf03b5a3945` passed GitHub Actions (Rust fmt, workspace tests, Clippy with `-D warnings`, docs, dependency policy); see [run 39083991175](https://github.com/timwai/Loom/actions/runs/39083991175).
+ - **L-001P / PR #23** restored L-001J mirror-integrity checks; L-001Q / PR #24 tied SQLite signed journal replay to candidate counter steps; L-001R / PR #25 requires the prior committed policy to match the actual signed historical prefix. **L-001S** adds a deterministic simulated durable Prepared-intent medium with eight power-cut points, boot-bound handles and signed journal integration tests. **L-001T** adds fixed-width Ed25519 signed intent record parsing and independent signer, scope and replay-fence verification. **L-001U** introduces a read-only CandidateIntentStore adapter that authenticates every load before signed journal-bound recovery may inspect it; all writes are refused. **L-001V** separately models externally signed Prepared/Committed writes and record+replay-fence atomic CAS. **L-001W** models out-of-band-approved signer epoch rotation, two additional crash cuts, concurrent old-signer race refusal and device-reset fail-closed behavior. **L-001X** adds independent short journal preflight and signed revalidation around external work. **L-001Y** adds a process-local versioned single-use journal reservation sharing append's gate: signed append invalidates tickets, final replay and simulated CAS are serialized, and post-Prepared revocation marks the candidate stale. **L-001Z** detects signed journal/mirror changes made by a second actor or raw SQLite writer during model Prepared CAS through a final full replay, rejecting stale success and quarantining. **L-001AA** adds a separate restart-retained *logical in-memory* reservation fence, six simulated crash cuts and explicit tests of non-participating writers. No cross-process durable reservation or physical TPM writes exist.
+ - A green test suite verifies isolated PoCs only. There is no production-admission authorization, usable Mesh service, production TPM anchor, deployment or hardware security certificate.
+ 
+@@ -16,15 +22,15 @@
+ 
+ | Area | Existing evidence / implementation | Actual status |
+ |---|---|---|
+-| L-000, PR #1 | Rust workspace, eight libraries, `loomd`, GitHub CI | Tested scaffolding, unmerged |
++| L-000, PR #1 | Rust workspace, eight libraries, `loomd`, GitHub CI | Integrated scaffolding; bootstrap runtime disabled |
+ | L-001A, PR #7 | mTLS Peer channel over an untrusted bearer | Isolated transport spike, **not wired** into `loomd` |
+ | L-001B, PR #6 | Canonical security-event wire codec and golden vectors | Candidate format; interop/review incomplete |
+ | L-001C–H, PRs #8–#14 | SQLite revocations, Ed25519 Owner/Root/witness verification, delegation, transfers, signed replay, rollback interfaces | Security primitives and local model tests only |
+ | L-001I, PR #15 | Unified Owner/delegate/revocation policy lifecycle SQLite journal | Authenticated event replay PoC; no production source of truth |
+-| L-001J, PR #16 | Signed-event vs. Outbox/Audit parity, transaction-scoped pending queue | Separate branch, **not inherited by #22**; being integrated by L-001P |
++| L-001J, PR #16 | Signed-event vs. Outbox/Audit parity, transaction-scoped pending queue | Originally separate from #22; integrated by L-001P and consolidated into main |
+ | L-001J–L, PRs #17–#19 | Dual-witness policy high-water, crash reconciliation, legacy signed-history preflight | Diagnostic PoCs; no automatic migration or live authority |
+ | L-001M–O, PRs #20–#22 | Anchor behavioral conformance, read-only TPM2 capability probe, counter/intent crash-state model | Abstract or nonmutating models, **no trusted TPM NV writer** |
+-| L-001P, PR #23 | Reintegrate missing journal mirror-integrity checks and adversarial tests | Final-head CI passed; unmerged Draft |
++| L-001P, PR #23 | Reintegrate missing journal mirror-integrity checks and adversarial tests | Integrated into main; PoC only |
+ | L-001Q, PR #24 | Bind fully replayed SQLite policy, signed witness checkpoint and candidate counter stages under a single model transaction | Seven new adversarial tests; model only, no trusted NV writes |
+ | L-001R, PR #25 | Verify prior committed policy root, revocation root and Owner manifest as an exact *signed journal prefix* before candidate counter mutation | Six new adversarial crash/forgery tests; no durable intent or TPM writer |
+ | L-001S, PR #26 | Model independent Prepared-intent sync boundaries, irreversible NV count, reboot, stale handles and signed journal recovery | 4 model + 3 integration tests; purely volatile simulator; no TPM writer |
+@@ -40,7 +46,7 @@
+ | L-001AC, PR #36 | Reintegrate original L-001A TLS 1.3 pinned-Peer-channel PoC into the active security stack, retain malicious relay and identity tests | Isolated TLS/bearer tests only; no production signed membership/Owner admission, live daemon networking or platform acceptance |
+ | L-001AD, PR #37 | Add Windows/macOS hosted Rust workspace matrix with locked TLS/crypto/journal tests in GitHub Actions | Host Rust portability smoke only; neither actual Windows filter/macos Network Extension nor Android VpnService `PLATFORM-*` pass |
+ 
+-**Branch topology caveat:** PRs #6 (wire), #7 (channel) and #16 (mirror integrity) branch from earlier ancestors; they are not all ancestors of PR #22. Count of open Draft PRs is not a count of integrated features. Do not merge leaf PRs into `main` out of order. Review and reconcile branches explicitly.
++**Historical topology:** #6 (wire), #7 (channel) and #16 (mirror integrity) originally branched from earlier ancestors. L-001P/L-001AC and the main consolidation reconciled these histories; the earlier draft/branch arrangement is historical, not the current integration state.
+ 
+ ## L-002C — challenge-bound external Witness high-water diagnostics
+ 
+@@ -64,7 +70,7 @@
+ 
+ ## Current P0 update after L-001AD
+ 
+-- The L-001P integration (#23) succeeded in the final commit CI, and L-001Q (#24) now tests a journal-bound counter transition with matching dual witness receipts, full signed-history replay, mirror parity, current Owner manifest and a SQLite transaction barrier. Both remain **unmerged Draft PRs**.
++- The L-001P integration (#23) succeeded in the final commit CI, and L-001Q (#24) now tests a journal-bound counter transition with matching dual witness receipts, full signed-history replay, mirror parity, current Owner manifest and a SQLite transaction barrier. Both were consolidated into **main**; neither supplies production trusted storage or admission.
+ - A matching counter/manifest pair is only a **diagnostic** result. No real independently protected TPM anchor, attested device binding, authenticated durable Prepared store or physical power-loss verification exists; ServiceOpen stays disabled.
+ - L-001R checks that a counter's earlier high-water record matches a replayed **signed historical prefix** (sequence, head, revocation root and then-current Owner manifest) before any modeled increment. A matching latest witness alone is not enough. These proofs depend on trusted external enrollment and retained signed journal history; physical and global freshness are still not guaranteed.
+ - L-001S explicitly models unacknowledged volatile writes vs. acknowledged simulated durable writes and all eight Prepare/Increment/Finalize cut points. A reboot preserves the simulated NV counter and acknowledged intent image but invalidates old handles. Those are *model semantics*, NOT physical persistence or anti-rollback protection.
+@@ -92,8 +98,8 @@
+ 
+ ## Next execution gates
+ 
+-- **Current (L-001AD):** locked Windows/macOS host Rust test matrix plus Ubuntu, no deployment. Machine acceptance manifest remains blocked.
+-- **Next:** full signed membership and Owner lifecycle → secure channel → revocation/session shutdown vertical integration, real independently authenticated cross-process rollback protection and Android/Windows/macOS driver/device acceptance. `L-001` remains **NOT COMPLETE**.
++- **Current:** L-002A/B/C models integrated; local macOS and Docker Linux TCP/performance/crash experiments completed. The machine-readable release acceptance remains blocked.
++- **Next:** full signed membership and Owner lifecycle → secure channel → revocation/session shutdown vertical integration, real independently authenticated cross-process rollback protection and Android/Windows/macOS driver/device acceptance. `L-001` release acceptance remains **BLOCKED**.
+ - **Platform validation:** independently evaluate hardware enrollment, monotonic NV semantics, attestation, reset/wear/quotas, and legacy signed-history migration (sacrificial TPM target only after review). Unsupported targets remain explicit NO-GO.
+ - **Vertical slice:** isolated two-Peer LAN read with Owner ACL and revoke-kills-session test **only after** production admission prerequisites pass.
+ - **Release:** threat-model sign-off, coverage across all intended OS targets, security review, reproducible builds, migration/rollback drills, support and license gates.
+diff --git a/docs/acceptance/l001.json b/docs/acceptance/l001.json
+index 7d1fab8..c9f9a75 100644
+--- a/docs/acceptance/l001.json
++++ b/docs/acceptance/l001.json
+@@ -1,49 +1,71 @@
+ {
+   "milestone": "L-001",
+   "state": "blocked",
+-  "updated": "2026-10-18",
++  "updated": "2026-10-20",
+   "checks": [
+     {
+       "id": "E2EE-01",
+       "phase": "L-001A",
+       "state": "partial",
+-      "reason": "Isolated transport spike only"
++      "reason": "Four real TCP/mTLS lab paths and relay tamper checks passed; no live daemon service or full attack/resource acceptance",
++      "evidence": [
++        "docs/acceptance/evidence/l001-local-docker-20261019/REPORT.md"
++      ]
+     },
+     {
+       "id": "TLS-ID-01",
+       "phase": "L-001A",
+       "state": "partial",
+-      "reason": "No live TLS Peer binding acceptance"
++      "reason": "Pinned Peer/Space/epoch lab refusal tests passed; fixture membership only, no signed membership/Owner admission",
++      "evidence": [
++        "docs/acceptance/evidence/l001-local-docker-20261019/REPORT.md"
++      ]
+     },
+     {
+       "id": "WIRE-01",
+       "phase": "L-001B",
+       "state": "partial",
+-      "reason": "Four language CBOR golden corpus CI; protocol freeze and full interoperability pending"
++      "reason": "Four-language corpus rerun locally in Docker; protocol freeze, typed payload and full interoperability signoff pending",
++      "evidence": [
++        "docs/acceptance/evidence/l001-local-docker-20261019/REPORT.md"
++      ]
+     },
+     {
+       "id": "AUTHZ-RACE-01",
+       "phase": "L-001C",
+       "state": "partial",
+-      "reason": "Cross-process reservation versus real hardware CAS unverified"
++      "reason": "Cross-process reservation versus real hardware CAS unverified",
++      "evidence": [
++        "docs/acceptance/evidence/l001-local-docker-20261019/REPORT.md"
++      ]
+     },
+     {
+       "id": "AUTHZ-CRASH-02",
+       "phase": "L-001C",
+       "state": "partial",
+-      "reason": "Real crash/power-loss recovery unverified for any independently trusted-state backend (TPM optional, verified quorum alternative)"
++      "reason": "Nine process/container SIGKILL recoveries passed; physical power loss and independently trusted durable Prepared/CAS remain unverified",
++      "evidence": [
++        "docs/acceptance/evidence/l001-local-docker-20261019/REPORT.md"
++      ]
+     },
+     {
+       "id": "ROLLBACK-01",
+       "phase": "L-001C",
+       "state": "partial",
+-      "reason": "No independently verified nonrollbackable anchor: TPM 2.0 is optional; vetted platform or external Witness quorum required for equivalent assurance"
++      "reason": "Valid old signed SQLite backup restored from sequence 8 to 5 without independent detection; admission stays paused, no vetted nonrollbackable anchor",
++      "evidence": [
++        "docs/acceptance/evidence/l001-local-docker-20261019/REPORT.md"
++      ]
+     },
+     {
+       "id": "PLATFORM-ANDROID-01",
+       "phase": "L-001D",
+       "state": "blocked",
+-      "reason": "No real Android device acceptance"
++      "reason": "Android 14/Bionic native regression and standalone debug VPN API APK passed on JP Linux Docker with PSI, including consent/TUN/protect/revoke/SIGKILL and container restart; production Rust/JNI VPN, DNS/IPv6 leak coverage and real-device acceptance remain unverified",
++      "evidence": [
++        "docs/acceptance/evidence/l001-android-docker-20261020/REPORT.md",
++        "docs/acceptance/evidence/l001-android-jp-20261020/REPORT.md"
++      ]
+     },
+     {
+       "id": "PLATFORM-WIN-01",
+@@ -55,7 +77,10 @@
+       "id": "PLATFORM-MAC-01",
+       "phase": "L-001D",
+       "state": "blocked",
+-      "reason": "No macOS real-host entitlement acceptance"
++      "reason": "Native Rust/TCP laboratory evidence only; no real-host Network/System Extension entitlement or signed deployment acceptance",
++      "evidence": [
++        "docs/acceptance/evidence/l001-local-docker-20261019/REPORT.md"
++      ]
+     }
+   ],
+   "signoffs": {
+diff --git a/docs/implementation-gates.md b/docs/implementation-gates.md
+index 868acb4..38df154 100644
+--- a/docs/implementation-gates.md
++++ b/docs/implementation-gates.md
+@@ -19,7 +19,7 @@
+ | **L-001C / AUTHZ-RACE-01** | No stale policy/Owner or two-Peer revoke bypass; real admission-to-session atomicity and cross-process writer coherence | **PARTIAL:** signed journal/recovery and in-memory reservation models; no production ServiceOpen |
+ | **L-001C / AUTHZ-CRASH-02** | Verified real power-loss/restart around durable Prepared, independently trustworthy replay fence and backend-specific monotonic state (hardware or authenticated independent quorum), signed recovery/repair | **PARTIAL:** deterministic crash simulators only; real provider failure semantics unverified |
+ | **L-001C / ROLLBACK-01** | Independently enrolled nonrollbackable or equivalently trustworthy antirollback anchor, proven signer/fence provenance, backup/clone/reset or remote quorum fault acceptance across processes and hosts; **no mandatory TPM chip** | **PARTIAL:** no vetted hardware or independent quorum adapter; model only |
+-| **L-001D / PLATFORM-ANDROID-01** | Android VpnService lifecycle/permissions on real target, traffic/no-leak, driver/device failure and reboot | **BLOCKED:** no Android device or app integration |
++| **L-001D / PLATFORM-ANDROID-01** | Android VpnService lifecycle/permissions on real target, traffic/no-leak, driver/device failure and reboot | **BLOCKED:** Android/Bionic and separate VPN API APK passed on JP Docker with PSI; production Rust/JNI VPN, full leak tests and real-device integration remain unverified |
+ | **L-001D / PLATFORM-WIN-01** | Windows filter/driver/socket real-host path, privileges, signed deployment, crash/reboot, fail-closed traffic behavior | **BLOCKED:** Windows-hosted Rust tests do not test drivers |
+ | **L-001D / PLATFORM-MAC-01** | macOS Network/System Extension real-host entitlement, user consent, traffic, crash/reboot and signed deployment | **BLOCKED:** macOS-hosted Rust tests do not test extensions |
+ 
+@@ -27,6 +27,8 @@
+ 
+ ## Current evidence, not release approval
+ 
++- **2026-10-20 JP Android Docker:** 248 native tests, TLS/storage recovery and a standalone debug VPN API APK passed before and after container restart. Actual system consent, TUN/protect routing, Settings disconnect and app-SIGKILL cleanup were exercised. [Report](acceptance/evidence/l001-android-jp-20261020/REPORT.md). The APK contains no Loom Rust/JNI forwarding or production authorization; it does not satisfy physical-device acceptance.
++- **2026-10-19 macOS / Docker lab:** 244 Rust tests per OS, strict Clippy, four real TCP/mTLS paths, 20 fixture-identity/scope refusals and nine process/container SIGKILL recoveries. [Report, raw samples and logs](acceptance/evidence/l001-local-docker-20261019/REPORT.md). This adds concrete PoC evidence; signed production membership/Owner admission, independent rollback storage, physical power loss and platform-driver gates remain unpassed.
+ - L-001A / Draft #7 and reintegration #36: isolated mTLS Peer channel, malicious bearer and identity-bound tests.
+ - L-001B / Draft #35: independent strict Rust, Go, JavaScript, Kotlin golden CBOR/signing-input test runners executed in GitHub Actions.
+ - L-001C / Draft #8–#34: signed journal replay, outbox/Audit, Root/Owner/Witness, counter/intent, signed record and recovery state models. No proven independently durable, rollback-resistant CAS or authenticated remote quorum.
+diff --git a/docs/review-tracker.md b/docs/review-tracker.md
+index 805e8c0..88f7135 100644
+--- a/docs/review-tracker.md
++++ b/docs/review-tracker.md
+@@ -1,12 +1,12 @@
+ # Loom v1.1 评审整改跟踪与安全门禁
+ 
+ > 基线：2026-10-17 原 v1.0 评审；本表的“设计已补充”**不等于任何测试通过**。
+-> 当前所有行均未完成实施验证。`candidate_only` 表示重要协议选择尚待 P0 比较、验签向量和正式签字。
++> 本表保留 2026-10-17 的历史设计评审基线，不代表当前实施进度。最新本机与 Docker 证据见 [L-001 实测报告](acceptance/evidence/l001-local-docker-20261019/REPORT.md)，正式门禁仍未通过。基线时所有行均未完成实施验证。`candidate_only` 表示重要协议选择尚待 P0 比较、验签向量和正式签字。
+ 
+ | 项目 | P0 | P1 | P2 | 结论 |
+ |---|---:|---:|---:|---|
+ | 已形成设计回应 | 8 | 9 | 4 | 均待复核并签字 |
+-| 实际实施/跑测完成 | 0 | 0 | 0 | 未运行 Rust PoC 或目标平台实测 |
++| 基线时实际实施/跑测完成 | 0 | 0 | 0 | 2026-10-17 的历史统计，不是当前测试状态 |
+ 
+ ## 21 条跟踪映射
+ 
+@@ -43,6 +43,9 @@
+ 5. Android/Windows/macOS P0 实机 Spike 输出可交付范围；不满足 entitlement 的功能明确降级。
+ 6. 旧 RelayProxy 仍保持正常运行；默认不切换系统代理/过滤驱动。
+ 
+-## 当前 Release Gate
++## 2026-10-17 历史 Release Gate
+ 
+-`DESIGN_ONLY / SECURITY_PROTOCOL_NOT_FROZEN / NO_RUST_BUILD / NO_CROSS_PLATFORM_POC / MAIN_NOT_TOUCHED`。
+\ No newline at end of file
++`DESIGN_ONLY / SECURITY_PROTOCOL_NOT_FROZEN / NO_RUST_BUILD / NO_CROSS_PLATFORM_POC / MAIN_NOT_TOUCHED`。
++当前状态：L-001 PoC 工程已整合，本机与 Docker 实验已完成；生产发布门禁仍为 `BLOCKED / NO_SERVICE_OPEN`。参见 [机器可读验收清单](acceptance/l001.json)。
++
++2026-10-20 补充：[JP Android Docker 实验](acceptance/evidence/l001-android-jp-20261020/REPORT.md)在容器重启后通过 248 项原生测试及独立 VPN API 调试 APK 五项检查。生产 Rust/JNI VPN、完整泄漏测试与物理设备仍未验收，不据此填写平台或安全审查签字。
+
+STDERR:

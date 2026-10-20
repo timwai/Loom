@@ -1,0 +1,38 @@
+{
+  "acceptance-manifest": {
+    "argv": [
+      "python3",
+      "scripts/l001_gate.py"
+    ],
+    "exit_code": 0,
+    "expected": 0,
+    "stdout": "L-001 COMPLETION: BLOCKED\nUnmet gates: E2EE-01, TLS-ID-01, WIRE-01, AUTHZ-RACE-01, AUTHZ-CRASH-02, ROLLBACK-01, PLATFORM-ANDROID-01, PLATFORM-WIN-01, PLATFORM-MAC-01, SIGNOFF:security, SIGNOFF:interop, SIGNOFF:platform, SIGNOFF:trusted_state\n",
+    "stderr": ""
+  },
+  "release-refusal": {
+    "argv": [
+      "python3",
+      "scripts/l001_gate.py",
+      "--require-complete"
+    ],
+    "exit_code": 1,
+    "expected": 1,
+    "stdout": "L-001 COMPLETION: BLOCKED\nUnmet gates: E2EE-01, TLS-ID-01, WIRE-01, AUTHZ-RACE-01, AUTHZ-CRASH-02, ROLLBACK-01, PLATFORM-ANDROID-01, PLATFORM-WIN-01, PLATFORM-MAC-01, SIGNOFF:security, SIGNOFF:interop, SIGNOFF:platform, SIGNOFF:trusted_state\n",
+    "stderr": "Refusing release: all L-001A/B/C/D reviews required\n"
+  },
+  "diff-format": {
+    "argv": [
+      "git",
+      "diff",
+      "--check"
+    ],
+    "exit_code": 0,
+    "expected": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  "restart-smoke": {
+    "state": "installed",
+    "evidence": "restart-smoke/results.json"
+  }
+}

@@ -8,6 +8,10 @@
 //! Synchronous APIs: call from a blocking pool, never on a Tokio runtime core.
 
 use crate::StoreError;
+use crate::challenge_witness_quorum::{
+    PinnedQuorum, QuorumChallenge, QuorumError, QuorumHighWater, SignedQuorumObservation,
+    VerifiedQuorumDiagnostic, verify_challenge_bound_quorum,
+};
 use crate::legacy_migration::require_no_legacy_schema;
 use crate::policy_journal_codec::KIND_REVOKE;
 pub use crate::policy_journal_codec::NewPolicyEvent;
@@ -56,6 +60,23 @@ pub enum UnifiedRecoveryAssessment {
     LocalBehind,
     WitnessBehind,
     HistoryConflict,
+}
+
+/// Fresh-response recovery inputs. Nonces must come from an unpredictable,
+/// single-use source outside the restored journal. This is diagnostic only.
+pub struct ChallengeBoundRecoveryRequest<'a> {
+    pub root: ExternallyPinnedRootForSpike,
+    pub genesis: VerifiedResourceTrust,
+    pub challenge: QuorumChallenge,
+    pub replies: &'a [SignedQuorumObservation],
+    pub minimum_generation: u64,
+    pub now_ms: u64,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ChallengeBoundRecoveryError {
+    Journal(StoreError),
+    Quorum(QuorumError),
 }
 
 /// L-001Q: a diagnostic-only transition. Neither variant enables ServiceOpen.
@@ -298,6 +319,69 @@ impl UnifiedPolicyJournal {
             barrier.stale_prepared = true;
         }
         Ok(result)
+    }
+
+    /// Replay the signed journal and all mirrors before comparing fresh replies
+    /// from the Root-selected Witness pair. The caller cannot substitute a raw
+    /// local high-water or its own Witness pins. No durable marker, enrollment,
+    /// trusted-provider proof or admission permission is created on success.
+    ///
+    /// Like `inspect`, this describes one replayed snapshot. The process-local
+    /// gate does not fence other SQLite processes or authorize later actions.
+    pub fn inspect_challenge_bound_recovery(
+        &self,
+        request: ChallengeBoundRecoveryRequest<'_>,
+    ) -> Result<VerifiedQuorumDiagnostic, ChallengeBoundRecoveryError> {
+        use ChallengeBoundRecoveryError::{Journal, Quorum};
+        let _barrier = self
+            .gate
+            .lock()
+            .map_err(|_| Journal(StoreError::PersistenceFailure))?;
+        if !request.genesis.valid_at(request.now_ms) {
+            return Err(Journal(StoreError::Conflict));
+        }
+        let (send, recv) = mpsc::channel();
+        self.tx
+            .as_ref()
+            .ok_or(Journal(StoreError::PersistenceFailure))?
+            .send(Command::InspectWitness {
+                root: request.root,
+                genesis: request.genesis,
+                done: send,
+            })
+            .map_err(|_| Journal(StoreError::PersistenceFailure))?;
+        let local = recv
+            .recv()
+            .map_err(|_| Journal(StoreError::PersistenceFailure))?
+            .map_err(Journal)?;
+        let current = local.current_trust;
+        if !current.valid_at(request.now_ms)
+            || current.witnesses().map(|w| w.public_key)
+                != request.genesis.witnesses().map(|w| w.public_key)
+        {
+            return Err(Journal(StoreError::Conflict));
+        }
+        let state = QuorumHighWater {
+            space: current.space(),
+            resource: current.resource(),
+            writer_epoch: current.writer_epoch(),
+            sequence: local.snapshot.sequence,
+            policy_head: local.snapshot.policy_head,
+            revocation_root: local.revocation_root,
+        };
+        verify_challenge_bound_quorum(
+            &PinnedQuorum {
+                witnesses: current.witnesses(),
+                space: state.space,
+                resource: state.resource,
+                writer_epoch: state.writer_epoch,
+            },
+            request.challenge,
+            request.replies,
+            request.minimum_generation,
+            state,
+        )
+        .map_err(Quorum)
     }
 
     /// Verify two Root-selected signed checkpoints against a fully replayed,
@@ -1932,6 +2016,217 @@ mod tests {
             missing: false,
             fail_cas: false,
         }
+    }
+
+    fn quorum_receipts(
+        nonce: u8,
+        sequence: u64,
+        policy_head: [u8; 32],
+        revocation_root: [u8; 32],
+    ) -> [SignedQuorumObservation; 2] {
+        use crate::challenge_witness_quorum::{QuorumObservation, quorum_observation_transcript};
+        let genesis = trusted_genesis();
+        let observation = QuorumObservation {
+            challenge: QuorumChallenge {
+                nonce: [nonce; 32],
+                expected_space: genesis.space(),
+                expected_resource: genesis.resource(),
+                expected_writer_epoch: genesis.writer_epoch(),
+            },
+            generation: sequence,
+            high_water: QuorumHighWater {
+                space: genesis.space(),
+                resource: genesis.resource(),
+                writer_epoch: genesis.writer_epoch(),
+                sequence,
+                policy_head,
+                revocation_root,
+            },
+        };
+        [21, 22].map(|seed| {
+            let key = SigningKey::from_bytes(&[seed; 32]);
+            SignedQuorumObservation {
+                witness_key_id: genesis.witnesses()[usize::from(seed - 21)].key_id,
+                observation,
+                signature: key
+                    .sign(&quorum_observation_transcript(&observation))
+                    .to_bytes(),
+            }
+        })
+    }
+
+    fn challenged<'a>(replies: &'a [SignedQuorumObservation]) -> ChallengeBoundRecoveryRequest<'a> {
+        ChallengeBoundRecoveryRequest {
+            root: root_pin(),
+            genesis: trusted_genesis(),
+            challenge: quorum_receipts(71, 1, [0; 32], [0; 32])[0]
+                .observation
+                .challenge,
+            replies,
+            minimum_generation: 1,
+            now_ms: 150,
+        }
+    }
+
+    #[test]
+    fn challenge_recovery_replays_mixed_history_and_root_selected_witnesses() {
+        let file = TempDb::new();
+        let journal = file.open();
+        let genesis = trusted_genesis();
+        journal
+            .append(
+                root_pin(),
+                genesis,
+                NewPolicyEvent::Revoke(&signed_revocation(1, 11, 3)),
+            )
+            .unwrap();
+        let evidence = journal.pending_outbox().unwrap().remove(0).evidence;
+        let root = append_revocation_root([0; 32], 1, &evidence).unwrap();
+        let after = journal
+            .append(
+                root_pin(),
+                genesis,
+                NewPolicyEvent::Cancel(&signed_cancellation(2)),
+            )
+            .unwrap();
+        let replies = quorum_receipts(71, 2, after.policy_head, root);
+        let diagnostic = journal
+            .inspect_challenge_bound_recovery(challenged(&replies))
+            .unwrap();
+        assert_eq!(diagnostic.high_water(), replies[0].observation.high_water);
+        assert!(
+            journal
+                .inspect(root_pin(), genesis)
+                .unwrap()
+                .admission_paused
+        );
+        // Correct policy head cannot mask a substituted revocation accumulator.
+        let wrong_root = quorum_receipts(71, 2, after.policy_head, [99; 32]);
+        assert_eq!(
+            journal.inspect_challenge_bound_recovery(challenged(&wrong_root)),
+            Err(ChallengeBoundRecoveryError::Quorum(
+                QuorumError::LocalRollbackOrFork
+            ))
+        );
+    }
+
+    #[test]
+    fn challenge_recovery_refuses_valid_old_signed_prefix() {
+        let old_file = TempDb::new();
+        let current_file = TempDb::new();
+        let old = old_file.open();
+        let current = current_file.open();
+        let genesis = trusted_genesis();
+        for journal in [&old, &current] {
+            journal
+                .append(
+                    root_pin(),
+                    genesis,
+                    NewPolicyEvent::Revoke(&signed_revocation(1, 11, 3)),
+                )
+                .unwrap();
+        }
+        let after = current
+            .append(
+                root_pin(),
+                genesis,
+                NewPolicyEvent::Revoke(&signed_revocation(2, 11, 3)),
+            )
+            .unwrap();
+        let mut revoke_root = [0; 32];
+        for entry in current.pending_outbox().unwrap() {
+            revoke_root =
+                append_revocation_root(revoke_root, entry.sequence, &entry.evidence).unwrap();
+        }
+        let fresh = quorum_receipts(71, 2, after.policy_head, revoke_root);
+        assert!(
+            current
+                .inspect_challenge_bound_recovery(challenged(&fresh))
+                .is_ok()
+        );
+        assert_eq!(old.inspect(root_pin(), genesis).unwrap().sequence, 1);
+        assert_eq!(
+            old.inspect_challenge_bound_recovery(challenged(&fresh)),
+            Err(ChallengeBoundRecoveryError::Quorum(
+                QuorumError::LocalRollbackOrFork
+            ))
+        );
+    }
+
+    #[test]
+    fn challenge_recovery_never_uses_replies_to_bypass_bad_mirrors() {
+        let file = TempDb::new();
+        let journal = file.open();
+        let after = journal
+            .append(
+                root_pin(),
+                trusted_genesis(),
+                NewPolicyEvent::Cancel(&signed_cancellation(1)),
+            )
+            .unwrap();
+        let fresh = quorum_receipts(71, 1, after.policy_head, [0; 32]);
+        assert!(
+            journal
+                .inspect_challenge_bound_recovery(challenged(&fresh))
+                .is_ok()
+        );
+        Connection::open(&file.0)
+            .unwrap()
+            .execute("DELETE FROM unified_policy_outbox WHERE seq=1", [])
+            .unwrap();
+        assert_eq!(
+            journal.inspect_challenge_bound_recovery(challenged(&fresh)),
+            Err(ChallengeBoundRecoveryError::Journal(StoreError::Conflict))
+        );
+    }
+
+    #[test]
+    fn challenge_recovery_refuses_replay_split_missing_and_invalid_signatures() {
+        let file = TempDb::new();
+        let journal = file.open();
+        let after = journal
+            .append(
+                root_pin(),
+                trusted_genesis(),
+                NewPolicyEvent::Cancel(&signed_cancellation(1)),
+            )
+            .unwrap();
+        let fresh = quorum_receipts(71, 1, after.policy_head, [0; 32]);
+        let stale = quorum_receipts(72, 1, after.policy_head, [0; 32]);
+        let split = [fresh[0], quorum_receipts(71, 2, [99; 32], [0; 32])[1]];
+        let mut bad = fresh;
+        bad[0].signature[0] ^= 1;
+        for (replies, error) in [
+            (&stale[..], QuorumError::WrongChallenge),
+            (&fresh[..1], QuorumError::MissingOrDuplicateWitness),
+            (&split[..], QuorumError::SplitWitnesses),
+            (&bad[..], QuorumError::InvalidSignature),
+        ] {
+            assert_eq!(
+                journal.inspect_challenge_bound_recovery(challenged(replies)),
+                Err(ChallengeBoundRecoveryError::Quorum(error))
+            );
+        }
+        let mut expired = challenged(&fresh);
+        expired.now_ms = 301;
+        assert_eq!(
+            journal.inspect_challenge_bound_recovery(expired),
+            Err(ChallengeBoundRecoveryError::Journal(StoreError::Conflict))
+        );
+        let mut wrong_root = challenged(&fresh);
+        wrong_root.root.public_key = SigningKey::from_bytes(&[80; 32]).verifying_key().to_bytes();
+        assert_eq!(
+            journal.inspect_challenge_bound_recovery(wrong_root),
+            Err(ChallengeBoundRecoveryError::Journal(StoreError::Conflict))
+        );
+        let mut floor = challenged(&fresh);
+        floor.minimum_generation = 2;
+        assert_eq!(
+            journal.inspect_challenge_bound_recovery(floor),
+            Err(ChallengeBoundRecoveryError::Quorum(
+                QuorumError::StaleGeneration
+            ))
+        );
     }
 
     fn witness_receipts(

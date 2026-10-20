@@ -11,16 +11,27 @@ use crate::unified_policy_anchor::{
 };
 use loom_types::{ResourceId, SpaceId};
 
+#[cfg(any(target_os = "linux", test))]
 const TPM_ST_NO_SESSIONS: u16 = 0x8001;
+#[cfg(any(target_os = "linux", test))]
 const TPM_CC_GET_CAPABILITY: u32 = 0x0000_017a;
+#[cfg(any(target_os = "linux", test))]
 const TPM_CAP_HANDLES: u32 = 1;
+#[cfg(any(target_os = "linux", test))]
 const TPM_CAP_PROPERTIES: u32 = 6;
+#[cfg(any(target_os = "linux", test))]
 const TPM_PT_FAMILY_INDICATOR: u32 = 0x0000_0100;
+#[cfg(any(target_os = "linux", test))]
 const TPM_PT_MANUFACTURER: u32 = 0x0000_0105;
+#[cfg(any(target_os = "linux", test))]
 const TPM_NV_FIRST: u32 = 0x0100_0000;
+#[cfg(any(target_os = "linux", test))]
 const TPM_NV_LAST: u32 = 0x01ff_ffff;
+#[cfg(any(target_os = "linux", test))]
 const TPM_FAMILY_20: u32 = 0x322e_3000; // "2.0\0"
+#[cfg(any(target_os = "linux", test))]
 const MAX_NV_PAGE: u32 = 32;
+#[cfg(any(target_os = "linux", test))]
 const MAX_REPLY: usize = 4096;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -68,6 +79,7 @@ impl IndependentUnifiedPolicyAnchor for LinuxTpm2Candidate {
 
 /// The TPM chip command is a *read-only* TPM2_GetCapability. Its request and
 /// response contain no passwords, data writes or authorization sessions.
+#[cfg(any(target_os = "linux", test))]
 fn request(capability: u32, property: u32, count: u32) -> [u8; 22] {
     let mut output = [0u8; 22];
     output[0..2].copy_from_slice(&TPM_ST_NO_SESSIONS.to_be_bytes());
@@ -81,15 +93,18 @@ fn request(capability: u32, property: u32, count: u32) -> [u8; 22] {
 
 /// Low-level raw read-only TPM command transport. A mock is used in CI;
 /// the actual Linux provider uses a Linux TPM resource-manager char device.
+#[cfg(any(target_os = "linux", test))]
 trait TpmTransport {
     fn exchange(&mut self, command: &[u8]) -> Result<Vec<u8>, TpmProbeError>;
 }
 
+#[cfg(any(target_os = "linux", test))]
 struct CapabilityPage {
     more: bool,
     values: Vec<(u32, u32)>,
 }
 
+#[cfg(any(target_os = "linux", test))]
 fn parse_response(
     bytes: &[u8],
     expected_cap: u32,
@@ -148,6 +163,7 @@ fn parse_response(
     })
 }
 
+#[cfg(any(target_os = "linux", test))]
 fn property(io: &mut impl TpmTransport, property: u32) -> Result<u32, TpmProbeError> {
     let message = io.exchange(&request(TPM_CAP_PROPERTIES, property, 1))?;
     let page = parse_response(&message, TPM_CAP_PROPERTIES, 1)?;
@@ -160,6 +176,7 @@ fn property(io: &mut impl TpmTransport, property: u32) -> Result<u32, TpmProbeEr
     Ok(page.values[0].1)
 }
 
+#[cfg(any(target_os = "linux", test))]
 fn probe_with_transport(
     version: u32,
     device_index: u8,

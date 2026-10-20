@@ -1,0 +1,24 @@
+[workspace]
+resolver = "3"
+members = [
+  "crates/loom-types",
+  "crates/loom-crypto",
+  "crates/loom-wire",
+  "crates/loom-identity",
+  "crates/loom-policy",
+  "crates/loom-store",
+  "crates/loom-transport",
+  "crates/loom-core",
+  "apps/loomd",
+  "crates/loom-android",
+]
+default-members = ["apps/loomd"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.90"
+repository = "https://github.com/timwai/Loom"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"

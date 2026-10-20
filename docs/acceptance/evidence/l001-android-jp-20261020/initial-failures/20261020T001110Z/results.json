@@ -1,0 +1,486 @@
+{
+  "profile": "L-001-android-vpn-api-lab-v1",
+  "state": "failed",
+  "cases": {
+    "unprepared_establish_refused": {
+      "lab_only": true,
+      "uid": 10088,
+      "mode": "denied",
+      "prepare_requires_consent": true,
+      "foreground_started": true,
+      "unprepared_establish_refused": true,
+      "state": "passed",
+      "on_destroy": true
+    },
+    "system_consent_cancel": {
+      "lab_only": true,
+      "uid": 10088,
+      "mode": "probe",
+      "prepare_requires_consent": true,
+      "consent_result_ok": false,
+      "state": "consent_denied"
+    }
+  },
+  "commands": [
+    {
+      "name": "interfaces",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "-T",
+        "ip -o link show"
+      ],
+      "exit_code": 0,
+      "log": "logs/000-interfaces.log"
+    },
+    {
+      "name": "remove-old-lab-apk",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "uninstall",
+        "fun.loom.lab"
+      ],
+      "exit_code": 0,
+      "log": "logs/001-remove-old-lab-apk.log"
+    },
+    {
+      "name": "install-lab-apk",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "install",
+        "--no-incremental",
+        "/Volumes/Data/Code/Loom/target/android-vpn-lab/loom-vpn-lab.apk"
+      ],
+      "exit_code": 0,
+      "log": "logs/002-install-lab-apk.log"
+    },
+    {
+      "name": "device",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "-T",
+        "sh -c 'getprop ro.build.fingerprint; getprop init.svc.lmkd; pidof system_server'"
+      ],
+      "exit_code": 0,
+      "log": "logs/003-device.log"
+    },
+    {
+      "name": "stop-previous-probe",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "-T",
+        "am force-stop fun.loom.lab"
+      ],
+      "exit_code": 0,
+      "log": "logs/004-stop-previous-probe.log"
+    },
+    {
+      "name": "close-old-consent-dialog",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "-T",
+        "am force-stop com.android.vpndialogs"
+      ],
+      "exit_code": 0,
+      "log": "logs/005-close-old-consent-dialog.log"
+    },
+    {
+      "name": "launch-denied",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "-T",
+        "am start -W -f 0x10008000 -n fun.loom.lab/.ProbeActivity --es mode denied --es echo_host 172.17.0.1 --ei echo_port 19999"
+      ],
+      "exit_code": 0,
+      "log": "logs/006-launch-denied.log"
+    },
+    {
+      "name": "app-state",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "-T",
+        "run-as fun.loom.lab cat files/result.json"
+      ],
+      "exit_code": 0,
+      "log": "logs/007-app-state.log"
+    },
+    {
+      "name": "stop-previous-probe",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "-T",
+        "am force-stop fun.loom.lab"
+      ],
+      "exit_code": 0,
+      "log": "logs/008-stop-previous-probe.log"
+    },
+    {
+      "name": "close-old-consent-dialog",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "-T",
+        "am force-stop com.android.vpndialogs"
+      ],
+      "exit_code": 0,
+      "log": "logs/009-close-old-consent-dialog.log"
+    },
+    {
+      "name": "launch-probe",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "-T",
+        "am start -W -f 0x10008000 -n fun.loom.lab/.ProbeActivity --es mode probe --es echo_host 172.17.0.1 --ei echo_port 19999"
+      ],
+      "exit_code": 0,
+      "log": "logs/010-launch-probe.log"
+    },
+    {
+      "name": "consent-cancel-dump",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "-T",
+        "uiautomator dump /data/local/tmp/loom-vpn-ui.xml"
+      ],
+      "exit_code": 0,
+      "log": "logs/011-consent-cancel-dump.log"
+    },
+    {
+      "name": "consent-cancel-xml",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "-T",
+        "cat /data/local/tmp/loom-vpn-ui.xml"
+      ],
+      "exit_code": 0,
+      "log": "logs/012-consent-cancel-xml.log"
+    },
+    {
+      "name": "tap",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "-T",
+        "input tap 441 836"
+      ],
+      "exit_code": 0,
+      "log": "logs/013-tap.log"
+    },
+    {
+      "name": "app-state",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "-T",
+        "run-as fun.loom.lab cat files/result.json"
+      ],
+      "exit_code": 0,
+      "log": "logs/014-app-state.log"
+    },
+    {
+      "name": "app-state",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "-T",
+        "run-as fun.loom.lab cat files/result.json"
+      ],
+      "exit_code": 0,
+      "log": "logs/015-app-state.log"
+    },
+    {
+      "name": "interfaces",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "-T",
+        "ip -o link show"
+      ],
+      "exit_code": 0,
+      "log": "logs/016-interfaces.log"
+    },
+    {
+      "name": "stop-previous-probe",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "-T",
+        "am force-stop fun.loom.lab"
+      ],
+      "exit_code": 0,
+      "log": "logs/017-stop-previous-probe.log"
+    },
+    {
+      "name": "close-old-consent-dialog",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "-T",
+        "am force-stop com.android.vpndialogs"
+      ],
+      "exit_code": 0,
+      "log": "logs/018-close-old-consent-dialog.log"
+    },
+    {
+      "name": "launch-probe",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "-T",
+        "am start -W -f 0x10008000 -n fun.loom.lab/.ProbeActivity --es mode probe --es echo_host 172.17.0.1 --ei echo_port 19999"
+      ],
+      "exit_code": 0,
+      "log": "logs/019-launch-probe.log"
+    },
+    {
+      "name": "consent-accept-dump",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "-T",
+        "uiautomator dump /data/local/tmp/loom-vpn-ui.xml"
+      ],
+      "exit_code": 0,
+      "log": "logs/020-consent-accept-dump.log"
+    },
+    {
+      "name": "consent-accept-xml",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "-T",
+        "cat /data/local/tmp/loom-vpn-ui.xml"
+      ],
+      "exit_code": 0,
+      "log": "logs/021-consent-accept-xml.log"
+    },
+    {
+      "name": "tap",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "-T",
+        "input tap 582 836"
+      ],
+      "exit_code": 0,
+      "log": "logs/022-tap.log"
+    },
+    {
+      "name": "app-state",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "-T",
+        "run-as fun.loom.lab cat files/result.json"
+      ],
+      "exit_code": 0,
+      "log": "logs/023-app-state.log"
+    },
+    {
+      "name": "app-state",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "-T",
+        "run-as fun.loom.lab cat files/result.json"
+      ],
+      "exit_code": 0,
+      "log": "logs/024-app-state.log"
+    },
+    {
+      "name": "final-force-stop",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "-T",
+        "am force-stop fun.loom.lab"
+      ],
+      "exit_code": 0,
+      "log": "logs/025-final-force-stop.log"
+    },
+    {
+      "name": "app-log",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "-T",
+        "logcat -d -s LoomVpnLab:I"
+      ],
+      "exit_code": 0,
+      "log": "logs/026-app-log.log"
+    }
+  ],
+  "real_device": false,
+  "rust_jni_integrated": false,
+  "production_vpn": false,
+  "platform_android_acceptance": "blocked",
+  "runner_sha256": "cc3564e1947f97d3f96504cc04d64ecdad4d74ac5571f4517c072e2064e5ac6b",
+  "apk_build": {
+    "lab_only": true,
+    "debug_signed": true,
+    "apk_sha256": "d62cce2a3e501517e2cfa9a65c582e3deaea1ac9711068f8b94f4ba9ce5c6300",
+    "source_sha256": {
+      "tools/android-vpn-lab/ProbeActivity.java": "7147c4360d29f29f6f1e83564f892a63021a4aa2562712cd2ed5051db27d5616",
+      "tools/android-vpn-lab/AndroidManifest.xml": "e97f6cf363746c9ba34cddecb9e9f6c754bcb662b5068cb0b4e679a4f21376cd",
+      "scripts/l001_build_android_vpn_lab.py": "2f1269f5c4ebf36c933f93b8974c3f56c074cc91139d22ab294c15bd310ec82b"
+    },
+    "commands": [
+      {
+        "argv": [
+          "javac",
+          "--release",
+          "8",
+          "-cp",
+          "/Users/will/Library/Android/sdk/platforms/android-35/android.jar",
+          "-d",
+          "/Volumes/Data/Code/Loom/target/android-vpn-lab/classes",
+          "/Volumes/Data/Code/Loom/tools/android-vpn-lab/ProbeActivity.java"
+        ],
+        "exit_code": 0,
+        "stdout": "",
+        "stderr": "\u8b66\u544a: [options] \u6e90\u503c 8 \u5df2\u8fc7\u65f6\uff0c\u5c06\u5728\u672a\u6765\u53d1\u884c\u7248\u4e2d\u5220\u9664\n\u8b66\u544a: [options] \u76ee\u6807\u503c 8 \u5df2\u8fc7\u65f6\uff0c\u5c06\u5728\u672a\u6765\u53d1\u884c\u7248\u4e2d\u5220\u9664\n\u8b66\u544a: [options] \u8981\u9690\u85cf\u6709\u5173\u5df2\u8fc7\u65f6\u9009\u9879\u7684\u8b66\u544a, \u8bf7\u4f7f\u7528 -Xlint:-options\u3002\n3 \u4e2a\u8b66\u544a\n"
+      },
+      {
+        "argv": [
+          "/Users/will/Library/Android/sdk/build-tools/35.0.0/d8",
+          "--min-api",
+          "26",
+          "--lib",
+          "/Users/will/Library/Android/sdk/platforms/android-35/android.jar",
+          "--output",
+          "/Volumes/Data/Code/Loom/target/android-vpn-lab/dex",
+          "/Volumes/Data/Code/Loom/target/android-vpn-lab/classes/fun/loom/lab/ProbeActivity$Tunnel.class",
+          "/Volumes/Data/Code/Loom/target/android-vpn-lab/classes/fun/loom/lab/ProbeActivity.class"
+        ],
+        "exit_code": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      {
+        "argv": [
+          "/Users/will/Library/Android/sdk/build-tools/35.0.0/aapt",
+          "package",
+          "-f",
+          "-M",
+          "/Volumes/Data/Code/Loom/tools/android-vpn-lab/AndroidManifest.xml",
+          "-I",
+          "/Users/will/Library/Android/sdk/platforms/android-35/android.jar",
+          "-F",
+          "/Volumes/Data/Code/Loom/target/android-vpn-lab/unsigned.apk"
+        ],
+        "exit_code": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      {
+        "argv": [
+          "/Users/will/Library/Android/sdk/build-tools/35.0.0/zipalign",
+          "-f",
+          "4",
+          "/Volumes/Data/Code/Loom/target/android-vpn-lab/unsigned.apk",
+          "/Volumes/Data/Code/Loom/target/android-vpn-lab/aligned.apk"
+        ],
+        "exit_code": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      {
+        "argv": [
+          "/Users/will/Library/Android/sdk/build-tools/35.0.0/apksigner",
+          "sign",
+          "--ks",
+          "/Volumes/Data/Code/Loom/target/android-vpn-lab/debug-only.p12",
+          "--ks-key-alias",
+          "lab",
+          "--ks-pass",
+          "pass:android",
+          "--key-pass",
+          "pass:android",
+          "--out",
+          "/Volumes/Data/Code/Loom/target/android-vpn-lab/loom-vpn-lab.apk",
+          "/Volumes/Data/Code/Loom/target/android-vpn-lab/aligned.apk"
+        ],
+        "exit_code": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      {
+        "argv": [
+          "/Users/will/Library/Android/sdk/build-tools/35.0.0/apksigner",
+          "verify",
+          "--verbose",
+          "--print-certs",
+          "/Volumes/Data/Code/Loom/target/android-vpn-lab/loom-vpn-lab.apk"
+        ],
+        "exit_code": 0,
+        "stdout": "Verifies\nVerified using v1 scheme (JAR signing): false\nVerified using v2 scheme (APK Signature Scheme v2): true\nVerified using v3 scheme (APK Signature Scheme v3): true\nVerified using v3.1 scheme (APK Signature Scheme v3.1): false\nVerified using v4 scheme (APK Signature Scheme v4): false\nVerified for SourceStamp: false\nNumber of signers: 1\nSigner #1 certificate DN: CN=Loom disposable laboratory\nSigner #1 certificate SHA-256 digest: 062e671341f30e5faaeaafa81d716b8a8d219fe24abf3d2dd61af5cfa522e51a\nSigner #1 certificate SHA-1 digest: 8dc17701a2fcb9699f996bb07bd2c5a7d003c2cf\nSigner #1 certificate MD5 digest: 4594e356ce692e656162eb957d2a1d71\nSigner #1 key algorithm: RSA\nSigner #1 key size (bits): 2048\nSigner #1 public key SHA-256 digest: c022bc21cb8a9877436de9d2a21237220271a4940c8d5c0ed749d44c8576319b\nSigner #1 public key SHA-1 digest: 2987db453e2e815bd20602df1f7720e027e208e0\nSigner #1 public key MD5 digest: c75b4c57da173aca8530a6221fe07743\n",
+        "stderr": ""
+      }
+    ]
+  },
+  "error": "{'lab_only': True, 'uid': 10088, 'mode': 'probe', 'prepare_requires_consent': True, 'consent_result_ok': True, 'foreground_started': True, 'prepared_after_consent': True, 'protect_before_connect': True, 'tun_established': True, 'vpn_network_active': True, 'protected_socket_bypasses_tun': True, 'error': 'java.lang.IllegalStateException: unexpected IPv4/UDP packet', 'state': 'failed', 'tun_fd_closed': True, 'protected_socket_closed': True, 'on_destroy': True}",
+  "finished_utc": "2026-10-20T00:11:22.081669+00:00"
+}

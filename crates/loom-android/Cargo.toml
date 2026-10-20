@@ -1,0 +1,23 @@
+[package]
+name = "loom-android"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+jni = "=0.21.1"
+loom-crypto = { path = "../loom-crypto" }
+loom-types = { path = "../loom-types" }
+
+[dev-dependencies]
+ed25519-dalek = "2.2.0"
+loom-wire = { path = "../loom-wire" }
+
+# Only the JNI symbol export attributes override this lint. All parsing and
+# cryptographic verification remains safe Rust; no raw pointers or FD adoption.
+[lints.rust]
+unsafe_code = "deny"

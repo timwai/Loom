@@ -1,0 +1,815 @@
+{
+  "profile": "L-001-android-vpn-api-lab-v1",
+  "state": "failed",
+  "cases": {},
+  "commands": [
+    {
+      "name": "interfaces",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "ip",
+        "-o",
+        "link",
+        "show"
+      ],
+      "exit_code": 0,
+      "log": "logs/000-interfaces.log"
+    },
+    {
+      "name": "device",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "sh",
+        "-c",
+        "getprop ro.build.fingerprint; getprop init.svc.lmkd; pidof system_server"
+      ],
+      "exit_code": 0,
+      "log": "logs/001-device.log"
+    },
+    {
+      "name": "stop-previous-probe",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "am",
+        "force-stop",
+        "fun.loom.lab"
+      ],
+      "exit_code": 0,
+      "log": "logs/002-stop-previous-probe.log"
+    },
+    {
+      "name": "launch-denied",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "am",
+        "start",
+        "-W",
+        "-n",
+        "fun.loom.lab/.ProbeActivity",
+        "--es",
+        "mode",
+        "denied",
+        "--es",
+        "echo_host",
+        "172.17.0.1",
+        "--ei",
+        "echo_port",
+        "19999"
+      ],
+      "exit_code": 0,
+      "log": "logs/003-launch-denied.log"
+    },
+    {
+      "name": "app-state",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "run-as",
+        "fun.loom.lab",
+        "cat",
+        "files/result.json"
+      ],
+      "exit_code": 0,
+      "log": "logs/004-app-state.log"
+    },
+    {
+      "name": "app-state",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "run-as",
+        "fun.loom.lab",
+        "cat",
+        "files/result.json"
+      ],
+      "exit_code": 0,
+      "log": "logs/005-app-state.log"
+    },
+    {
+      "name": "app-state",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "run-as",
+        "fun.loom.lab",
+        "cat",
+        "files/result.json"
+      ],
+      "exit_code": 0,
+      "log": "logs/006-app-state.log"
+    },
+    {
+      "name": "app-state",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "run-as",
+        "fun.loom.lab",
+        "cat",
+        "files/result.json"
+      ],
+      "exit_code": 0,
+      "log": "logs/007-app-state.log"
+    },
+    {
+      "name": "app-state",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "run-as",
+        "fun.loom.lab",
+        "cat",
+        "files/result.json"
+      ],
+      "exit_code": 0,
+      "log": "logs/008-app-state.log"
+    },
+    {
+      "name": "app-state",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "run-as",
+        "fun.loom.lab",
+        "cat",
+        "files/result.json"
+      ],
+      "exit_code": 0,
+      "log": "logs/009-app-state.log"
+    },
+    {
+      "name": "app-state",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "run-as",
+        "fun.loom.lab",
+        "cat",
+        "files/result.json"
+      ],
+      "exit_code": 0,
+      "log": "logs/010-app-state.log"
+    },
+    {
+      "name": "app-state",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "run-as",
+        "fun.loom.lab",
+        "cat",
+        "files/result.json"
+      ],
+      "exit_code": 0,
+      "log": "logs/011-app-state.log"
+    },
+    {
+      "name": "app-state",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "run-as",
+        "fun.loom.lab",
+        "cat",
+        "files/result.json"
+      ],
+      "exit_code": 0,
+      "log": "logs/012-app-state.log"
+    },
+    {
+      "name": "app-state",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "run-as",
+        "fun.loom.lab",
+        "cat",
+        "files/result.json"
+      ],
+      "exit_code": 0,
+      "log": "logs/013-app-state.log"
+    },
+    {
+      "name": "app-state",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "run-as",
+        "fun.loom.lab",
+        "cat",
+        "files/result.json"
+      ],
+      "exit_code": 0,
+      "log": "logs/014-app-state.log"
+    },
+    {
+      "name": "app-state",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "run-as",
+        "fun.loom.lab",
+        "cat",
+        "files/result.json"
+      ],
+      "exit_code": 0,
+      "log": "logs/015-app-state.log"
+    },
+    {
+      "name": "app-state",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "run-as",
+        "fun.loom.lab",
+        "cat",
+        "files/result.json"
+      ],
+      "exit_code": 0,
+      "log": "logs/016-app-state.log"
+    },
+    {
+      "name": "app-state",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "run-as",
+        "fun.loom.lab",
+        "cat",
+        "files/result.json"
+      ],
+      "exit_code": 0,
+      "log": "logs/017-app-state.log"
+    },
+    {
+      "name": "app-state",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "run-as",
+        "fun.loom.lab",
+        "cat",
+        "files/result.json"
+      ],
+      "exit_code": 0,
+      "log": "logs/018-app-state.log"
+    },
+    {
+      "name": "app-state",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "run-as",
+        "fun.loom.lab",
+        "cat",
+        "files/result.json"
+      ],
+      "exit_code": 0,
+      "log": "logs/019-app-state.log"
+    },
+    {
+      "name": "app-state",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "run-as",
+        "fun.loom.lab",
+        "cat",
+        "files/result.json"
+      ],
+      "exit_code": 0,
+      "log": "logs/020-app-state.log"
+    },
+    {
+      "name": "app-state",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "run-as",
+        "fun.loom.lab",
+        "cat",
+        "files/result.json"
+      ],
+      "exit_code": 0,
+      "log": "logs/021-app-state.log"
+    },
+    {
+      "name": "app-state",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "run-as",
+        "fun.loom.lab",
+        "cat",
+        "files/result.json"
+      ],
+      "exit_code": 0,
+      "log": "logs/022-app-state.log"
+    },
+    {
+      "name": "app-state",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "run-as",
+        "fun.loom.lab",
+        "cat",
+        "files/result.json"
+      ],
+      "exit_code": 0,
+      "log": "logs/023-app-state.log"
+    },
+    {
+      "name": "app-state",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "run-as",
+        "fun.loom.lab",
+        "cat",
+        "files/result.json"
+      ],
+      "exit_code": 0,
+      "log": "logs/024-app-state.log"
+    },
+    {
+      "name": "app-state",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "run-as",
+        "fun.loom.lab",
+        "cat",
+        "files/result.json"
+      ],
+      "exit_code": 0,
+      "log": "logs/025-app-state.log"
+    },
+    {
+      "name": "app-state",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "run-as",
+        "fun.loom.lab",
+        "cat",
+        "files/result.json"
+      ],
+      "exit_code": 0,
+      "log": "logs/026-app-state.log"
+    },
+    {
+      "name": "app-state",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "run-as",
+        "fun.loom.lab",
+        "cat",
+        "files/result.json"
+      ],
+      "exit_code": 0,
+      "log": "logs/027-app-state.log"
+    },
+    {
+      "name": "app-state",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "run-as",
+        "fun.loom.lab",
+        "cat",
+        "files/result.json"
+      ],
+      "exit_code": 0,
+      "log": "logs/028-app-state.log"
+    },
+    {
+      "name": "app-state",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "run-as",
+        "fun.loom.lab",
+        "cat",
+        "files/result.json"
+      ],
+      "exit_code": 0,
+      "log": "logs/029-app-state.log"
+    },
+    {
+      "name": "app-state",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "run-as",
+        "fun.loom.lab",
+        "cat",
+        "files/result.json"
+      ],
+      "exit_code": 0,
+      "log": "logs/030-app-state.log"
+    },
+    {
+      "name": "app-state",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "run-as",
+        "fun.loom.lab",
+        "cat",
+        "files/result.json"
+      ],
+      "exit_code": 0,
+      "log": "logs/031-app-state.log"
+    },
+    {
+      "name": "app-state",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "run-as",
+        "fun.loom.lab",
+        "cat",
+        "files/result.json"
+      ],
+      "exit_code": 0,
+      "log": "logs/032-app-state.log"
+    },
+    {
+      "name": "app-state",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "run-as",
+        "fun.loom.lab",
+        "cat",
+        "files/result.json"
+      ],
+      "exit_code": 0,
+      "log": "logs/033-app-state.log"
+    },
+    {
+      "name": "app-state",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "run-as",
+        "fun.loom.lab",
+        "cat",
+        "files/result.json"
+      ],
+      "exit_code": 0,
+      "log": "logs/034-app-state.log"
+    },
+    {
+      "name": "app-state",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "run-as",
+        "fun.loom.lab",
+        "cat",
+        "files/result.json"
+      ],
+      "exit_code": 0,
+      "log": "logs/035-app-state.log"
+    },
+    {
+      "name": "app-state",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "run-as",
+        "fun.loom.lab",
+        "cat",
+        "files/result.json"
+      ],
+      "exit_code": 0,
+      "log": "logs/036-app-state.log"
+    },
+    {
+      "name": "app-state",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "run-as",
+        "fun.loom.lab",
+        "cat",
+        "files/result.json"
+      ],
+      "exit_code": 0,
+      "log": "logs/037-app-state.log"
+    },
+    {
+      "name": "app-state",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "run-as",
+        "fun.loom.lab",
+        "cat",
+        "files/result.json"
+      ],
+      "exit_code": 0,
+      "log": "logs/038-app-state.log"
+    },
+    {
+      "name": "app-state",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "run-as",
+        "fun.loom.lab",
+        "cat",
+        "files/result.json"
+      ],
+      "exit_code": 0,
+      "log": "logs/039-app-state.log"
+    },
+    {
+      "name": "app-state",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "run-as",
+        "fun.loom.lab",
+        "cat",
+        "files/result.json"
+      ],
+      "exit_code": 0,
+      "log": "logs/040-app-state.log"
+    },
+    {
+      "name": "app-state",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "run-as",
+        "fun.loom.lab",
+        "cat",
+        "files/result.json"
+      ],
+      "exit_code": 0,
+      "log": "logs/041-app-state.log"
+    },
+    {
+      "name": "app-state",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "run-as",
+        "fun.loom.lab",
+        "cat",
+        "files/result.json"
+      ],
+      "exit_code": 0,
+      "log": "logs/042-app-state.log"
+    },
+    {
+      "name": "app-state",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "run-as",
+        "fun.loom.lab",
+        "cat",
+        "files/result.json"
+      ],
+      "exit_code": 0,
+      "log": "logs/043-app-state.log"
+    },
+    {
+      "name": "app-state",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "run-as",
+        "fun.loom.lab",
+        "cat",
+        "files/result.json"
+      ],
+      "exit_code": 0,
+      "log": "logs/044-app-state.log"
+    },
+    {
+      "name": "app-state",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "run-as",
+        "fun.loom.lab",
+        "cat",
+        "files/result.json"
+      ],
+      "exit_code": 0,
+      "log": "logs/045-app-state.log"
+    },
+    {
+      "name": "app-state",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "run-as",
+        "fun.loom.lab",
+        "cat",
+        "files/result.json"
+      ],
+      "exit_code": 0,
+      "log": "logs/046-app-state.log"
+    },
+    {
+      "name": "app-state",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "run-as",
+        "fun.loom.lab",
+        "cat",
+        "files/result.json"
+      ],
+      "exit_code": 0,
+      "log": "logs/047-app-state.log"
+    },
+    {
+      "name": "app-state",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "run-as",
+        "fun.loom.lab",
+        "cat",
+        "files/result.json"
+      ],
+      "exit_code": 0,
+      "log": "logs/048-app-state.log"
+    },
+    {
+      "name": "app-state",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "run-as",
+        "fun.loom.lab",
+        "cat",
+        "files/result.json"
+      ],
+      "exit_code": 0,
+      "log": "logs/049-app-state.log"
+    },
+    {
+      "name": "app-state",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "run-as",
+        "fun.loom.lab",
+        "cat",
+        "files/result.json"
+      ],
+      "exit_code": 0,
+      "log": "logs/050-app-state.log"
+    },
+    {
+      "name": "final-force-stop",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "am",
+        "force-stop",
+        "fun.loom.lab"
+      ],
+      "exit_code": 0,
+      "log": "logs/051-final-force-stop.log"
+    },
+    {
+      "name": "app-log",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "logcat",
+        "-d",
+        "-s",
+        "LoomVpnLab:I"
+      ],
+      "exit_code": 0,
+      "log": "logs/052-app-log.log"
+    }
+  ],
+  "real_device": false,
+  "rust_jni_integrated": false,
+  "production_vpn": false,
+  "platform_android_acceptance": "blocked",
+  "error": "state passed not reached: {'lab_only': True, 'uid': 10087, 'mode': 'probe', 'prepare_requires_consent': True}",
+  "finished_utc": "2026-10-20T00:09:27.085372+00:00"
+}

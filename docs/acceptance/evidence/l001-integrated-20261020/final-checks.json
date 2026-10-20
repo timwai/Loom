@@ -1,0 +1,40 @@
+{
+  "profile": "L-001-existing-environments-v1",
+  "state": "passed",
+  "source_hash_comparisons": 259,
+  "local_tests_per_os": 268,
+  "android_native": [
+    {
+      "directory": "before-restart-native",
+      "tests": 268,
+      "suites": 15
+    },
+    {
+      "directory": "native",
+      "tests": 268,
+      "suites": 15
+    }
+  ],
+  "android_jni": [
+    {
+      "directory": "before-restart-vpn",
+      "cases": 5,
+      "independent_protected_datagrams": 6,
+      "independent_canaries": 0
+    },
+    {
+      "directory": "vpn",
+      "cases": 5,
+      "independent_protected_datagrams": 6,
+      "independent_canaries": 0
+    }
+  ],
+  "container_restart_revalidated": true,
+  "business_container_identities_unchanged": true,
+  "production_admission_enabled": false,
+  "release_state": "blocked",
+  "real_android_device": false,
+  "windows_environment_available": false,
+  "macos_signed_extension_available": false,
+  "independent_review_completed": false
+}

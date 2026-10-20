@@ -1,0 +1,326 @@
+
+running 13 tests
+test lan_file_read_model::tests::default_is_no_grants_no_sessions ... ok
+test lan_file_read_model::tests::any_policy_change_fails_closed_for_existing_stream ... ok
+test lan_file_read_model::tests::invalid_chunk_requests_do_not_consume_file ... ok
+test lan_file_read_model::tests::grant_after_revoke_cannot_resurrect_an_old_stream ... ok
+test lan_file_read_model::tests::lost_process_state_fails_closed_without_grants ... ok
+test lan_file_read_model::tests::membership_key_epoch_rotation_requires_new_session ... ok
+test lan_file_read_model::tests::oversized_fixture_and_invalid_zero_epoch_are_rejected ... ok
+test lan_file_read_model::tests::owner_fixture_allows_exact_peer_resource_and_epoch_only ... ok
+test lan_file_read_model::tests::production_policy_boundary_still_denies_every_file_read ... ok
+test lan_file_read_model::tests::concurrent_revoke_race_orders_before_subsequent_read ... ok
+test lan_file_read_model::tests::revoke_invalidates_an_already_open_file_stream_before_next_chunk ... ok
+test tests::bootstrap_must_not_serve_network_or_resources ... ok
+test lan_file_read_model::tests::wrong_space_resource_and_membership_epoch_are_denied ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 35 tests
+test owner_authority::tests::no_replay_as_different_event_type ... ok
+test owner_authority::tests::owner_signed_revoke_only_chain_and_persisted_evidence ... ok
+test owner_authority::tests::grant_not_signed_for_different_space_or_key_id ... ok
+test owner_authority::tests::reject_expiry_owner_epoch_and_delegated_key_epoch ... ok
+test owner_authority::tests::saved_owner_delegation_replays_with_both_signatures ... ok
+test owner_authority::tests::cannot_forge_owner_or_delegate ... ok
+test owner_authority::tests::cannot_increase_delegation_rights_or_cross_resource ... ok
+test owner_authority::tests::saved_envelope_rejects_truncation_suffix_and_forged_grant ... ok
+test owner_lifecycle::tests::forged_cancellation_wrong_scope_epoch_and_duplicate_rejected ... ok
+test root_rotation::tests::expired_or_future_dated_rotation_rejected ... ok
+test root_rotation::tests::both_root_keys_must_confirm_rotation ... ok
+test owner_lifecycle::tests::cancellation_consumes_sequence_and_blocks_backdated_valid_signature ... ok
+test owner_lifecycle::tests::owner_transfer_requires_both_owners_and_root_signed_successor_policy ... ok
+test root_rotation::tests::changes_to_epoch_space_or_successor_key_fail ... ok
+test root_rotation::tests::substituted_previously_pinned_key_is_not_accepted ... ok
+test signed_revocation::tests::malformed_revocation_payload_is_not_authorized_by_valid_signature ... ok
+test signed_revocation::tests::verifies_independent_go_js_ed25519_vector ... ok
+test root_rotation::tests::forged_old_or_new_signature_rejected ... ok
+test signed_revocation::tests::typed_revocation_requires_scope_signature_epoch_and_time ... ok
+test tests::no_placeholder_accepts_signature ... ok
+test owner_lifecycle::tests::other_valid_delegate_can_still_revoke_after_cancel ... ok
+test owner_lifecycle::tests::wrong_successor_epoch_and_manifest_detected ... ok
+test space_trust::tests::root_epoch_cross_space_and_expiry_rejected ... ok
+test space_trust::tests::cannot_replace_or_duplicate_authorized_witness ... ok
+test witness_checkpoint::tests::deterministic_revocation_roots_are_epoch_sensitive ... ok
+test space_trust::tests::root_key_substitution_and_manipulated_owner_rejected ... ok
+test space_trust::tests::writer_epoch_and_checkpoint_signature_are_bound_to_root_policy ... ok
+test space_trust::tests::signed_root_binds_owner_and_two_distinct_witnesses ... ok
+test witness_checkpoint::tests::duplicate_witness_or_missing_witness_cannot_fake_quorum ... ok
+test witness_checkpoint::tests::conflicting_valid_signatures_freeze_instead_of_selecting_lower_seq ... ok
+test witness_checkpoint::tests::independent_signatures_verify_but_do_not_mint_access ... ok
+test owner_lifecycle::tests::resource_policy_head_commits_to_control_and_data_order ... ok
+test witness_checkpoint::tests::witness_id_binding_detects_substitution ... ok
+test owner_lifecycle::tests::forging_either_owner_signature_or_replaying_transfer_fails ... ok
+test witness_checkpoint::tests::tampering_wrong_scope_and_expiry_rejected ... ok
+
+test result: ok. 35 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+
+running 1 test
+test tests::default_membership_always_rejects ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 1 test
+test tests::no_state_can_open_a_resource_without_real_credential ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 182 tests
+test anchor_conformance::tests::old_genesis_is_not_silently_reprovisioned ... ok
+test anchor_conformance::tests::same_sequence_competing_signed_head_is_detected ... ok
+test anchor_conformance::tests::restoring_backup_that_includes_anchor_is_detected ... ok
+test anchor_conformance::tests::behavioral_model_passes_but_physical_certification_stays_false ... ok
+test authenticated_intent_read_gate::tests::only_verified_committed_is_exposed_and_write_methods_never_run ... ok
+test authenticated_intent_read_gate::tests::key_rotation_only_after_out_of_band_pin_change ... ok
+test authenticated_intent_record::tests::authentic_record_does_not_override_wrong_counter_or_expired_fence ... ok
+test authenticated_intent_read_gate::tests::corrupt_or_old_signed_media_never_returns_committed_state ... ok
+test authenticated_intent_record::tests::canonical_record_sizes_and_verified_round_trip ... ok
+test authenticated_intent_record::tests::cross_device_space_root_writer_and_genesis_substitution_rejected ... ok
+test authenticated_intent_read_gate::tests::signed_prepared_pre_and_post_increment_are_read_only ... ok
+test authenticated_intent_read_gate::tests::wrong_observed_counter_device_or_trusted_floor_rejects ... ok
+test authenticated_intent_read_gate::tests::coherent_double_read_rejects_record_and_trust_switches ... ok
+test authenticated_intent_record::tests::version_length_reserved_and_state_canonicalization ... ok
+test authenticated_intent_record::tests::signer_rotation_needs_out_of_band_epoch_and_public_key_pin ... ok
+test authenticated_intent_record::tests::replay_fence_blocks_old_records_and_same_sequence_forks ... ok
+test authenticated_intent_record::tests::signed_record_recovery_binds_to_simulated_crash_image_and_nv_counter ... ok
+test authenticated_intent_write_model::tests::record_sequence_and_signer_epoch_overflow_refuse_rotation ... ok
+test authenticated_intent_write_model::tests::different_signing_key_cannot_publish_under_existing_pin ... ok
+test authenticated_intent_write_model::tests::old_signed_frame_and_reset_device_never_reenroll_rotated_key ... ok
+test authenticated_intent_write_model::tests::competing_concurrent_prepare_cannot_publish_stale_signature ... ok
+test authenticated_intent_write_model::tests::restoring_old_signed_frame_cannot_rollback_authentic_fence ... ok
+test authenticated_intent_write_model::tests::concurrent_old_signing_must_not_block_rotation_or_publish_stale_record ... ok
+test authenticated_intent_write_model::tests::independently_approved_rotation_advances_signed_epoch_and_fence ... ok
+test authenticated_intent_record::tests::every_signed_field_tampering_and_signature_substitution_rejected ... ok
+test authenticated_intent_write_model::tests::rejected_signatures_and_malformed_transitions_do_not_change_fence ... ok
+test authenticated_intent_write_model::tests::rotation_is_refused_while_prepared_requires_signed_recovery ... ok
+test authenticated_intent_write_model::tests::signed_prepared_ahead_of_authenticated_fence_cannot_increment_nv ... ok
+test challenge_witness_quorum::tests::duplicate_witness_and_unpinned_identity_are_refused ... ok
+test challenge_witness_quorum::tests::empty_nonce_is_refused_not_mistaken_for_crypto_freshness ... ok
+test challenge_witness_quorum::tests::independent_fresh_signatures_agree_but_never_issue_admission ... ok
+test authenticated_intent_write_model::tests::rotation_before_and_after_cas_power_loss_are_distinguishable ... ok
+test authenticated_intent_write_model::tests::rotation_failures_cannot_publish_old_or_wrong_key ... ok
+test authenticated_intent_write_model::tests::stale_handle_after_reboot_and_repeated_nv_increment_fail ... ok
+test challenge_witness_quorum::tests::locally_restored_database_is_detected_by_fresh_remote_watermark ... ok
+test challenge_witness_quorum::tests::old_valid_signed_responses_fail_a_new_challenge ... ok
+test challenge_witness_quorum::tests::witness_cas_refuses_duplicate_and_sequence_fork ... ok
+test challenge_witness_quorum::tests::one_offline_witness_fails_closed ... ok
+test challenge_witness_quorum::tests::signatures_and_reply_identity_cannot_be_substituted ... ok
+test challenge_witness_quorum::tests::signed_two_witness_split_brain_is_refused ... ok
+test challenge_witness_quorum::tests::prior_independent_floor_rejects_stale_signed_two_witness_image ... ok
+test challenge_witness_quorum::tests::mismatched_signer_and_signed_local_fork_are_rejected ... ok
+test independent_reservation_fence_model::tests::all_six_crash_boundaries_preserve_only_authoritative_image ... ok
+test independent_reservation_fence_model::tests::competing_threads_have_single_linearized_reservation_winner ... ok
+test independent_reservation_fence_model::tests::emergency_append_after_prepared_is_stale_not_authorized ... ok
+test authenticated_intent_write_model::tests::successful_signed_prepare_counter_finalize_advances_fence_twice ... ok
+test independent_reservation_fence_model::tests::rejects_policy_fork_device_scope_change_and_sequence_regression ... ok
+test independent_reservation_fence_model::tests::signed_append_invalidates_outstanding_ticket ... ok
+test independent_reservation_fence_model::tests::stale_snapshot_double_reserve_and_replay_digest_are_denied ... ok
+test independent_reservation_fence_model::tests::two_phase_reservation_prepared_is_retained_across_reboot ... ok
+test independent_reservation_fence_model::tests::unnotified_external_writer_is_not_detectable_by_model ... ok
+test durable_intent_simulator::tests::wrong_finalize_or_stale_boot_handle_cannot_rewrite_disk ... ok
+test durable_intent_simulator::tests::external_restore_does_not_reset_nonrollbackable_counter ... ok
+test challenge_witness_quorum::tests::wrong_space_resource_epoch_are_rejected_even_with_two_signatures ... ok
+test durable_intent_simulator::tests::nv_increment_without_durable_prepared_intent_is_refused ... ok
+test legacy_migration::tests::an_empty_legacy_schema_is_not_safe_to_autoconvert ... ok
+test legacy_migration::tests::new_database_is_eligible_only_for_empty_schema_creation ... ok
+test legacy_migration::tests::partial_old_table_set_requires_explicit_resolution ... ok
+test legacy_history_audit::tests::legacy_zero_epoch_is_not_permission_to_reset_highwater ... ok
+test linux_tpm2_probe::tests::candidate_anchor_never_returns_a_saved_value_or_advances ... ok
+test linux_tpm2_probe::tests::cannot_fallback_to_v1_or_wrong_reported_family ... ok
+test linux_tpm2_probe::tests::duplicate_unsorted_or_out_of_range_nv_handles_are_rejected ... ok
+test legacy_migration::tests::old_unsigned_or_signed_rows_are_never_copied_without_review ... ok
+test linux_tpm2_probe::tests::malformed_length_count_tag_and_capability_rejected ... ok
+test linux_tpm2_probe::tests::standard_ten_byte_tpm_error_header_is_reported_as_rejection ... ok
+test linux_tpm2_probe::tests::nv_page_overflow_is_reported_not_assumed_complete ... ok
+test linux_tpm2_probe::tests::valid_tpm2_capabilities_are_read_only_and_not_an_anchor ... ok
+test rollback_anchor::tests::missing_anchor_is_not_equivalent_to_genesis ... ok
+test rollback_anchor::tests::concurrent_stale_writer_must_fail_atomic_compare_and_swap ... ok
+test rollback_anchor::tests::advances_only_from_external_record_and_never_decreases ... ok
+test rollback_anchor::tests::reject_replaced_root_manifest_epoch_and_scope ... ok
+test authenticated_intent_write_model::tests::all_six_crash_boundaries_preserve_a_checkable_state ... ok
+test legacy_history_audit::tests::nonempty_old_history_is_not_convertible_after_mixed_schema_creation ... ok
+test sqlite_revocation::tests::absent_external_anchor_fails_closed_even_with_empty_database ... ok
+test sqlite_revocation::tests::crash_after_commit_before_memory_publication_fails_closed ... ok
+test sqlite_revocation::tests::atomic_commit_cancels_old_session_and_survives_restart ... ok
+test sqlite_revocation::tests::anchor_storage_failure_never_returns_success_or_opens_access ... ok
+test durable_intent_simulator::tests::every_crash_boundary_has_one_durable_outcome ... ok
+test legacy_history_audit::tests::two_signed_events_can_be_audited_but_cannot_authorize_migration ... ok
+test legacy_history_audit::tests::wrong_root_or_owner_signed_evidence_blocks_audit ... ok
+test sqlite_revocation::tests::restored_old_db_rejected_against_independent_test_highwater ... ok
+test sqlite_revocation::tests::older_sqlite_and_matching_stale_witnesses_cannot_defeat_independent_high_water ... ok
+test sqlite_revocation::tests::existing_unanchored_ingress_is_test_only_and_cannot_override_root ... ok
+test sqlite_revocation::tests::inconsistent_policy_version_and_event_history_fail_closed ... ok
+test sqlite_revocation::tests::real_signed_witnesses_detect_an_older_restored_database ... ok
+test sqlite_revocation::tests::root_bound_witnesses_refuse_unsigned_fixture_history ... ok
+test legacy_history_audit::tests::sequence_gaps_rogue_resources_and_partial_schemas_refuse_audit ... ok
+test tests::no_ack_before_persist ... ok
+test legacy_history_audit::tests::audit_rejects_stale_outbox_and_missing_audit ... ok
+test sqlite_revocation::tests::stale_writer_does_not_duplicate_revocation ... ok
+test sqlite_revocation::tests::startup_is_paused_no_trust_source ... ok
+test tpm_counter_binding::tests::cleared_tpm_and_external_increment_race_fail_closed ... ok
+test sqlite_revocation::tests::same_epoch_with_corrupt_evidence_detects_different_root ... ok
+test sqlite_revocation::tests::signed_revocation_must_match_expected_resource_and_sequence ... ok
+test tpm_counter_binding::tests::error_before_nv_increment_keeps_prepared_state_not_ready ... ok
+test sqlite_revocation::tests::thousand_parallel_admissions_cannot_survive_commit ... ok
+test tpm_counter_binding::tests::failing_intent_stage_does_not_increment_counter ... ok
+test tpm_counter_binding::tests::counter_overflow_rejects_without_staged_intent ... ok
+test trusted_state_provider::tests::hardware_key_claim_is_not_automatically_a_rollback_anchor ... ok
+test trusted_state_provider::tests::independent_anchor_requires_exact_scope_and_non_regression ... ok
+test trusted_state_provider::tests::individually_verified_anchor_does_not_prove_hardware_key_custody ... ok
+test trusted_state_provider::tests::local_state_size_guard_does_not_mutate_generation ... ok
+test trusted_state_provider::tests::portable_settings_are_rollbackable_and_never_carry_security_approval ... ok
+test trusted_state_provider::tests::portable_software_works_without_any_tpm_or_platform_probe ... ok
+test trusted_state_provider::tests::self_declared_tpm_enclave_keystore_or_quorum_cannot_self_attest ... ok
+test trusted_state_provider::tests::software_never_satisfies_sensitive_rollback_or_hardware_key_demand ... ok
+test sqlite_revocation::tests::same_root_epoch_with_changed_owner_manifest_cannot_be_replayed ... ok
+test trusted_state_provider::tests::untrusted_claim_without_key_isolation_cannot_upgrade_key_assurance ... ok
+test trusted_state_provider::tests::two_concurrent_software_writers_have_one_cas_winner ... ok
+test trusted_state_provider::tests::verified_hardware_key_does_not_prove_nonrollbackable_policy ... ok
+test sqlite_revocation::tests::witness_behind_local_epoch_does_not_restore_old_permission ... ok
+test tpm_counter_binding::tests::finalize_failure_requires_rechecking_valid_root_witness_signatures ... ok
+test tpm_counter_binding::tests::old_app_backup_cannot_overwrite_newer_tpm_counter ... ok
+test tpm_counter_binding::tests::lost_ack_after_nv_increment_recovers_only_with_original_witnesses ... ok
+test tpm_counter_binding::tests::signed_advance_binds_both_policy_roots_and_stays_diagnostic_only ... ok
+test tpm_counter_binding::tests::forged_witnesses_wrong_tpm_pin_missing_binding_and_stale_seq_reject ... ok
+test sqlite_revocation::tests::owner_delegated_revocation_must_match_db_resource_and_remain_paused_on_restart ... ok
+test unified_policy_journal::tests::ambiguous_external_cas_leaves_no_local_confirmation ... ok
+test unified_policy_journal::tests::absent_or_ambiguous_external_anchor_never_approves_recovery ... ok
+test unified_policy_journal::tests::authentic_prior_prefix_allows_subsequent_signed_cancellation ... ok
+test unified_policy_journal::tests::ambiguous_increment_requires_same_verified_journal_on_reconcile ... ok
+test unified_policy_journal::tests::audit_mirror_mutation_while_signing_refuses_prepared_cas ... ok
+test unified_policy_journal::tests::append_after_separate_revalidation_invalidates_ticket_before_cas ... ok
+test unified_policy_journal::tests::append_attempt_between_last_replay_and_model_cas_cannot_interleave ... ok
+test unified_policy_journal::tests::challenge_recovery_never_uses_replies_to_bypass_bad_mirrors ... ok
+test unified_policy_journal::tests::append_after_postflight_remains_unfenced_and_requires_independent_recheck ... ok
+test unified_policy_journal::tests::cancellation_is_witnessed_by_policy_head_not_just_revocation_root ... ok
+test unified_policy_journal::tests::changed_witness_signature_or_writer_epoch_is_rejected ... ok
+test unified_policy_journal::tests::corrupted_mirror_blocks_counter_stage_before_increment ... ok
+test unified_policy_journal::tests::counter_jump_and_missing_prepared_intent_fail_closed_on_restart ... ok
+test unified_policy_journal::tests::committed_counter_number_without_replayed_policy_match_is_rejected ... ok
+test unified_policy_journal::tests::concurrent_identical_resource_version_has_single_winner ... ok
+test unified_policy_journal::tests::challenge_recovery_refuses_valid_old_signed_prefix ... ok
+test unified_policy_journal::tests::crash_recovery_never_finalizes_against_changed_or_corrupt_journal ... ok
+test unified_policy_journal::tests::different_reserved_writer_is_refused_until_cancelled ... ok
+test unified_policy_journal::tests::genesis_root_substitution_is_rejected_before_history_access ... ok
+test unified_policy_journal::tests::direct_sqlite_audit_tamper_during_cas_is_detected_after_publish ... ok
+test unified_policy_journal::tests::challenge_recovery_replays_mixed_history_and_root_selected_witnesses ... ok
+test unified_policy_journal::tests::external_signer_refusal_never_publishes_and_same_snapshot_revalidates ... ok
+test unified_policy_journal::tests::durable_anchor_cas_before_sql_marker_failure_is_recoverable_without_ready ... ok
+test unified_policy_journal::tests::empty_journal_with_injected_outbox_or_audit_is_not_trusted ... ok
+test unified_policy_journal::tests::fabricated_earlier_policy_head_cannot_be_laundered_by_later_valid_witnesses ... ok
+test unified_policy_journal::tests::challenge_recovery_refuses_replay_split_missing_and_invalid_signatures ... ok
+test unified_policy_journal::tests::legacy_revocation_schema_cannot_be_silently_opened_as_empty_unified_history ... ok
+test unified_policy_journal::tests::final_replay_rejects_tampered_audit_without_publishing ... ok
+test unified_policy_journal::tests::fabricated_prior_revocation_root_and_manifest_are_rejected_before_staging ... ok
+test unified_policy_journal::tests::independent_journal_instance_cannot_commit_foreign_ticket ... ok
+test unified_policy_journal::tests::journal_bound_counter_accepts_exact_signed_mixed_policy ... ok
+test unified_policy_journal::tests::independent_actor_append_during_cas_is_detected_and_quarantined ... ok
+test unified_policy_journal::tests::mirror_rewrite_trigger_rolls_back_entire_append ... ok
+test unified_policy_journal::tests::outbox_insert_failure_rolls_back_event_cursor_and_audit ... ok
+test unified_policy_journal::tests::owner_transfer_policy_commits_current_manifest_not_just_old_owner ... ok
+test unified_policy_journal::tests::old_signed_delegate_remains_blocked_after_restart ... ok
+test unified_policy_journal::tests::owner_transfer_during_external_step_cannot_publish_old_manifest ... ok
+test unified_policy_journal::tests::publisher_failure_is_ambiguous_and_quarantines_future_reservations ... ok
+test unified_policy_journal::tests::prepared_without_increment_never_auto_increments_during_recovery ... ok
+test unified_policy_journal::tests::owner_transfer_prefix_requires_actual_successor_manifest ... ok
+test unified_policy_journal::tests::policy_append_after_prepared_publishes_marks_stale_without_suppressing_revocation ... ok
+test unified_policy_journal::tests::reserved_model_prepare_keeps_sqlite_unlocked_during_signing ... ok
+test unified_policy_journal::tests::reopened_actor_has_no_durable_reservation_quarantine ... ok
+test unified_policy_journal::tests::second_sqlite_writer_cannot_swap_snapshot_during_counter_transition ... ok
+test unified_policy_journal::tests::restored_old_intent_cannot_launder_current_signed_checkpoint ... ok
+test unified_policy_journal::tests::receipt_cannot_skip_persisted_policy_sequence_or_mask_history_conflict ... ok
+test unified_policy_journal::tests::second_actor_can_inspect_while_in_memory_publisher_is_running ... ok
+test unified_policy_journal::tests::journal_bound_recovery_survives_every_simulated_power_cut ... ok
+test unified_policy_journal::tests::signed_cas_writer_crash_after_preparing_never_reincrements ... ok
+test unified_policy_journal::tests::signed_policy_append_while_signer_waits_refuses_prepared_cas ... ok
+test unified_policy_journal::tests::signed_preflight_external_signing_has_no_sqlite_write_lock ... ok
+test unified_policy_journal::tests::signed_committed_read_requires_authentication_and_exact_replayed_history ... ok
+test unified_policy_journal::tests::stored_evidence_tampering_cannot_be_hidden_by_cursor ... ok
+test unified_policy_journal::tests::signed_cas_writer_journal_bound_begin_then_reconcile_is_only_diagnostic ... ok
+test unified_policy_journal::tests::successor_manifest_is_not_trusted_from_sqlite_or_unpinned_root ... ok
+test unified_policy_journal::tests::signed_cas_writer_recovers_after_counter_increment_only_with_same_witness ... ok
+test unified_policy_journal::tests::signed_checkpoint_for_wrong_journal_never_touches_counter ... ok
+test unified_policy_journal::tests::signed_prepared_read_does_not_finalize_or_retry_irreversible_increment ... ok
+test unified_policy_journal::tests::transferred_owner_manifest_advances_only_after_both_signatures ... ok
+test unified_policy_journal::tests::witness_confirmation_recorded_only_after_successful_external_cas ... ok
+test unified_policy_journal::tests::witness_policy_head_cannot_be_substituted_with_matching_revocation_root ... ok
+test unified_policy_journal::tests::wrong_witness_or_unauthenticated_historical_prefix_never_signs ... ok
+test unified_policy_journal::tests::two_consistent_but_stale_witnesses_cannot_rollback_cancelled_delegate ... ok
+test unified_policy_journal::tests::unified_lifecycle_replays_from_genesis_after_restart ... ok
+test unified_policy_journal::tests::mirrored_outbox_and_audit_tampering_fail_closed ... ok
+
+test result: ok. 182 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.37s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 7 tests
+test tests::transport_is_not_implicitly_trusted ... ok
+test secure_channel::tests::relay_cannot_modify_tls_handshake_into_valid_peer_channel ... ok
+test secure_channel::tests::wrong_target_certificate_fails_tls ... ok
+test secure_channel::tests::wrong_remote_epoch_or_revoked_membership_fails ... ok
+test secure_channel::tests::space_mismatch_fails_before_service_open ... ok
+test secure_channel::tests::direct_mutual_tls_and_encrypted_association ... ok
+test secure_channel::tests::malicious_relay_observes_ciphertext_not_service_plaintext ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 1 test
+test tests::typed_ids_are_not_interchangeable ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 8 tests
+test tests::bounded_roundtrip_and_remaining_bytes ... ok
+test security_event::tests::time_and_payload_limits_enforced ... ok
+test security_event::tests::unknown_duplicate_unsorted_and_overlong_fields_rejected ... ok
+test tests::maximum_frame_is_accepted ... ok
+test security_event::tests::independent_golden_vector ... ok
+test tests::rejects_overlong_and_oversized_prefix ... ok
+test security_event::tests::wire01_multilang_boundary_vectors_use_identical_transcript ... ok
+test security_event::tests::truncation_and_random_mutations_never_panic ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+STDERR:
+   Compiling loom-store v0.1.0 (/Volumes/Data/Code/Loom/crates/loom-store)
+   Compiling loom-core v0.1.0 (/Volumes/Data/Code/Loom/crates/loom-core)
+   Compiling loomd v0.1.0 (/Volumes/Data/Code/Loom/apps/loomd)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.27s
+     Running unittests src/lib.rs (target/debug/deps/loom_core-1110ddf4588a8e7f)
+     Running unittests src/lib.rs (target/debug/deps/loom_crypto-ed375a1e25ef4748)
+     Running unittests src/lib.rs (target/debug/deps/loom_identity-87b7b603a7b1151d)
+     Running unittests src/lib.rs (target/debug/deps/loom_policy-786b95891357eec0)
+     Running unittests src/lib.rs (target/debug/deps/loom_store-8fb10051b7bcae22)
+     Running unittests examples/l001_storage_lab.rs (target/debug/examples/l001_storage_lab-bd7abfa8d8f76dc3)
+     Running unittests examples/probe_tpm2.rs (target/debug/examples/probe_tpm2-08bee6bc8780d956)
+     Running unittests src/lib.rs (target/debug/deps/loom_transport-03c40e26f25af1cc)
+     Running unittests examples/l001_channel_lab.rs (target/debug/examples/l001_channel_lab-3f1b7c42c18d4933)
+     Running unittests src/lib.rs (target/debug/deps/loom_types-116ca04586fa27b5)
+     Running unittests src/lib.rs (target/debug/deps/loom_wire-a39d3ab144a10c27)
+     Running unittests src/main.rs (target/debug/deps/loomd-a299bc625f215b45)

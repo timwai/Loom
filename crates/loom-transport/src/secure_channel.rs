@@ -111,6 +111,7 @@ pub struct SecurePeerContext {
 pub struct SecurePeerChannel<S> {
     stream: S,
     remote: PeerPrincipal,
+    remote_key_epoch: u64,
 }
 
 impl<S> SecurePeerChannel<S> {
@@ -124,6 +125,25 @@ impl<S> SecurePeerChannel<S> {
 
     pub fn into_inner(self) -> S {
         self.stream
+    }
+
+    /// Revalidate before each diagnostic operation. The caller still needs a
+    /// ResourceOwner decision and a coordinated revocation/session barrier.
+    pub fn revalidate_membership(
+        &self,
+        membership: &dyn MembershipVerifier,
+    ) -> Result<(), SecurePeerError> {
+        let current = membership
+            .resolve_principal(
+                self.remote.peer_id,
+                self.remote.space_id,
+                self.remote_key_epoch,
+            )
+            .map_err(|_| SecurePeerError::UntrustedMembership)?;
+        if current != self.remote {
+            return Err(SecurePeerError::UntrustedMembership);
+        }
+        Ok(())
     }
 }
 
@@ -153,14 +173,15 @@ fn matched_principal(
     {
         return Err(SecurePeerError::InvalidPeer);
     }
-    let principal = PeerPrincipal {
-        peer_id: expected.peer_id,
-        space_id,
-        membership_epoch: expected.key_epoch,
-    };
-    membership
-        .verify_membership(&principal)
+    let principal = membership
+        .resolve_principal(expected.peer_id, space_id, expected.key_epoch)
         .map_err(|_: CryptoError| SecurePeerError::UntrustedMembership)?;
+    if principal.peer_id != expected.peer_id
+        || principal.space_id != space_id
+        || principal.membership_epoch == 0
+    {
+        return Err(SecurePeerError::UntrustedMembership);
+    }
     Ok(principal)
 }
 
@@ -277,10 +298,13 @@ where
         membership,
     )?;
     exchange_association(&mut stream, local_id, &context, local.key_epoch, true).await?;
-    Ok(SecurePeerChannel {
+    let channel = SecurePeerChannel {
         stream,
         remote: principal,
-    })
+        remote_key_epoch: context.expected_remote.key_epoch,
+    };
+    channel.revalidate_membership(membership)?;
+    Ok(channel)
 }
 
 /// Accept a mutual TLS peer; a stream is returned only after both membership and
@@ -314,10 +338,13 @@ where
         membership,
     )?;
     exchange_association(&mut stream, local_id, &context, local.key_epoch, false).await?;
-    Ok(SecurePeerChannel {
+    let channel = SecurePeerChannel {
         stream,
         remote: principal,
-    })
+        remote_key_epoch: context.expected_remote.key_epoch,
+    };
+    channel.revalidate_membership(membership)?;
+    Ok(channel)
 }
 
 #[cfg(test)]

@@ -1,0 +1,4969 @@
+//! L-001I experimental unified SQLite resource-policy ledger.
+//!
+//! Every append replays the signed, ordered lifecycle history from genesis
+//! under a pinned Root before starting a fresh atomic commit. This does not
+//! establish witness freshness and NEVER transitions network admission to
+//! Ready. No production permit or ServiceOpen is exported.
+//!
+//! Synchronous APIs: call from a blocking pool, never on a Tokio runtime core.
+
+use crate::StoreError;
+use crate::challenge_witness_quorum::{
+    PinnedQuorum, QuorumChallenge, QuorumError, QuorumHighWater, SignedQuorumObservation,
+    VerifiedQuorumDiagnostic, verify_challenge_bound_quorum,
+};
+use crate::legacy_migration::require_no_legacy_schema;
+use crate::policy_journal_codec::KIND_REVOKE;
+pub use crate::policy_journal_codec::NewPolicyEvent;
+use crate::policy_journal_codec::{MAX_EVIDENCE, encode_event, replay_event};
+use crate::tpm_counter_binding::{
+    BindingError, CandidateIntentStore, CandidateMonotonicCounter, Diagnostic,
+    PinnedCounterIdentity, StoredBinding, begin_candidate_advance, inspect_counter,
+    reconcile_candidate_advance,
+};
+use crate::unified_policy_anchor::{
+    IndependentUnifiedPolicyAnchor, UnifiedAnchorError, UnifiedPolicyHighWater,
+    checked_unified_promotion,
+};
+use loom_crypto::owner_lifecycle::ResourceOwnerLifecycle;
+use loom_crypto::space_trust::verify_root_bound_witnesses;
+use loom_crypto::space_trust::{ExternallyPinnedRootForSpike, VerifiedResourceTrust};
+use loom_crypto::witness_checkpoint::{Checkpoint, SignedCheckpoint, append_revocation_root};
+use loom_types::ResourceId;
+#[cfg(test)]
+use loom_types::SpaceId;
+use rusqlite::{Connection, OptionalExtension, Transaction, TransactionBehavior, params};
+use std::path::PathBuf;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::mpsc::{self, Receiver, Sender};
+use std::sync::{Arc, Mutex};
+
+/// In-process journal instance identifier to prevent accidental use of a
+/// reservation issued by a *different* SQLite actor. NOT an auth token.
+static NEXT_JOURNAL_INSTANCE: AtomicU64 = AtomicU64::new(1);
+use std::thread::{self, JoinHandle};
+use std::time::Duration;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct JournalSnapshot {
+    pub sequence: u64,
+    pub policy_head: [u8; 32],
+    pub owner_public_key: [u8; 32],
+    /// A diagnostic only. In this PoC no ServiceOpen is ever admitted.
+    pub admission_paused: bool,
+}
+
+/// Recovery assessment only. None of these outcomes enables ServiceOpen.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum UnifiedRecoveryAssessment {
+    CandidateConsistent,
+    LocalBehind,
+    WitnessBehind,
+    HistoryConflict,
+}
+
+/// Fresh-response recovery inputs. Nonces must come from an unpredictable,
+/// single-use source outside the restored journal. This is diagnostic only.
+pub struct ChallengeBoundRecoveryRequest<'a> {
+    pub root: ExternallyPinnedRootForSpike,
+    pub genesis: VerifiedResourceTrust,
+    pub challenge: QuorumChallenge,
+    pub replies: &'a [SignedQuorumObservation],
+    pub minimum_generation: u64,
+    pub now_ms: u64,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ChallengeBoundRecoveryError {
+    Journal(StoreError),
+    Quorum(QuorumError),
+}
+
+/// L-001Q: a diagnostic-only transition. Neither variant enables ServiceOpen.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CandidateCounterOperation {
+    Begin,
+    Reconcile,
+}
+
+/// Test-only I/O contracts. Neither adapter is backed by production TPM NV or
+/// a durable authenticated intent store. Both must be independent of the
+/// SQLite connection held by the journal actor to avoid reentrant deadlocks.
+pub struct CandidateCounterIo {
+    pub pin: PinnedCounterIdentity,
+    pub counter: Arc<dyn CandidateMonotonicCounter>,
+    pub intent: Arc<dyn CandidateIntentStore>,
+}
+
+struct JournalCheckpointState {
+    snapshot: JournalSnapshot,
+    revocation_root: [u8; 32],
+    current_trust: VerifiedResourceTrust,
+}
+
+/// Signed journal preflight inputs. The prior policy MUST be read from
+/// independently authenticated intent storage, not a rollbackable SQLite row.
+pub struct CandidatePreflightRequest<'a> {
+    pub root: ExternallyPinnedRootForSpike,
+    pub genesis: VerifiedResourceTrust,
+    pub receipts: &'a [SignedCheckpoint],
+    pub now_ms: u64,
+    pub prior: UnifiedPolicyHighWater,
+}
+
+/// L-001X: short-transaction journal proof. It is NOT a permit or an
+/// independently trusted record: an external signer/CAS must recheck its own
+/// pinned counter, signed Prepared record and replay fence before writes.
+/// Its fields are private to prevent callers constructing false snapshots.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct CandidateJournalPreflight {
+    snapshot: JournalSnapshot,
+    prior: UnifiedPolicyHighWater,
+    checkpoint: Checkpoint,
+    current_manifest: [u8; 32],
+}
+
+impl CandidateJournalPreflight {
+    pub fn snapshot(&self) -> JournalSnapshot {
+        self.snapshot
+    }
+}
+
+/// L-001Y: process-local journal append generation + single in-flight
+/// reservation. These do not survive restart, protect external SQLite writers,
+/// or bind a real trusted medium. Never treat a ticket as authorization.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct CandidateJournalReservation {
+    journal_instance: u64,
+    generation: u64,
+    ticket: u64,
+    preflight: CandidateJournalPreflight,
+}
+
+impl CandidateJournalReservation {
+    pub fn snapshot(&self) -> JournalSnapshot {
+        self.preflight.snapshot()
+    }
+}
+
+struct CandidateJournalGateState {
+    journal_instance: u64,
+    generation: u64,
+    next_ticket: u64,
+    outstanding: Option<CandidateJournalReservation>,
+    /// After *modeled* Prepared publication, no subsequent model reservation
+    /// can be issued until a separately reviewed signed-recovery protocol.
+    prepared_unreconciled: bool,
+    /// Signed policy append after Prepared is never a grant of admission.
+    /// A diagnostic flag only; neither durable nor a safety boundary.
+    stale_prepared: bool,
+}
+
+impl CandidateJournalGateState {
+    fn advance_generation(&mut self) -> Result<(), StoreError> {
+        self.generation = self.generation.checked_add(1).ok_or(StoreError::Conflict)?;
+        self.outstanding = None;
+        Ok(())
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CriticalPolicyOutbox {
+    pub sequence: u64,
+    pub kind: u8,
+    pub evidence: Vec<u8>,
+}
+
+enum Command {
+    Append {
+        root: ExternallyPinnedRootForSpike,
+        genesis: VerifiedResourceTrust,
+        kind: u8,
+        evidence: Vec<u8>,
+        done: Sender<Result<JournalSnapshot, StoreError>>,
+    },
+    Inspect {
+        root: ExternallyPinnedRootForSpike,
+        genesis: VerifiedResourceTrust,
+        done: Sender<Result<JournalSnapshot, StoreError>>,
+    },
+    Pending(Sender<Result<Vec<CriticalPolicyOutbox>, StoreError>>),
+    InspectWitness {
+        root: ExternallyPinnedRootForSpike,
+        genesis: VerifiedResourceTrust,
+        done: Sender<Result<JournalCheckpointState, StoreError>>,
+    },
+    BoundCounter {
+        root: ExternallyPinnedRootForSpike,
+        genesis: VerifiedResourceTrust,
+        receipts: Vec<SignedCheckpoint>,
+        now_ms: u64,
+        io: CandidateCounterIo,
+        operation: CandidateCounterOperation,
+        done: Sender<Result<Diagnostic, StoreError>>,
+    },
+    CandidatePreflight {
+        root: ExternallyPinnedRootForSpike,
+        genesis: VerifiedResourceTrust,
+        receipts: Vec<SignedCheckpoint>,
+        now_ms: u64,
+        prior: UnifiedPolicyHighWater,
+        done: Sender<Result<CandidateJournalPreflight, StoreError>>,
+    },
+    MarkWitness {
+        root: ExternallyPinnedRootForSpike,
+        genesis: VerifiedResourceTrust,
+        checkpoint: Checkpoint,
+        current_manifest: [u8; 32],
+        done: Sender<Result<(), StoreError>>,
+    },
+}
+
+/// Append-only SQLite actor, separate from the old L-001C revocation-only
+/// candidate schema. Both formats require an explicit migration before use.
+pub struct UnifiedPolicyJournal {
+    tx: Option<Sender<Command>>,
+    join: Option<JoinHandle<()>>,
+    gate: Mutex<CandidateJournalGateState>,
+}
+
+impl UnifiedPolicyJournal {
+    pub fn open(path: PathBuf) -> Result<Self, StoreError> {
+        let (tx, receiver) = mpsc::channel();
+        let (ready_tx, ready_rx) = mpsc::channel();
+        let join = thread::Builder::new()
+            .name("loom-unified-policy-db".to_owned())
+            .spawn(move || worker(path, receiver, ready_tx))
+            .map_err(|_| StoreError::PersistenceFailure)?;
+        ready_rx
+            .recv()
+            .map_err(|_| StoreError::PersistenceFailure)??;
+        Ok(Self {
+            tx: Some(tx),
+            join: Some(join),
+            gate: Mutex::new(CandidateJournalGateState {
+                journal_instance: NEXT_JOURNAL_INSTANCE
+                    .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |id| id.checked_add(1))
+                    .map_err(|_| StoreError::PersistenceFailure)?,
+                generation: 0,
+                next_ticket: 0,
+                outstanding: None,
+                prepared_unreconciled: false,
+                stale_prepared: false,
+            }),
+        })
+    }
+
+    /// Only a diagnostic snapshot; never a permission to access a resource.
+    pub fn inspect(
+        &self,
+        external_root: ExternallyPinnedRootForSpike,
+        genesis: VerifiedResourceTrust,
+    ) -> Result<JournalSnapshot, StoreError> {
+        let _barrier = self
+            .gate
+            .lock()
+            .map_err(|_| StoreError::PersistenceFailure)?;
+        let (send, recv) = mpsc::channel();
+        self.tx
+            .as_ref()
+            .ok_or(StoreError::PersistenceFailure)?
+            .send(Command::Inspect {
+                root: external_root,
+                genesis,
+                done: send,
+            })
+            .map_err(|_| StoreError::PersistenceFailure)?;
+        recv.recv().map_err(|_| StoreError::PersistenceFailure)?
+    }
+
+    /// Writes signed evidence only after a replay of all prior policy events.
+    /// No external AnchorProvider exists here. A successful local SQLite
+    /// commit MUST NOT be interpreted as global policy convergence.
+    pub fn append(
+        &self,
+        external_root: ExternallyPinnedRootForSpike,
+        genesis: VerifiedResourceTrust,
+        input: NewPolicyEvent<'_>,
+    ) -> Result<JournalSnapshot, StoreError> {
+        let (kind, evidence) = encode_event(input);
+        if evidence.is_empty() || evidence.len() > MAX_EVIDENCE {
+            return Err(StoreError::Conflict);
+        }
+        let mut barrier = self
+            .gate
+            .lock()
+            .map_err(|_| StoreError::PersistenceFailure)?;
+        // If the process-local generation has overflowed, refuse BEFORE
+        // writing to SQLite, rather than committing without invalidation.
+        barrier
+            .generation
+            .checked_add(1)
+            .ok_or(StoreError::Conflict)?;
+        let (send, recv) = mpsc::channel();
+        self.tx
+            .as_ref()
+            .ok_or(StoreError::PersistenceFailure)?
+            .send(Command::Append {
+                root: external_root,
+                genesis,
+                kind,
+                evidence,
+                done: send,
+            })
+            .map_err(|_| StoreError::PersistenceFailure)?;
+        let result = recv.recv().map_err(|_| StoreError::PersistenceFailure)??;
+        // Only a SUCCESSFULLY COMMITTED signed event invalidates the ticket.
+        barrier.advance_generation()?;
+        if barrier.prepared_unreconciled {
+            barrier.stale_prepared = true;
+        }
+        Ok(result)
+    }
+
+    /// Replay the signed journal and all mirrors before comparing fresh replies
+    /// from the Root-selected Witness pair. The caller cannot substitute a raw
+    /// local high-water or its own Witness pins. No durable marker, enrollment,
+    /// trusted-provider proof or admission permission is created on success.
+    ///
+    /// Like `inspect`, this describes one replayed snapshot. The process-local
+    /// gate does not fence other SQLite processes or authorize later actions.
+    pub fn inspect_challenge_bound_recovery(
+        &self,
+        request: ChallengeBoundRecoveryRequest<'_>,
+    ) -> Result<VerifiedQuorumDiagnostic, ChallengeBoundRecoveryError> {
+        use ChallengeBoundRecoveryError::{Journal, Quorum};
+        let _barrier = self
+            .gate
+            .lock()
+            .map_err(|_| Journal(StoreError::PersistenceFailure))?;
+        if !request.genesis.valid_at(request.now_ms) {
+            return Err(Journal(StoreError::Conflict));
+        }
+        let (send, recv) = mpsc::channel();
+        self.tx
+            .as_ref()
+            .ok_or(Journal(StoreError::PersistenceFailure))?
+            .send(Command::InspectWitness {
+                root: request.root,
+                genesis: request.genesis,
+                done: send,
+            })
+            .map_err(|_| Journal(StoreError::PersistenceFailure))?;
+        let local = recv
+            .recv()
+            .map_err(|_| Journal(StoreError::PersistenceFailure))?
+            .map_err(Journal)?;
+        let current = local.current_trust;
+        if !current.valid_at(request.now_ms)
+            || current.witnesses().map(|w| w.public_key)
+                != request.genesis.witnesses().map(|w| w.public_key)
+        {
+            return Err(Journal(StoreError::Conflict));
+        }
+        let state = QuorumHighWater {
+            space: current.space(),
+            resource: current.resource(),
+            writer_epoch: current.writer_epoch(),
+            sequence: local.snapshot.sequence,
+            policy_head: local.snapshot.policy_head,
+            revocation_root: local.revocation_root,
+        };
+        verify_challenge_bound_quorum(
+            &PinnedQuorum {
+                witnesses: current.witnesses(),
+                space: state.space,
+                resource: state.resource,
+                writer_epoch: state.writer_epoch,
+            },
+            request.challenge,
+            request.replies,
+            request.minimum_generation,
+            state,
+        )
+        .map_err(Quorum)
+    }
+
+    /// Verify two Root-selected signed checkpoints against a fully replayed,
+    /// mixed control+revocation policy chain, then compare and atomically
+    /// advance an independently trusted high-water record.
+    ///
+    /// The signature and storage interfaces do not prove actual external
+    /// witness independence or hardware-backed monotonic persistence.
+    /// ALWAYS diagnostic only: this API never returns an admission permit.
+    pub fn inspect_witnessed_recovery(
+        &self,
+        external_root: ExternallyPinnedRootForSpike,
+        genesis: VerifiedResourceTrust,
+        receipts: &[SignedCheckpoint],
+        now_ms: u64,
+        anchor: &dyn IndependentUnifiedPolicyAnchor,
+    ) -> Result<UnifiedRecoveryAssessment, StoreError> {
+        // The same gate serializes diagnostic witness inspection against
+        // append. It cannot mark any session Ready.
+        let _barrier = self
+            .gate
+            .lock()
+            .map_err(|_| StoreError::PersistenceFailure)?;
+        let cp = verify_root_bound_witnesses(&genesis, receipts, now_ms)
+            .map_err(|_| StoreError::Conflict)?
+            .checkpoint();
+        let (send, recv) = mpsc::channel();
+        self.tx
+            .as_ref()
+            .ok_or(StoreError::PersistenceFailure)?
+            .send(Command::InspectWitness {
+                root: external_root,
+                genesis,
+                done: send,
+            })
+            .map_err(|_| StoreError::PersistenceFailure)?;
+        let local = recv.recv().map_err(|_| StoreError::PersistenceFailure)??;
+        // Witness identity/writer rotation requires a separate signed
+        // migration. The Owner may change, but witness pair may not here.
+        let old_witnesses = genesis.witnesses();
+        let new_witnesses = local.current_trust.witnesses();
+        if old_witnesses[0].public_key != new_witnesses[0].public_key
+            || old_witnesses[1].public_key != new_witnesses[1].public_key
+        {
+            return Err(StoreError::Conflict);
+        }
+        if local.snapshot.sequence < cp.seq {
+            return Ok(UnifiedRecoveryAssessment::LocalBehind);
+        }
+        if local.snapshot.sequence > cp.seq {
+            return Ok(UnifiedRecoveryAssessment::WitnessBehind);
+        }
+        if local.snapshot.policy_head != cp.head_hash || local.revocation_root != cp.revocation_root
+        {
+            return Ok(UnifiedRecoveryAssessment::HistoryConflict);
+        }
+        // Comparing a matching local journal with a stale *signed*
+        // checkpoint is not enough: consult external high-water even at
+        // equal version, and never initialize it from SQLite contents.
+        let previous = anchor
+            .read(cp.space, cp.resource)
+            .map_err(|_| StoreError::PersistenceFailure)?;
+        let next = checked_unified_promotion(&genesis, &local.current_trust, cp, previous, now_ms)
+            .map_err(|error| match error {
+                UnifiedAnchorError::StaleState
+                | UnifiedAnchorError::ConflictingHistory
+                | UnifiedAnchorError::IdentityOrManifestMismatch
+                | UnifiedAnchorError::InvalidEpochOrTime => StoreError::Conflict,
+                _ => StoreError::PersistenceFailure,
+            })?;
+        anchor
+            .compare_and_advance(previous, next)
+            .map_err(|_| StoreError::PersistenceFailure)?;
+
+        // The external CAS is already durable; now record only a LOCAL
+        // diagnostic confirmation, conditioned on a fresh signed-history
+        // replay inside SQLite. A crash before this SQL COMMIT leaves the
+        // marker absent/stale; repeating the signed checkpoint + CAS can
+        // reconcile the ambiguous interval. Never trust the marker alone.
+        let (send, recv) = mpsc::channel();
+        self.tx
+            .as_ref()
+            .ok_or(StoreError::PersistenceFailure)?
+            .send(Command::MarkWitness {
+                root: external_root,
+                genesis,
+                checkpoint: cp,
+                current_manifest: local.current_trust.manifest_commitment(),
+                done: send,
+            })
+            .map_err(|_| StoreError::PersistenceFailure)?;
+        recv.recv().map_err(|_| StoreError::PersistenceFailure)??;
+        Ok(UnifiedRecoveryAssessment::CandidateConsistent)
+    }
+
+    /// Journal-bound *candidate* TPM transition, not a resource permit.
+    ///
+    /// Holds the journal actor's BEGIN IMMEDIATE SQLite transaction across
+    /// full signed-history replay, mirror parity validation, dual-witness
+    /// checkpoint comparison and the model counter's stage/increment/finalize.
+    /// Any error after staging may leave an ambiguous counter and intent:
+    /// callers MUST treat errors as quarantine, never retry an increment.
+    ///
+    /// This is deliberately NOT an operational TPM or independent anchor
+    /// implementation. The I/O traits have only in-memory model providers.
+    /// A real intent store using this same SQLite file would deadlock.
+    pub fn inspect_journal_bound_counter(
+        &self,
+        external_root: ExternallyPinnedRootForSpike,
+        genesis: VerifiedResourceTrust,
+        receipts: &[SignedCheckpoint],
+        now_ms: u64,
+        io: CandidateCounterIo,
+        operation: CandidateCounterOperation,
+    ) -> Result<Diagnostic, StoreError> {
+        let _barrier = self
+            .gate
+            .lock()
+            .map_err(|_| StoreError::PersistenceFailure)?;
+        let (send, recv) = mpsc::channel();
+        self.tx
+            .as_ref()
+            .ok_or(StoreError::PersistenceFailure)?
+            .send(Command::BoundCounter {
+                root: external_root,
+                genesis,
+                receipts: receipts.to_vec(),
+                now_ms,
+                io,
+                operation,
+                done: send,
+            })
+            .map_err(|_| StoreError::PersistenceFailure)?;
+        recv.recv().map_err(|_| StoreError::PersistenceFailure)?
+    }
+
+    /// Complete replay, mirror parity, Root-selected Witness validation and
+    /// exact historical signed-prefix checks under one SHORT SQLite
+    /// transaction. Never performs counter/intent I/O under the DB lock.
+    /// The prior policy must come from an independently authenticated
+    /// candidate read, not an untrusted SQLite row.
+    pub fn preflight_candidate_journal(
+        &self,
+        root: ExternallyPinnedRootForSpike,
+        genesis: VerifiedResourceTrust,
+        receipts: &[SignedCheckpoint],
+        now_ms: u64,
+        prior: UnifiedPolicyHighWater,
+    ) -> Result<CandidateJournalPreflight, StoreError> {
+        let (done, rx) = mpsc::channel();
+        self.tx
+            .as_ref()
+            .ok_or(StoreError::PersistenceFailure)?
+            .send(Command::CandidatePreflight {
+                root,
+                genesis,
+                receipts: receipts.to_vec(),
+                now_ms,
+                prior,
+                done,
+            })
+            .map_err(|_| StoreError::PersistenceFailure)?;
+        rx.recv().map_err(|_| StoreError::PersistenceFailure)?
+    }
+
+    /// Re-read all signed evidence under a fresh short transaction. The
+    /// preflight token is NOT an atomic authorization to publish after return:
+    /// the external CAS must also guard journal changes in real deployments.
+    pub fn revalidate_candidate_journal(
+        &self,
+        root: ExternallyPinnedRootForSpike,
+        genesis: VerifiedResourceTrust,
+        receipts: &[SignedCheckpoint],
+        now_ms: u64,
+        expected: CandidateJournalPreflight,
+    ) -> Result<(), StoreError> {
+        let current =
+            self.preflight_candidate_journal(root, genesis, receipts, now_ms, expected.prior)?;
+        if current != expected {
+            return Err(StoreError::Conflict);
+        }
+        Ok(())
+    }
+
+    /// Model-only candidate preparation probe. No SQLite transaction or
+    /// journal actor gate is held while the external step runs. The pending
+    /// result is discarded unless a SECOND signed replay and Witness check
+    /// exactly matches the preflight. The final publisher is deliberately
+    /// caller-defined and is NOT a production distributed CAS; a late journal
+    /// change after this second check remains a release-blocking race.
+    pub fn coordinated_candidate_prepare_probe<T>(
+        &self,
+        request: CandidatePreflightRequest<'_>,
+        external_step: impl FnOnce() -> Result<T, StoreError>,
+        model_publish: impl FnOnce(T) -> Result<(), StoreError>,
+    ) -> Result<JournalSnapshot, StoreError> {
+        let token = self.preflight_candidate_journal(
+            request.root,
+            request.genesis,
+            request.receipts,
+            request.now_ms,
+            request.prior,
+        )?;
+        let prepared = external_step()?;
+        self.revalidate_candidate_journal(
+            request.root,
+            request.genesis,
+            request.receipts,
+            request.now_ms,
+            token,
+        )?;
+        model_publish(prepared)?;
+        Ok(token.snapshot())
+    }
+
+    /// A single outstanding, process-local reservation for model Prepared
+    /// publication. The complete signed preflight runs as a short SQLite
+    /// transaction, then releases the writer gate BEFORE external signing.
+    /// The returned ticket has no independently authenticated durability.
+    pub fn reserve_candidate_journal(
+        &self,
+        request: CandidatePreflightRequest<'_>,
+    ) -> Result<CandidateJournalReservation, StoreError> {
+        let mut barrier = self
+            .gate
+            .lock()
+            .map_err(|_| StoreError::PersistenceFailure)?;
+        if barrier.outstanding.is_some() || barrier.prepared_unreconciled {
+            return Err(StoreError::Conflict);
+        }
+        let next = barrier
+            .next_ticket
+            .checked_add(1)
+            .ok_or(StoreError::Conflict)?;
+        let proof = self.preflight_candidate_journal(
+            request.root,
+            request.genesis,
+            request.receipts,
+            request.now_ms,
+            request.prior,
+        )?;
+        let token = CandidateJournalReservation {
+            journal_instance: barrier.journal_instance,
+            generation: barrier.generation,
+            ticket: next,
+            preflight: proof,
+        };
+        barrier.next_ticket = next;
+        barrier.outstanding = Some(token);
+        Ok(token)
+    }
+
+    /// Model-only final commit boundary. A second replay/dual-Witness check
+    /// and the supplied in-memory CAS publisher are serialized together by
+    /// the *same process-local gate* used by this journal actor's append().
+    ///
+    /// External signer work must happen BEFORE this call. The publisher MUST
+    /// NOT call back into this journal: no SQLite transaction is held here,
+    /// but the in-process gate serializes appends for the brief model CAS.
+    /// This does not fence another process, raw SQLite connection, or real
+    /// hardware. On an ambiguous CAS result, force fresh signed recovery.
+    pub fn commit_candidate_reservation<T>(
+        &self,
+        request: CandidatePreflightRequest<'_>,
+        reservation: CandidateJournalReservation,
+        prepared: T,
+        model_publish: impl FnOnce(T) -> Result<(), StoreError>,
+    ) -> Result<JournalSnapshot, StoreError> {
+        let mut barrier = self
+            .gate
+            .lock()
+            .map_err(|_| StoreError::PersistenceFailure)?;
+        if barrier.journal_instance != reservation.journal_instance
+            || barrier.generation != reservation.generation
+            || barrier.outstanding != Some(reservation)
+            || barrier.prepared_unreconciled
+            || request.prior != reservation.preflight.prior
+        {
+            return Err(StoreError::Conflict);
+        }
+        // Burn this one-shot ticket BEFORE the callback. No other contender
+        // can commit the same reservation even if the CAS fails ambiguously.
+        barrier.outstanding = None;
+        let rechecked = match self.preflight_candidate_journal(
+            request.root,
+            request.genesis,
+            request.receipts,
+            request.now_ms,
+            request.prior,
+        ) {
+            Ok(proof) => proof,
+            Err(error) => {
+                barrier.advance_generation()?;
+                return Err(error);
+            }
+        };
+        if rechecked != reservation.preflight {
+            barrier.advance_generation()?;
+            return Err(StoreError::Conflict);
+        }
+        let result = model_publish(prepared);
+        // A publisher may have changed the independent intent medium even
+        // when it reports a timeout. Always burn this one-shot ticket and
+        // quarantine potential Prepared before examining its result.
+        barrier.prepared_unreconciled = true;
+        barrier.advance_generation()?;
+        result?;
+
+        // L-001Z: an unrelated journal actor / direct SQLite writer can
+        // bypass this instance's local mutex DURING the model publisher.
+        // Replaying AGAIN catches changes already visible by callback
+        // return. A changed signed history or broken mirror parity MUST
+        // never produce a successful diagnostic. This cannot roll back
+        // Prepared, or close a race AFTER this final observation.
+        let final_proof = self.preflight_candidate_journal(
+            request.root,
+            request.genesis,
+            request.receipts,
+            request.now_ms,
+            request.prior,
+        );
+        match final_proof {
+            Ok(actual) if actual == rechecked => Ok(rechecked.snapshot()),
+            _ => {
+                barrier.stale_prepared = true;
+                Err(StoreError::Conflict)
+            }
+        }
+    }
+
+    /// Cancel only the exact outstanding ticket; no external media changes.
+    pub fn cancel_candidate_reservation(
+        &self,
+        reservation: CandidateJournalReservation,
+    ) -> Result<(), StoreError> {
+        let mut barrier = self
+            .gate
+            .lock()
+            .map_err(|_| StoreError::PersistenceFailure)?;
+        if barrier.outstanding != Some(reservation)
+            || barrier.journal_instance != reservation.journal_instance
+            || barrier.generation != reservation.generation
+        {
+            return Err(StoreError::Conflict);
+        }
+        barrier.advance_generation()
+    }
+
+    /// Strictly diagnostic-only in-memory state, NOT persisted or usable
+    /// for admission. Post-PREPARED signed policy append is visible as stale.
+    pub fn candidate_reservation_health(&self) -> Result<(bool, bool), StoreError> {
+        let state = self
+            .gate
+            .lock()
+            .map_err(|_| StoreError::PersistenceFailure)?;
+        Ok((state.prepared_unreconciled, state.stale_prepared))
+    }
+
+    /// Read-only: no ACK is allowed without authenticated remote durable
+    /// receipt and a separate fairness/priority retransmission protocol.
+    pub fn pending_outbox(&self) -> Result<Vec<CriticalPolicyOutbox>, StoreError> {
+        let _barrier = self
+            .gate
+            .lock()
+            .map_err(|_| StoreError::PersistenceFailure)?;
+        let (send, recv) = mpsc::channel();
+        self.tx
+            .as_ref()
+            .ok_or(StoreError::PersistenceFailure)?
+            .send(Command::Pending(send))
+            .map_err(|_| StoreError::PersistenceFailure)?;
+        recv.recv().map_err(|_| StoreError::PersistenceFailure)?
+    }
+}
+
+impl Drop for UnifiedPolicyJournal {
+    fn drop(&mut self) {
+        self.tx.take();
+        if let Some(join) = self.join.take() {
+            let _ = join.join();
+        }
+    }
+}
+
+fn worker(path: PathBuf, rx: Receiver<Command>, started: Sender<Result<(), StoreError>>) {
+    match initialize(&path) {
+        Ok(mut connection) => {
+            let _ = started.send(Ok(()));
+            for command in rx {
+                match command {
+                    Command::Append {
+                        root,
+                        genesis,
+                        kind,
+                        evidence,
+                        done,
+                    } => {
+                        let _ = done.send(append_transaction(
+                            &mut connection,
+                            root,
+                            genesis,
+                            kind,
+                            &evidence,
+                        ));
+                    }
+                    Command::Inspect {
+                        root,
+                        genesis,
+                        done,
+                    } => {
+                        let _ = done.send(inspect_db(&mut connection, root, genesis));
+                    }
+                    Command::Pending(done) => {
+                        let _ = done.send(read_outbox(&mut connection));
+                    }
+                    Command::InspectWitness {
+                        root,
+                        genesis,
+                        done,
+                    } => {
+                        let _ = done.send(inspect_checkpoint_db(&mut connection, root, genesis));
+                    }
+                    Command::BoundCounter {
+                        root,
+                        genesis,
+                        receipts,
+                        now_ms,
+                        io,
+                        operation,
+                        done,
+                    } => {
+                        let _ = done.send(journal_bound_counter_transaction(
+                            &mut connection,
+                            root,
+                            genesis,
+                            &receipts,
+                            now_ms,
+                            &io,
+                            operation,
+                        ));
+                    }
+                    Command::CandidatePreflight {
+                        root,
+                        genesis,
+                        receipts,
+                        now_ms,
+                        prior,
+                        done,
+                    } => {
+                        let _ = done.send(candidate_preflight_transaction(
+                            &mut connection,
+                            root,
+                            genesis,
+                            &receipts,
+                            now_ms,
+                            prior,
+                        ));
+                    }
+                    Command::MarkWitness {
+                        root,
+                        genesis,
+                        checkpoint,
+                        current_manifest,
+                        done,
+                    } => {
+                        let _ = done.send(record_witness_confirmation(
+                            &mut connection,
+                            root,
+                            genesis,
+                            checkpoint,
+                            current_manifest,
+                        ));
+                    }
+                }
+            }
+        }
+        Err(error) => {
+            let _ = started.send(Err(error));
+        }
+    }
+}
+
+fn initialize(path: &PathBuf) -> Result<Connection, StoreError> {
+    let conn = Connection::open(path).map_err(|_| StoreError::PersistenceFailure)?;
+    conn.busy_timeout(Duration::from_secs(2))
+        .map_err(|_| StoreError::PersistenceFailure)?;
+    // Never create a parallel, empty unified ledger next to legacy
+    // revocation-only tables: that would erase required authorization
+    // history by omission. Explicit reviewed migration is still pending.
+    require_no_legacy_schema(&conn)?;
+    conn.execute_batch(
+        "PRAGMA journal_mode=WAL;
+         PRAGMA synchronous=FULL;
+         PRAGMA foreign_keys=ON;
+         CREATE TABLE IF NOT EXISTS unified_policy_events (
+           space BLOB NOT NULL CHECK(length(space)=16),
+           resource BLOB NOT NULL CHECK(length(resource)=16),
+           seq INTEGER NOT NULL CHECK(seq>0),
+           kind INTEGER NOT NULL CHECK(kind BETWEEN 1 AND 3),
+           evidence BLOB NOT NULL CHECK(length(evidence)>0 AND length(evidence)<=65536),
+           policy_head BLOB NOT NULL CHECK(length(policy_head)=32),
+           PRIMARY KEY(space,resource,seq)
+         ) STRICT;
+         CREATE TABLE IF NOT EXISTS unified_policy_cursor (
+           space BLOB NOT NULL CHECK(length(space)=16),
+           resource BLOB NOT NULL CHECK(length(resource)=16),
+           seq INTEGER NOT NULL CHECK(seq>0),
+           policy_head BLOB NOT NULL CHECK(length(policy_head)=32),
+           owner_manifest BLOB NOT NULL CHECK(length(owner_manifest)=32),
+           PRIMARY KEY(space,resource)
+         ) STRICT;
+         CREATE TABLE IF NOT EXISTS unified_policy_outbox (
+           id INTEGER PRIMARY KEY AUTOINCREMENT,
+           space BLOB NOT NULL CHECK(length(space)=16),
+           resource BLOB NOT NULL CHECK(length(resource)=16),
+           seq INTEGER NOT NULL CHECK(seq>0),
+           kind INTEGER NOT NULL,
+           evidence BLOB NOT NULL CHECK(length(evidence)>0),
+           UNIQUE(space,resource,seq)
+         ) STRICT;
+         CREATE TABLE IF NOT EXISTS unified_policy_audit (
+           id INTEGER PRIMARY KEY AUTOINCREMENT,
+           space BLOB NOT NULL CHECK(length(space)=16),
+           resource BLOB NOT NULL CHECK(length(resource)=16),
+           seq INTEGER NOT NULL,
+           kind INTEGER NOT NULL,
+           policy_head BLOB NOT NULL CHECK(length(policy_head)=32),
+           UNIQUE(space,resource,seq)
+         ) STRICT;
+         CREATE TABLE IF NOT EXISTS unified_policy_witnessed (
+           space BLOB NOT NULL CHECK(length(space)=16),
+           resource BLOB NOT NULL CHECK(length(resource)=16),
+           seq INTEGER NOT NULL CHECK(seq>=0),
+           policy_head BLOB NOT NULL CHECK(length(policy_head)=32),
+           revocation_root BLOB NOT NULL CHECK(length(revocation_root)=32),
+           owner_manifest BLOB NOT NULL CHECK(length(owner_manifest)=32),
+           PRIMARY KEY(space,resource)
+         ) STRICT;",
+    )
+    .map_err(|_| StoreError::PersistenceFailure)?;
+    Ok(conn)
+}
+
+fn verify_genesis(
+    root: &ExternallyPinnedRootForSpike,
+    genesis: &VerifiedResourceTrust,
+) -> Result<(), StoreError> {
+    if root.space != genesis.space()
+        || root.public_key != genesis.root_public_key()
+        || root.key_epoch != genesis.root_key_epoch()
+    {
+        return Err(StoreError::Conflict);
+    }
+    Ok(())
+}
+
+fn snapshot(state: &ResourceOwnerLifecycle) -> JournalSnapshot {
+    JournalSnapshot {
+        sequence: state.sequence(),
+        policy_head: state.policy_head(),
+        owner_public_key: state.current_owner().public_key,
+        admission_paused: true,
+    }
+}
+
+/// Replays each signed event from the independently supplied genesis manifest.
+/// Every stored policy_head and the cursor must match computed state, not the
+/// other way around. A local SQLite snapshot is never the trust anchor.
+fn replay(
+    tx: &Transaction<'_>,
+    root: &ExternallyPinnedRootForSpike,
+    genesis: VerifiedResourceTrust,
+) -> Result<ResourceOwnerLifecycle, StoreError> {
+    verify_genesis(root, &genesis)?;
+    let mut state = ResourceOwnerLifecycle::from_genesis(genesis);
+    let mut stmt = tx
+        .prepare(
+            "SELECT seq,kind,evidence,policy_head
+         FROM unified_policy_events
+         WHERE space=?1 AND resource=?2 ORDER BY seq ASC",
+        )
+        .map_err(|_| StoreError::PersistenceFailure)?;
+    let rows = stmt
+        .query_map(
+            params![
+                root.space.as_bytes().as_slice(),
+                genesis.resource().as_bytes().as_slice()
+            ],
+            |row| {
+                let seq: i64 = row.get(0)?;
+                let kind: i64 = row.get(1)?;
+                let evidence: Vec<u8> = row.get(2)?;
+                let head: Vec<u8> = row.get(3)?;
+                Ok((seq, kind, evidence, head))
+            },
+        )
+        .map_err(|_| StoreError::PersistenceFailure)?;
+    for row in rows {
+        let (seq, kind, evidence, head) = row.map_err(|_| StoreError::PersistenceFailure)?;
+        let seq = u64::try_from(seq).map_err(|_| StoreError::Conflict)?;
+        let kind = u8::try_from(kind).map_err(|_| StoreError::Conflict)?;
+        if state.sequence().checked_add(1) != Some(seq) {
+            return Err(StoreError::Conflict);
+        }
+        replay_event(&mut state, root, kind, &evidence)?;
+        if state.sequence() != seq || state.policy_head().as_slice() != head {
+            return Err(StoreError::Conflict);
+        }
+    }
+    let cursor: Option<(i64, Vec<u8>, Vec<u8>)> = tx
+        .query_row(
+            "SELECT seq,policy_head,owner_manifest FROM unified_policy_cursor
+         WHERE space=?1 AND resource=?2",
+            params![
+                root.space.as_bytes().as_slice(),
+                genesis.resource().as_bytes().as_slice()
+            ],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        )
+        .optional()
+        .map_err(|_| StoreError::PersistenceFailure)?;
+    match cursor {
+        Some((seq, head, manifest)) => {
+            let seq = u64::try_from(seq).map_err(|_| StoreError::Conflict)?;
+            if seq != state.sequence()
+                || head != state.policy_head()
+                || manifest != state.current_trust().manifest_commitment()
+            {
+                return Err(StoreError::Conflict);
+            }
+        }
+        None if state.sequence() == 0 => {}
+        None => return Err(StoreError::Conflict),
+    }
+    // All durable mirrors must agree with the signed history in this transaction.
+    verify_side_tables(tx)?;
+    Ok(state)
+}
+
+/// Ensure that every event has exactly one matching Outbox and Audit row and
+/// that there are no orphaned mirror rows, across every stored resource.
+/// This is NOT an external high-water anchor or proof against full rollback.
+fn verify_side_tables(conn: &Connection) -> Result<(), StoreError> {
+    let diverged: i64 = conn
+        .query_row(
+            "SELECT
+               EXISTS (
+                 SELECT 1 FROM unified_policy_events AS e
+                 LEFT JOIN unified_policy_outbox AS o
+                   ON o.space=e.space AND o.resource=e.resource AND o.seq=e.seq
+                 LEFT JOIN unified_policy_audit AS a
+                   ON a.space=e.space AND a.resource=e.resource AND a.seq=e.seq
+                 WHERE o.seq IS NULL OR o.kind!=e.kind OR o.evidence!=e.evidence
+                    OR a.seq IS NULL OR a.kind!=e.kind OR a.policy_head!=e.policy_head
+               )
+               OR EXISTS (
+                 SELECT 1 FROM unified_policy_outbox AS o
+                 WHERE NOT EXISTS (
+                   SELECT 1 FROM unified_policy_events AS e
+                   WHERE e.space=o.space AND e.resource=o.resource AND e.seq=o.seq
+                 )
+               )
+               OR EXISTS (
+                 SELECT 1 FROM unified_policy_audit AS a
+                 WHERE NOT EXISTS (
+                   SELECT 1 FROM unified_policy_events AS e
+                   WHERE e.space=a.space AND e.resource=a.resource AND e.seq=a.seq
+                 )
+               )",
+            [],
+            |row| row.get(0),
+        )
+        .map_err(|_| StoreError::PersistenceFailure)?;
+    if diverged != 0 {
+        return Err(StoreError::Conflict);
+    }
+    Ok(())
+}
+
+fn inspect_db(
+    conn: &mut Connection,
+    root: ExternallyPinnedRootForSpike,
+    genesis: VerifiedResourceTrust,
+) -> Result<JournalSnapshot, StoreError> {
+    let tx = conn
+        .transaction_with_behavior(TransactionBehavior::Immediate)
+        .map_err(|_| StoreError::PersistenceFailure)?;
+    let state = replay(&tx, &root, genesis)?;
+    let snapshot = snapshot(&state);
+    tx.commit().map_err(|_| StoreError::PersistenceFailure)?;
+    Ok(snapshot)
+}
+
+/// The revocation-only accumulator is deliberately distinct from the unified
+/// policy head. Delegate cancellation and Owner transfer change policy_head
+/// but do NOT append into this revocation-only chain.
+fn revocation_root_for_journal(
+    tx: &Transaction<'_>,
+    root: &ExternallyPinnedRootForSpike,
+    resource: ResourceId,
+) -> Result<[u8; 32], StoreError> {
+    let mut stmt = tx
+        .prepare(
+            "SELECT seq,evidence FROM unified_policy_events
+         WHERE space=?1 AND resource=?2 AND kind=?3 ORDER BY seq ASC",
+        )
+        .map_err(|_| StoreError::PersistenceFailure)?;
+    let rows = stmt
+        .query_map(
+            params![
+                root.space.as_bytes().as_slice(),
+                resource.as_bytes().as_slice(),
+                i64::from(KIND_REVOKE),
+            ],
+            |row| {
+                let seq: i64 = row.get(0)?;
+                let bytes: Vec<u8> = row.get(1)?;
+                Ok((seq, bytes))
+            },
+        )
+        .map_err(|_| StoreError::PersistenceFailure)?;
+    let mut hash = [0u8; 32];
+    for row in rows {
+        let (seq, evidence) = row.map_err(|_| StoreError::PersistenceFailure)?;
+        let seq = u64::try_from(seq).map_err(|_| StoreError::Conflict)?;
+        hash = append_revocation_root(hash, seq, &evidence).ok_or(StoreError::Conflict)?;
+    }
+    Ok(hash)
+}
+
+fn binding_error(error: BindingError) -> StoreError {
+    match error {
+        BindingError::CounterUnavailable
+        | BindingError::JournalUnavailable
+        | BindingError::PersistenceUncertain => StoreError::PersistenceFailure,
+        BindingError::MissingBinding
+        | BindingError::WrongCounterIdentity
+        | BindingError::CounterMismatch
+        | BindingError::CounterOverflow
+        | BindingError::BrokenIntent
+        | BindingError::InvalidWitnesses
+        | BindingError::InvalidPolicyTransition => StoreError::Conflict,
+    }
+}
+
+/// A full-policy identity comparison, not just a matching TPM number.
+fn binding_matches_replayed(
+    saved: StoredBinding,
+    pin: PinnedCounterIdentity,
+    genesis: &VerifiedResourceTrust,
+    current: &VerifiedResourceTrust,
+    checkpoint: Checkpoint,
+) -> bool {
+    let StoredBinding::Committed(binding) = saved else {
+        return false;
+    };
+    let policy = binding.policy;
+    binding.identity == pin
+        && policy.space == genesis.space()
+        && policy.resource == genesis.resource()
+        && policy.root_public_key == genesis.root_public_key()
+        && policy.root_key_epoch == genesis.root_key_epoch()
+        && policy.genesis_manifest == genesis.manifest_commitment()
+        && policy.current_manifest == current.manifest_commitment()
+        && policy.writer_epoch == genesis.writer_epoch()
+        && policy.policy_sequence == checkpoint.seq
+        && policy.policy_head == checkpoint.head_hash
+        && policy.revocation_root == checkpoint.revocation_root
+}
+
+/// Prove that the *independently supplied* prior counter binding is the
+/// authenticated prefix of this exact signed SQLite policy history.
+///
+/// Verifying only the latest two-witness checkpoint cannot establish the
+/// earlier policy-head / revocation-root / Owner-manifest committed by a
+/// counter. A valid later checkpoint could otherwise be paired with a
+/// fabricated earlier high-water state. The encompassing transaction first
+/// replays and verifies the ENTIRE history, including all side-table mirrors.
+/// This function verifies the prior prefix under the SAME SQLite write lock.
+/// Neither SQLite nor the caller is an independent rollback-resistant anchor.
+fn verify_signed_policy_prefix(
+    tx: &Transaction<'_>,
+    root: &ExternallyPinnedRootForSpike,
+    genesis: VerifiedResourceTrust,
+    prior: UnifiedPolicyHighWater,
+) -> Result<(), StoreError> {
+    if prior.space != genesis.space()
+        || prior.resource != genesis.resource()
+        || prior.root_public_key != genesis.root_public_key()
+        || prior.root_key_epoch != genesis.root_key_epoch()
+        || prior.genesis_manifest != genesis.manifest_commitment()
+        || prior.writer_epoch != genesis.writer_epoch()
+    {
+        return Err(StoreError::Conflict);
+    }
+    // The SQLite INTEGER domain cannot hold an arbitrary u64. Do not
+    // silently wrap, clamp, or reinterpret independently pinned sequence.
+    let limit = i64::try_from(prior.policy_sequence).map_err(|_| StoreError::Conflict)?;
+    let mut state = ResourceOwnerLifecycle::from_genesis(genesis);
+    let mut revocation_root = [0u8; 32];
+    let mut stmt = tx
+        .prepare(
+            "SELECT seq,kind,evidence,policy_head FROM unified_policy_events
+             WHERE space=?1 AND resource=?2 AND seq<=?3 ORDER BY seq ASC",
+        )
+        .map_err(|_| StoreError::PersistenceFailure)?;
+    let events = stmt
+        .query_map(
+            params![
+                root.space.as_bytes().as_slice(),
+                genesis.resource().as_bytes().as_slice(),
+                limit
+            ],
+            |row| {
+                let seq: i64 = row.get(0)?;
+                let kind: i64 = row.get(1)?;
+                let evidence: Vec<u8> = row.get(2)?;
+                let head: Vec<u8> = row.get(3)?;
+                Ok((seq, kind, evidence, head))
+            },
+        )
+        .map_err(|_| StoreError::PersistenceFailure)?;
+    for event in events {
+        let (seq, kind, evidence, stored_head) =
+            event.map_err(|_| StoreError::PersistenceFailure)?;
+        let seq = u64::try_from(seq).map_err(|_| StoreError::Conflict)?;
+        let kind = u8::try_from(kind).map_err(|_| StoreError::Conflict)?;
+        if state.sequence().checked_add(1) != Some(seq) {
+            return Err(StoreError::Conflict);
+        }
+        replay_event(&mut state, root, kind, &evidence)?;
+        if state.sequence() != seq || state.policy_head().as_slice() != stored_head {
+            return Err(StoreError::Conflict);
+        }
+        if kind == KIND_REVOKE {
+            revocation_root = append_revocation_root(revocation_root, seq, &evidence)
+                .ok_or(StoreError::Conflict)?;
+        }
+    }
+    if state.sequence() != prior.policy_sequence
+        || state.policy_head() != prior.policy_head
+        || revocation_root != prior.revocation_root
+        || state.current_trust().manifest_commitment() != prior.current_manifest
+    {
+        return Err(StoreError::Conflict);
+    }
+    Ok(())
+}
+
+/// The ONLY SQLite transaction used by the L-001X candidate preflight
+/// path. Its transaction finishes before any external signing, counter
+/// observation, or simulated CAS begins. This is NOT a distributed lock.
+fn candidate_preflight_transaction(
+    conn: &mut Connection,
+    root: ExternallyPinnedRootForSpike,
+    genesis: VerifiedResourceTrust,
+    receipts: &[SignedCheckpoint],
+    now_ms: u64,
+    prior: UnifiedPolicyHighWater,
+) -> Result<CandidateJournalPreflight, StoreError> {
+    let tx = conn
+        .transaction_with_behavior(TransactionBehavior::Deferred)
+        .map_err(|_| StoreError::PersistenceFailure)?;
+    let history = replay(&tx, &root, genesis)?;
+    let current = history.current_trust();
+    let verified = verify_root_bound_witnesses(&genesis, receipts, now_ms)
+        .map_err(|_| StoreError::Conflict)?;
+    let checkpoint = verified.checkpoint();
+    let original_witnesses = genesis.witnesses();
+    let active_witnesses = current.witnesses();
+    if original_witnesses[0].public_key != active_witnesses[0].public_key
+        || original_witnesses[1].public_key != active_witnesses[1].public_key
+        || checkpoint.space != genesis.space()
+        || checkpoint.resource != genesis.resource()
+        || checkpoint.writer_epoch != genesis.writer_epoch()
+        || checkpoint.seq != history.sequence()
+        || checkpoint.head_hash != history.policy_head()
+        || checkpoint.revocation_root
+            != revocation_root_for_journal(&tx, &root, genesis.resource())?
+    {
+        return Err(StoreError::Conflict);
+    }
+    // The prefix is checked against the signed lifecycle at the exact
+    // historical sequence, not against the current witness alone.
+    verify_signed_policy_prefix(&tx, &root, genesis, prior)?;
+    let proof = CandidateJournalPreflight {
+        snapshot: snapshot(&history),
+        prior,
+        checkpoint,
+        current_manifest: current.manifest_commitment(),
+    };
+    tx.commit().map_err(|_| StoreError::PersistenceFailure)?;
+    Ok(proof)
+}
+
+/// A single DB write transaction covers the external *candidate* counter
+/// operation. A second SQLite writer cannot replace the verified snapshot
+/// between policy replay and increment. Counter and SQLite are still NOT
+/// a durable distributed transaction across a power failure.
+fn journal_bound_counter_transaction(
+    conn: &mut Connection,
+    root: ExternallyPinnedRootForSpike,
+    genesis: VerifiedResourceTrust,
+    receipts: &[SignedCheckpoint],
+    now_ms: u64,
+    io: &CandidateCounterIo,
+    operation: CandidateCounterOperation,
+) -> Result<Diagnostic, StoreError> {
+    let tx = conn
+        .transaction_with_behavior(TransactionBehavior::Immediate)
+        .map_err(|_| StoreError::PersistenceFailure)?;
+    let verified = replay(&tx, &root, genesis)?;
+    let current = verified.current_trust();
+    let checkpoint = verify_root_bound_witnesses(&genesis, receipts, now_ms)
+        .map_err(|_| StoreError::Conflict)?
+        .checkpoint();
+    let old_witnesses = genesis.witnesses();
+    let new_witnesses = current.witnesses();
+    if old_witnesses[0].public_key != new_witnesses[0].public_key
+        || old_witnesses[1].public_key != new_witnesses[1].public_key
+        || checkpoint.space != genesis.space()
+        || checkpoint.resource != genesis.resource()
+        || checkpoint.writer_epoch != genesis.writer_epoch()
+        || checkpoint.seq != verified.sequence()
+        || checkpoint.head_hash != verified.policy_head()
+        || checkpoint.revocation_root
+            != revocation_root_for_journal(&tx, &root, genesis.resource())?
+    {
+        return Err(StoreError::Conflict);
+    }
+
+    // Use the saved Committed policy, or the Prepared intent's committed
+    // BEFORE state. A valid *next* checkpoint must not launder an invented
+    // earlier policy prefix. No stage, finalize or counter increment occurs
+    // until this proof succeeds. A missing intent is never auto-provisioned.
+    let saved = io.intent.load().map_err(binding_error)?;
+    let prior = match saved {
+        StoredBinding::Committed(record) => record.policy,
+        StoredBinding::Prepared(record) => record.before.policy,
+        StoredBinding::Missing => return Err(StoreError::Conflict),
+    };
+    verify_signed_policy_prefix(&tx, &root, genesis, prior)?;
+
+    let outcome = match operation {
+        CandidateCounterOperation::Begin => begin_candidate_advance(
+            io.counter.as_ref(),
+            io.intent.as_ref(),
+            io.pin,
+            &genesis,
+            &current,
+            receipts,
+            now_ms,
+        ),
+        CandidateCounterOperation::Reconcile => reconcile_candidate_advance(
+            io.counter.as_ref(),
+            io.intent.as_ref(),
+            io.pin,
+            &genesis,
+            &current,
+            receipts,
+            now_ms,
+        ),
+    }
+    .map_err(binding_error)?;
+
+    // "MatchingCounterOnly" must never be emitted for an old committed
+    // policy while SQLite has moved on. The model's raw reconciliation
+    // routine may return it after a mere numeric equality.
+    if outcome == Diagnostic::MatchingCounterOnly {
+        let saved = io.intent.load().map_err(binding_error)?;
+        let observed = io.counter.read().map_err(binding_error)?;
+        if inspect_counter(io.pin, observed, saved).map_err(binding_error)?
+            != Diagnostic::MatchingCounterOnly
+            || !binding_matches_replayed(saved, io.pin, &genesis, &current, checkpoint)
+        {
+            return Err(StoreError::Conflict);
+        }
+    }
+    tx.commit().map_err(|_| StoreError::PersistenceFailure)?;
+    Ok(outcome)
+}
+
+fn inspect_checkpoint_db(
+    conn: &mut Connection,
+    root: ExternallyPinnedRootForSpike,
+    genesis: VerifiedResourceTrust,
+) -> Result<JournalCheckpointState, StoreError> {
+    let tx = conn
+        .transaction_with_behavior(TransactionBehavior::Immediate)
+        .map_err(|_| StoreError::PersistenceFailure)?;
+    let verified = replay(&tx, &root, genesis)?;
+    let revocation_root = revocation_root_for_journal(&tx, &root, genesis.resource())?;
+    let result = JournalCheckpointState {
+        snapshot: snapshot(&verified),
+        revocation_root,
+        current_trust: verified.current_trust(),
+    };
+    tx.commit().map_err(|_| StoreError::PersistenceFailure)?;
+    Ok(result)
+}
+
+/// Only runs *after* successful external durable CAS. SQLite and an external
+/// platform monotonic counter are NOT a distributed atomic transaction.
+/// Confirmation is purely local bookkeeping; missing/forged markers cannot
+/// enable admission. Must revalidate the exact journal state under BEGIN
+/// IMMEDIATE to prevent mislabeling a newer append.
+fn record_witness_confirmation(
+    conn: &mut Connection,
+    root: ExternallyPinnedRootForSpike,
+    genesis: VerifiedResourceTrust,
+    checkpoint: Checkpoint,
+    expected_manifest: [u8; 32],
+) -> Result<(), StoreError> {
+    let tx = conn
+        .transaction_with_behavior(TransactionBehavior::Immediate)
+        .map_err(|_| StoreError::PersistenceFailure)?;
+    let state = replay(&tx, &root, genesis)?;
+    let revocation_root = revocation_root_for_journal(&tx, &root, genesis.resource())?;
+    if checkpoint.space != genesis.space()
+        || checkpoint.resource != genesis.resource()
+        || checkpoint.writer_epoch != genesis.writer_epoch()
+        || checkpoint.seq != state.sequence()
+        || checkpoint.head_hash != state.policy_head()
+        || checkpoint.revocation_root != revocation_root
+        || expected_manifest != state.current_trust().manifest_commitment()
+    {
+        return Err(StoreError::Conflict);
+    }
+    let seq = i64::try_from(checkpoint.seq).map_err(|_| StoreError::Conflict)?;
+    tx.execute(
+        "INSERT INTO unified_policy_witnessed
+           (space,resource,seq,policy_head,revocation_root,owner_manifest)
+         VALUES(?1,?2,?3,?4,?5,?6)
+         ON CONFLICT(space,resource) DO UPDATE SET
+           seq=excluded.seq, policy_head=excluded.policy_head,
+           revocation_root=excluded.revocation_root,
+           owner_manifest=excluded.owner_manifest
+         WHERE excluded.seq >= unified_policy_witnessed.seq",
+        params![
+            checkpoint.space.as_bytes().as_slice(),
+            checkpoint.resource.as_bytes().as_slice(),
+            seq,
+            checkpoint.head_hash.as_slice(),
+            checkpoint.revocation_root.as_slice(),
+            expected_manifest.as_slice(),
+        ],
+    )
+    .map_err(|_| StoreError::PersistenceFailure)?;
+    tx.commit().map_err(|_| StoreError::PersistenceFailure)?;
+    Ok(())
+}
+
+fn append_transaction(
+    conn: &mut Connection,
+    root: ExternallyPinnedRootForSpike,
+    genesis: VerifiedResourceTrust,
+    kind: u8,
+    evidence: &[u8],
+) -> Result<JournalSnapshot, StoreError> {
+    if evidence.is_empty() || evidence.len() > MAX_EVIDENCE {
+        return Err(StoreError::Conflict);
+    }
+    let tx = conn
+        .transaction_with_behavior(TransactionBehavior::Immediate)
+        .map_err(|_| StoreError::PersistenceFailure)?;
+    let mut state = replay(&tx, &root, genesis)?;
+    replay_event(&mut state, &root, kind, evidence)?;
+    let seq = i64::try_from(state.sequence()).map_err(|_| StoreError::Conflict)?;
+    let head = state.policy_head();
+    let space = root.space.as_bytes().as_slice();
+    let resource_id = genesis.resource();
+    let resource = resource_id.as_bytes().as_slice();
+    tx.execute(
+        "INSERT INTO unified_policy_events(space,resource,seq,kind,evidence,policy_head)
+         VALUES(?1,?2,?3,?4,?5,?6)",
+        params![space, resource, seq, kind, evidence, head.as_slice()],
+    )
+    .map_err(|_| StoreError::PersistenceFailure)?;
+    tx.execute(
+        "INSERT INTO unified_policy_cursor(space,resource,seq,policy_head,owner_manifest)
+         VALUES(?1,?2,?3,?4,?5)
+         ON CONFLICT(space,resource) DO UPDATE SET
+           seq=excluded.seq,policy_head=excluded.policy_head,
+           owner_manifest=excluded.owner_manifest",
+        params![
+            space,
+            resource,
+            seq,
+            head.as_slice(),
+            state.current_trust().manifest_commitment().as_slice(),
+        ],
+    )
+    .map_err(|_| StoreError::PersistenceFailure)?;
+    tx.execute(
+        "INSERT INTO unified_policy_outbox(space,resource,seq,kind,evidence)
+         VALUES(?1,?2,?3,?4,?5)",
+        params![space, resource, seq, kind, evidence],
+    )
+    .map_err(|_| StoreError::PersistenceFailure)?;
+    tx.execute(
+        "INSERT INTO unified_policy_audit(space,resource,seq,kind,policy_head)
+         VALUES(?1,?2,?3,?4,?5)",
+        params![space, resource, seq, kind, head.as_slice()],
+    )
+    .map_err(|_| StoreError::PersistenceFailure)?;
+    // SQLite triggers can mutate a mirror after earlier writes succeeded.
+    // Reject the whole transaction before COMMIT on any divergence.
+    verify_side_tables(&tx)?;
+    tx.commit().map_err(|_| StoreError::PersistenceFailure)?;
+    Ok(snapshot(&state))
+}
+
+fn read_outbox(conn: &mut Connection) -> Result<Vec<CriticalPolicyOutbox>, StoreError> {
+    // Verify and read the mirrors under one SQLite transaction to prevent
+    // a concurrent external writer from changing them between the two steps.
+    let tx = conn
+        .transaction_with_behavior(TransactionBehavior::Immediate)
+        .map_err(|_| StoreError::PersistenceFailure)?;
+    verify_side_tables(&tx)?;
+    let outbox = {
+        let mut stmt = tx
+            .prepare("SELECT seq,kind,evidence FROM unified_policy_outbox ORDER BY id ASC")
+            .map_err(|_| StoreError::PersistenceFailure)?;
+        let rows = stmt
+            .query_map([], |row| {
+                let seq: i64 = row.get(0)?;
+                let kind: i64 = row.get(1)?;
+                let evidence: Vec<u8> = row.get(2)?;
+                Ok((seq, kind, evidence))
+            })
+            .map_err(|_| StoreError::PersistenceFailure)?;
+        let mut outbox = Vec::new();
+        for row in rows {
+            let (seq, kind, evidence) = row.map_err(|_| StoreError::PersistenceFailure)?;
+            outbox.push(CriticalPolicyOutbox {
+                sequence: u64::try_from(seq).map_err(|_| StoreError::Conflict)?,
+                kind: u8::try_from(kind).map_err(|_| StoreError::Conflict)?,
+                evidence,
+            });
+        }
+        outbox
+    };
+    tx.commit().map_err(|_| StoreError::PersistenceFailure)?;
+    Ok(outbox)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::policy_journal_codec::{KIND_CANCEL, KIND_REVOKE, KIND_TRANSFER};
+    use ed25519_dalek::{Signer, SigningKey};
+    use loom_crypto::owner_authority::{
+        OwnerVerifiedRevocation, ProvisionedOwnerForSpike, issuer_key_id,
+        verify_owner_delegated_revocation_for_spike,
+    };
+    use loom_crypto::owner_lifecycle::{
+        DelegateCancellation, DualSignedOwnerTransfer, OwnerTransfer, SignedDelegateCancellation,
+        cancellation_transcript, owner_transfer_transcript,
+    };
+    use loom_crypto::space_trust::{
+        ResourceTrustManifest, SignedResourceTrust, trust_manifest_transcript,
+        verify_resource_trust_for_spike,
+    };
+    use loom_wire::security_event::{
+        CanonicalSecurityEvent, EventKind, encode_security_event, signing_input,
+    };
+    use std::sync::Arc;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    struct TempDb(PathBuf);
+    impl TempDb {
+        fn new() -> Self {
+            let nanos = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos();
+            Self(std::env::temp_dir().join(format!(
+                "loom-unified-{}-{nanos}.sqlite",
+                std::process::id(),
+            )))
+        }
+        fn open(&self) -> UnifiedPolicyJournal {
+            UnifiedPolicyJournal::open(self.0.clone()).unwrap()
+        }
+    }
+    impl Drop for TempDb {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_file(&self.0);
+            let _ = std::fs::remove_file(format!("{}-wal", self.0.display()));
+            let _ = std::fs::remove_file(format!("{}-shm", self.0.display()));
+        }
+    }
+
+    fn root_pin() -> ExternallyPinnedRootForSpike {
+        ExternallyPinnedRootForSpike {
+            space: SpaceId::from_bytes([1; 16]),
+            public_key: SigningKey::from_bytes(&[30; 32]).verifying_key().to_bytes(),
+            key_epoch: 7,
+        }
+    }
+
+    fn signed_manifest(owner_seed: u8, epoch: u64) -> SignedResourceTrust {
+        let pin = root_pin();
+        let signer = SigningKey::from_bytes(&[30; 32]);
+        let owner = SigningKey::from_bytes(&[owner_seed; 32]);
+        let witness_a = SigningKey::from_bytes(&[21; 32]);
+        let witness_b = SigningKey::from_bytes(&[22; 32]);
+        let manifest = ResourceTrustManifest {
+            space: pin.space,
+            resource: ResourceId::from_bytes([2; 16]),
+            owner_public_key: owner.verifying_key().to_bytes(),
+            owner_key_epoch: epoch,
+            witness_public_keys: [
+                witness_a.verifying_key().to_bytes(),
+                witness_b.verifying_key().to_bytes(),
+            ],
+            writer_epoch: 1,
+            root_key_epoch: pin.key_epoch,
+            issued_at_ms: 100,
+            expires_at_ms: 300,
+        };
+        SignedResourceTrust {
+            manifest,
+            signature: signer
+                .sign(&trust_manifest_transcript(&manifest))
+                .to_bytes(),
+        }
+    }
+
+    fn trusted_genesis() -> VerifiedResourceTrust {
+        verify_resource_trust_for_spike(&root_pin(), &signed_manifest(11, 3), 150).unwrap()
+    }
+
+    fn signed_revocation(seq: u64, owner_seed: u8, owner_epoch: u64) -> OwnerVerifiedRevocation {
+        let signer = SigningKey::from_bytes(&[owner_seed; 32]);
+        let delegate = SigningKey::from_bytes(&[12; 32]);
+        let delegate_key = delegate.verifying_key().to_bytes();
+        let pin = root_pin();
+        let resource = ResourceId::from_bytes([2; 16]);
+        let mut grant_payload = resource.as_bytes().to_vec();
+        grant_payload.extend_from_slice(&delegate_key);
+        grant_payload.extend_from_slice(&issuer_key_id(&delegate_key));
+        grant_payload.push(1);
+        grant_payload.extend_from_slice(&4u64.to_be_bytes());
+        let grant = CanonicalSecurityEvent {
+            kind: EventKind::OwnerGrant,
+            space_id: *pin.space.as_bytes(),
+            signer_key_id: issuer_key_id(&signer.verifying_key().to_bytes()),
+            issuer_epoch: owner_epoch,
+            issued_at_ms: 100,
+            expires_at_ms: 300,
+            seq: 1,
+            payload: grant_payload,
+        };
+        let mut revocation_payload = resource.as_bytes().to_vec();
+        revocation_payload.extend_from_slice(&[5; 32]);
+        revocation_payload.push(3);
+        let revoke = CanonicalSecurityEvent {
+            kind: EventKind::Revocation,
+            space_id: *pin.space.as_bytes(),
+            signer_key_id: issuer_key_id(&delegate_key),
+            issuer_epoch: 4,
+            issued_at_ms: 120,
+            expires_at_ms: 250,
+            seq,
+            payload: revocation_payload,
+        };
+        let grant_cbor = encode_security_event(&grant).unwrap();
+        let revoke_cbor = encode_security_event(&revoke).unwrap();
+        verify_owner_delegated_revocation_for_spike(
+            &ProvisionedOwnerForSpike {
+                space_id: pin.space,
+                resource_id: resource,
+                public_key: signer.verifying_key().to_bytes(),
+                current_key_epoch: owner_epoch,
+            },
+            &grant_cbor,
+            &signer.sign(&signing_input(&grant_cbor).unwrap()).to_bytes(),
+            &revoke_cbor,
+            &delegate
+                .sign(&signing_input(&revoke_cbor).unwrap())
+                .to_bytes(),
+            150,
+        )
+        .unwrap()
+    }
+
+    fn signed_cancellation(seq: u64) -> SignedDelegateCancellation {
+        let owner = SigningKey::from_bytes(&[11; 32]);
+        let delegate = SigningKey::from_bytes(&[12; 32]);
+        let event = DelegateCancellation {
+            space: SpaceId::from_bytes([1; 16]),
+            resource: ResourceId::from_bytes([2; 16]),
+            owner_public_key: owner.verifying_key().to_bytes(),
+            owner_epoch: 3,
+            delegate_key_id: issuer_key_id(&delegate.verifying_key().to_bytes()),
+            delegate_epoch: 4,
+            sequence: seq,
+            issued_at_ms: 120,
+            expires_at_ms: 250,
+        };
+        SignedDelegateCancellation {
+            cancellation: event,
+            signature: owner.sign(&cancellation_transcript(&event)).to_bytes(),
+        }
+    }
+
+    fn signed_transfer(
+        prior: &VerifiedResourceTrust,
+        successor: &SignedResourceTrust,
+        seq: u64,
+    ) -> DualSignedOwnerTransfer {
+        let next = verify_resource_trust_for_spike(&root_pin(), successor, 150).unwrap();
+        let event = OwnerTransfer {
+            space: prior.space(),
+            resource: prior.resource(),
+            prior_manifest: prior.manifest_commitment(),
+            successor_manifest: next.manifest_commitment(),
+            previous_owner_public_key: prior.owner().public_key,
+            successor_owner_public_key: next.owner().public_key,
+            previous_owner_epoch: prior.owner().current_key_epoch,
+            successor_owner_epoch: next.owner().current_key_epoch,
+            sequence: seq,
+            issued_at_ms: 120,
+            expires_at_ms: 250,
+        };
+        let bytes = owner_transfer_transcript(&event);
+        DualSignedOwnerTransfer {
+            transfer: event,
+            old_owner_signature: SigningKey::from_bytes(&[11; 32]).sign(&bytes).to_bytes(),
+            next_owner_signature: SigningKey::from_bytes(&[33; 32]).sign(&bytes).to_bytes(),
+        }
+    }
+
+    #[test]
+    fn unified_lifecycle_replays_from_genesis_after_restart() {
+        let db = TempDb::new();
+        let store = db.open();
+        let genesis = trusted_genesis();
+        assert!(store.inspect(root_pin(), genesis).unwrap().admission_paused);
+        let revocation = signed_revocation(1, 11, 3);
+        let first = store
+            .append(root_pin(), genesis, NewPolicyEvent::Revoke(&revocation))
+            .unwrap();
+        assert_eq!(first.sequence, 1);
+        let cancellation = signed_cancellation(2);
+        let second = store
+            .append(root_pin(), genesis, NewPolicyEvent::Cancel(&cancellation))
+            .unwrap();
+        assert_eq!(second.sequence, 2);
+        assert_ne!(first.policy_head, second.policy_head);
+        assert_eq!(
+            store.append(
+                root_pin(),
+                genesis,
+                NewPolicyEvent::Revoke(&signed_revocation(3, 11, 3))
+            ),
+            Err(StoreError::Conflict)
+        );
+        let successor = signed_manifest(33, 4);
+        let transfer = signed_transfer(&genesis, &successor, 3);
+        let third = store
+            .append(
+                root_pin(),
+                genesis,
+                NewPolicyEvent::Transfer {
+                    transfer: &transfer,
+                    successor_manifest: &successor,
+                },
+            )
+            .unwrap();
+        assert_eq!(third.sequence, 3);
+        assert_eq!(
+            store.append(
+                root_pin(),
+                genesis,
+                NewPolicyEvent::Revoke(&signed_revocation(4, 11, 3))
+            ),
+            Err(StoreError::Conflict)
+        );
+        let last = store
+            .append(
+                root_pin(),
+                genesis,
+                NewPolicyEvent::Revoke(&signed_revocation(4, 33, 4)),
+            )
+            .unwrap();
+        assert_eq!(last.sequence, 4);
+        assert_eq!(
+            last.owner_public_key,
+            SigningKey::from_bytes(&[33; 32]).verifying_key().to_bytes()
+        );
+        assert!(last.admission_paused);
+        let outbox = store.pending_outbox().unwrap();
+        assert_eq!(
+            outbox.iter().map(|e| e.kind).collect::<Vec<_>>(),
+            vec![KIND_REVOKE, KIND_CANCEL, KIND_TRANSFER, KIND_REVOKE]
+        );
+        assert_eq!(
+            outbox.iter().map(|e| e.sequence).collect::<Vec<_>>(),
+            vec![1, 2, 3, 4]
+        );
+        drop(store);
+        let restored = db.open();
+        assert_eq!(restored.inspect(root_pin(), genesis).unwrap(), last);
+        assert_eq!(restored.pending_outbox().unwrap(), outbox);
+    }
+
+    #[test]
+    fn old_signed_delegate_remains_blocked_after_restart() {
+        let db = TempDb::new();
+        let store = db.open();
+        let genesis = trusted_genesis();
+        store
+            .append(
+                root_pin(),
+                genesis,
+                NewPolicyEvent::Revoke(&signed_revocation(1, 11, 3)),
+            )
+            .unwrap();
+        let cancellation = signed_cancellation(2);
+        store
+            .append(root_pin(), genesis, NewPolicyEvent::Cancel(&cancellation))
+            .unwrap();
+        drop(store);
+        let store = db.open();
+        assert_eq!(
+            store.append(
+                root_pin(),
+                genesis,
+                NewPolicyEvent::Revoke(&signed_revocation(3, 11, 3),)
+            ),
+            Err(StoreError::Conflict)
+        );
+        assert_eq!(store.inspect(root_pin(), genesis).unwrap().sequence, 2);
+    }
+
+    #[test]
+    fn stored_evidence_tampering_cannot_be_hidden_by_cursor() {
+        let db = TempDb::new();
+        let store = db.open();
+        let genesis = trusted_genesis();
+        store
+            .append(
+                root_pin(),
+                genesis,
+                NewPolicyEvent::Revoke(&signed_revocation(1, 11, 3)),
+            )
+            .unwrap();
+        drop(store);
+        let conn = Connection::open(&db.0).unwrap();
+        conn.execute(
+            "UPDATE unified_policy_events SET evidence=?1 WHERE seq=1",
+            [b"valid BLOB type, invalid signatures".as_slice()],
+        )
+        .unwrap();
+        drop(conn);
+        let reopened = db.open();
+        assert_eq!(
+            reopened.inspect(root_pin(), genesis),
+            Err(StoreError::Conflict)
+        );
+    }
+
+    #[test]
+    fn outbox_insert_failure_rolls_back_event_cursor_and_audit() {
+        let db = TempDb::new();
+        let store = db.open();
+        let genesis = trusted_genesis();
+        let conn = Connection::open(&db.0).unwrap();
+        conn.execute_batch(
+            "CREATE TRIGGER reject_outbox BEFORE INSERT ON unified_policy_outbox
+             BEGIN SELECT RAISE(ABORT, 'simulated-full-disk'); END;",
+        )
+        .unwrap();
+        drop(conn);
+        assert_eq!(
+            store.append(
+                root_pin(),
+                genesis,
+                NewPolicyEvent::Revoke(&signed_revocation(1, 11, 3),)
+            ),
+            Err(StoreError::PersistenceFailure)
+        );
+        assert_eq!(store.inspect(root_pin(), genesis).unwrap().sequence, 0);
+        assert!(store.pending_outbox().unwrap().is_empty());
+        let conn = Connection::open(&db.0).unwrap();
+        for name in [
+            "unified_policy_events",
+            "unified_policy_cursor",
+            "unified_policy_audit",
+            "unified_policy_outbox",
+        ] {
+            let sql = format!("SELECT COUNT(*) FROM {name}");
+            assert_eq!(
+                conn.query_row(&sql, [], |row| row.get::<_, i64>(0))
+                    .unwrap(),
+                0
+            );
+        }
+        conn.execute_batch("DROP TRIGGER reject_outbox").unwrap();
+        drop(conn);
+        assert_eq!(
+            store
+                .append(
+                    root_pin(),
+                    genesis,
+                    NewPolicyEvent::Revoke(&signed_revocation(1, 11, 3),)
+                )
+                .unwrap()
+                .sequence,
+            1,
+        );
+    }
+
+    #[test]
+    fn concurrent_identical_resource_version_has_single_winner() {
+        let db = TempDb::new();
+        let store = Arc::new(db.open());
+        let genesis = trusted_genesis();
+        let proof = signed_revocation(1, 11, 3);
+        let mut handles = Vec::new();
+        for _ in 0..6 {
+            let db = Arc::clone(&store);
+            let proof = proof.clone();
+            handles.push(thread::spawn(move || {
+                db.append(root_pin(), genesis, NewPolicyEvent::Revoke(&proof))
+            }));
+        }
+        let results: Vec<_> = handles
+            .into_iter()
+            .map(|thread| thread.join().unwrap())
+            .collect();
+        assert_eq!(results.iter().filter(|r| r.is_ok()).count(), 1);
+        assert_eq!(
+            results
+                .iter()
+                .filter(|r| **r == Err(StoreError::Conflict))
+                .count(),
+            5
+        );
+        assert_eq!(store.pending_outbox().unwrap().len(), 1);
+        assert_eq!(store.inspect(root_pin(), genesis).unwrap().sequence, 1);
+    }
+
+    #[test]
+    fn genesis_root_substitution_is_rejected_before_history_access() {
+        let db = TempDb::new();
+        let store = db.open();
+        let genesis = trusted_genesis();
+        let mut impostor = root_pin();
+        impostor.public_key = SigningKey::from_bytes(&[99; 32]).verifying_key().to_bytes();
+        assert_eq!(store.inspect(impostor, genesis), Err(StoreError::Conflict));
+        assert!(store.pending_outbox().unwrap().is_empty());
+    }
+
+    #[test]
+    fn successor_manifest_is_not_trusted_from_sqlite_or_unpinned_root() {
+        let db = TempDb::new();
+        let store = db.open();
+        let genesis = trusted_genesis();
+        let successor = signed_manifest(33, 4);
+        let transfer = signed_transfer(&genesis, &successor, 1);
+        let mut forged = signed_manifest(33, 4);
+        forged.signature[7] ^= 1;
+        assert_eq!(
+            store.append(
+                root_pin(),
+                genesis,
+                NewPolicyEvent::Transfer {
+                    transfer: &transfer,
+                    successor_manifest: &forged,
+                }
+            ),
+            Err(StoreError::Conflict)
+        );
+        assert_eq!(store.inspect(root_pin(), genesis).unwrap().sequence, 0);
+    }
+
+    struct FakeExternalAnchor {
+        state: Mutex<crate::unified_policy_anchor::UnifiedPolicyHighWater>,
+        missing: bool,
+        fail_cas: bool,
+    }
+
+    impl crate::unified_policy_anchor::IndependentUnifiedPolicyAnchor for FakeExternalAnchor {
+        fn read(
+            &self,
+            space: SpaceId,
+            resource: ResourceId,
+        ) -> Result<
+            crate::unified_policy_anchor::UnifiedPolicyHighWater,
+            crate::unified_policy_anchor::UnifiedAnchorError,
+        > {
+            use crate::unified_policy_anchor::UnifiedAnchorError;
+            if self.missing {
+                return Err(UnifiedAnchorError::MissingOrUntrusted);
+            }
+            let state = *self.state.lock().unwrap();
+            if state.space != space || state.resource != resource {
+                return Err(UnifiedAnchorError::IdentityOrManifestMismatch);
+            }
+            Ok(state)
+        }
+
+        fn compare_and_advance(
+            &self,
+            expected: crate::unified_policy_anchor::UnifiedPolicyHighWater,
+            next: crate::unified_policy_anchor::UnifiedPolicyHighWater,
+        ) -> Result<(), crate::unified_policy_anchor::UnifiedAnchorError> {
+            use crate::unified_policy_anchor::UnifiedAnchorError;
+            if self.fail_cas {
+                return Err(UnifiedAnchorError::PersistenceUncertain);
+            }
+            let mut guard = self.state.lock().unwrap();
+            if *guard != expected {
+                return Err(UnifiedAnchorError::ConcurrentUpdate);
+            }
+            if next.policy_sequence < guard.policy_sequence {
+                return Err(UnifiedAnchorError::StaleState);
+            }
+            *guard = next;
+            Ok(())
+        }
+    }
+
+    fn fake_anchor(genesis: &VerifiedResourceTrust) -> FakeExternalAnchor {
+        FakeExternalAnchor {
+            state: Mutex::new(
+                crate::unified_policy_anchor::UnifiedPolicyHighWater::initial(genesis),
+            ),
+            missing: false,
+            fail_cas: false,
+        }
+    }
+
+    fn quorum_receipts(
+        nonce: u8,
+        sequence: u64,
+        policy_head: [u8; 32],
+        revocation_root: [u8; 32],
+    ) -> [SignedQuorumObservation; 2] {
+        use crate::challenge_witness_quorum::{QuorumObservation, quorum_observation_transcript};
+        let genesis = trusted_genesis();
+        let observation = QuorumObservation {
+            challenge: QuorumChallenge {
+                nonce: [nonce; 32],
+                expected_space: genesis.space(),
+                expected_resource: genesis.resource(),
+                expected_writer_epoch: genesis.writer_epoch(),
+            },
+            generation: sequence,
+            high_water: QuorumHighWater {
+                space: genesis.space(),
+                resource: genesis.resource(),
+                writer_epoch: genesis.writer_epoch(),
+                sequence,
+                policy_head,
+                revocation_root,
+            },
+        };
+        [21, 22].map(|seed| {
+            let key = SigningKey::from_bytes(&[seed; 32]);
+            SignedQuorumObservation {
+                witness_key_id: genesis.witnesses()[usize::from(seed - 21)].key_id,
+                observation,
+                signature: key
+                    .sign(&quorum_observation_transcript(&observation))
+                    .to_bytes(),
+            }
+        })
+    }
+
+    fn challenged<'a>(replies: &'a [SignedQuorumObservation]) -> ChallengeBoundRecoveryRequest<'a> {
+        ChallengeBoundRecoveryRequest {
+            root: root_pin(),
+            genesis: trusted_genesis(),
+            challenge: quorum_receipts(71, 1, [0; 32], [0; 32])[0]
+                .observation
+                .challenge,
+            replies,
+            minimum_generation: 1,
+            now_ms: 150,
+        }
+    }
+
+    #[test]
+    fn challenge_recovery_replays_mixed_history_and_root_selected_witnesses() {
+        let file = TempDb::new();
+        let journal = file.open();
+        let genesis = trusted_genesis();
+        journal
+            .append(
+                root_pin(),
+                genesis,
+                NewPolicyEvent::Revoke(&signed_revocation(1, 11, 3)),
+            )
+            .unwrap();
+        let evidence = journal.pending_outbox().unwrap().remove(0).evidence;
+        let root = append_revocation_root([0; 32], 1, &evidence).unwrap();
+        let after = journal
+            .append(
+                root_pin(),
+                genesis,
+                NewPolicyEvent::Cancel(&signed_cancellation(2)),
+            )
+            .unwrap();
+        let replies = quorum_receipts(71, 2, after.policy_head, root);
+        let diagnostic = journal
+            .inspect_challenge_bound_recovery(challenged(&replies))
+            .unwrap();
+        assert_eq!(diagnostic.high_water(), replies[0].observation.high_water);
+        assert!(
+            journal
+                .inspect(root_pin(), genesis)
+                .unwrap()
+                .admission_paused
+        );
+        // Correct policy head cannot mask a substituted revocation accumulator.
+        let wrong_root = quorum_receipts(71, 2, after.policy_head, [99; 32]);
+        assert_eq!(
+            journal.inspect_challenge_bound_recovery(challenged(&wrong_root)),
+            Err(ChallengeBoundRecoveryError::Quorum(
+                QuorumError::LocalRollbackOrFork
+            ))
+        );
+    }
+
+    #[test]
+    fn challenge_recovery_refuses_valid_old_signed_prefix() {
+        let old_file = TempDb::new();
+        let current_file = TempDb::new();
+        let old = old_file.open();
+        let current = current_file.open();
+        let genesis = trusted_genesis();
+        for journal in [&old, &current] {
+            journal
+                .append(
+                    root_pin(),
+                    genesis,
+                    NewPolicyEvent::Revoke(&signed_revocation(1, 11, 3)),
+                )
+                .unwrap();
+        }
+        let after = current
+            .append(
+                root_pin(),
+                genesis,
+                NewPolicyEvent::Revoke(&signed_revocation(2, 11, 3)),
+            )
+            .unwrap();
+        let mut revoke_root = [0; 32];
+        for entry in current.pending_outbox().unwrap() {
+            revoke_root =
+                append_revocation_root(revoke_root, entry.sequence, &entry.evidence).unwrap();
+        }
+        let fresh = quorum_receipts(71, 2, after.policy_head, revoke_root);
+        assert!(
+            current
+                .inspect_challenge_bound_recovery(challenged(&fresh))
+                .is_ok()
+        );
+        assert_eq!(old.inspect(root_pin(), genesis).unwrap().sequence, 1);
+        assert_eq!(
+            old.inspect_challenge_bound_recovery(challenged(&fresh)),
+            Err(ChallengeBoundRecoveryError::Quorum(
+                QuorumError::LocalRollbackOrFork
+            ))
+        );
+    }
+
+    #[test]
+    fn challenge_recovery_never_uses_replies_to_bypass_bad_mirrors() {
+        let file = TempDb::new();
+        let journal = file.open();
+        let after = journal
+            .append(
+                root_pin(),
+                trusted_genesis(),
+                NewPolicyEvent::Cancel(&signed_cancellation(1)),
+            )
+            .unwrap();
+        let fresh = quorum_receipts(71, 1, after.policy_head, [0; 32]);
+        assert!(
+            journal
+                .inspect_challenge_bound_recovery(challenged(&fresh))
+                .is_ok()
+        );
+        Connection::open(&file.0)
+            .unwrap()
+            .execute("DELETE FROM unified_policy_outbox WHERE seq=1", [])
+            .unwrap();
+        assert_eq!(
+            journal.inspect_challenge_bound_recovery(challenged(&fresh)),
+            Err(ChallengeBoundRecoveryError::Journal(StoreError::Conflict))
+        );
+    }
+
+    #[test]
+    fn challenge_recovery_refuses_replay_split_missing_and_invalid_signatures() {
+        let file = TempDb::new();
+        let journal = file.open();
+        let after = journal
+            .append(
+                root_pin(),
+                trusted_genesis(),
+                NewPolicyEvent::Cancel(&signed_cancellation(1)),
+            )
+            .unwrap();
+        let fresh = quorum_receipts(71, 1, after.policy_head, [0; 32]);
+        let stale = quorum_receipts(72, 1, after.policy_head, [0; 32]);
+        let split = [fresh[0], quorum_receipts(71, 2, [99; 32], [0; 32])[1]];
+        let mut bad = fresh;
+        bad[0].signature[0] ^= 1;
+        for (replies, error) in [
+            (&stale[..], QuorumError::WrongChallenge),
+            (&fresh[..1], QuorumError::MissingOrDuplicateWitness),
+            (&split[..], QuorumError::SplitWitnesses),
+            (&bad[..], QuorumError::InvalidSignature),
+        ] {
+            assert_eq!(
+                journal.inspect_challenge_bound_recovery(challenged(replies)),
+                Err(ChallengeBoundRecoveryError::Quorum(error))
+            );
+        }
+        let mut expired = challenged(&fresh);
+        expired.now_ms = 301;
+        assert_eq!(
+            journal.inspect_challenge_bound_recovery(expired),
+            Err(ChallengeBoundRecoveryError::Journal(StoreError::Conflict))
+        );
+        let mut wrong_root = challenged(&fresh);
+        wrong_root.root.public_key = SigningKey::from_bytes(&[80; 32]).verifying_key().to_bytes();
+        assert_eq!(
+            journal.inspect_challenge_bound_recovery(wrong_root),
+            Err(ChallengeBoundRecoveryError::Journal(StoreError::Conflict))
+        );
+        let mut floor = challenged(&fresh);
+        floor.minimum_generation = 2;
+        assert_eq!(
+            journal.inspect_challenge_bound_recovery(floor),
+            Err(ChallengeBoundRecoveryError::Quorum(
+                QuorumError::StaleGeneration
+            ))
+        );
+    }
+
+    fn witness_receipts(
+        seq: u64,
+        policy_head: [u8; 32],
+        revoke_root: [u8; 32],
+    ) -> [SignedCheckpoint; 2] {
+        use loom_crypto::witness_checkpoint::{
+            Checkpoint, TrustedWitnessForSpike, checkpoint_transcript,
+        };
+        let first = SigningKey::from_bytes(&[21; 32]);
+        let second = SigningKey::from_bytes(&[22; 32]);
+        let genesis = trusted_genesis();
+        let checkpoint = Checkpoint {
+            space: genesis.space(),
+            resource: genesis.resource(),
+            writer_epoch: genesis.writer_epoch(),
+            seq,
+            head_hash: policy_head,
+            revocation_root: revoke_root,
+            issued_at_ms: 100,
+            expires_at_ms: 300,
+        };
+        let transcript = checkpoint_transcript(&checkpoint);
+        [first, second].map(|key| SignedCheckpoint {
+            witness_key_id: TrustedWitnessForSpike::from_public_key(key.verifying_key().to_bytes())
+                .key_id,
+            checkpoint,
+            signature: key.sign(&transcript).to_bytes(),
+        })
+    }
+
+    fn witnessed(
+        db: &UnifiedPolicyJournal,
+        genesis: VerifiedResourceTrust,
+        receipts: &[SignedCheckpoint],
+        anchor: &FakeExternalAnchor,
+    ) -> Result<UnifiedRecoveryAssessment, StoreError> {
+        db.inspect_witnessed_recovery(root_pin(), genesis, receipts, 150, anchor)
+    }
+
+    #[test]
+    fn cancellation_is_witnessed_by_policy_head_not_just_revocation_root() {
+        let db = TempDb::new();
+        let store = db.open();
+        let genesis = trusted_genesis();
+        let proof = signed_revocation(1, 11, 3);
+        let first = store
+            .append(root_pin(), genesis, NewPolicyEvent::Revoke(&proof))
+            .unwrap();
+        let revoke_root = append_revocation_root([0; 32], 1, &proof.persistence_bytes()).unwrap();
+        let canceled = signed_cancellation(2);
+        let second = store
+            .append(root_pin(), genesis, NewPolicyEvent::Cancel(&canceled))
+            .unwrap();
+        assert_ne!(first.policy_head, second.policy_head);
+        let receipts = witness_receipts(2, second.policy_head, revoke_root);
+        let anchor = fake_anchor(&genesis);
+        assert_eq!(
+            witnessed(&store, genesis, &receipts, &anchor),
+            Ok(UnifiedRecoveryAssessment::CandidateConsistent)
+        );
+        let committed = *anchor.state.lock().unwrap();
+        assert_eq!(committed.policy_sequence, 2);
+        assert_eq!(committed.policy_head, second.policy_head);
+        assert_eq!(committed.revocation_root, revoke_root);
+        assert!(second.admission_paused);
+        drop(store);
+        let restored = db.open();
+        assert_eq!(
+            witnessed(&restored, genesis, &receipts, &anchor),
+            Ok(UnifiedRecoveryAssessment::CandidateConsistent)
+        );
+        assert!(
+            restored
+                .inspect(root_pin(), genesis)
+                .unwrap()
+                .admission_paused
+        );
+    }
+
+    #[test]
+    fn two_consistent_but_stale_witnesses_cannot_rollback_cancelled_delegate() {
+        let genesis = trusted_genesis();
+        let db = TempDb::new();
+        let store = db.open();
+        let proof = signed_revocation(1, 11, 3);
+        let first = store
+            .append(root_pin(), genesis, NewPolicyEvent::Revoke(&proof))
+            .unwrap();
+        let rev_root = append_revocation_root([0; 32], 1, &proof.persistence_bytes()).unwrap();
+        let cancel = signed_cancellation(2);
+        let second = store
+            .append(root_pin(), genesis, NewPolicyEvent::Cancel(&cancel))
+            .unwrap();
+        let anchor = fake_anchor(&genesis);
+        assert_eq!(
+            witnessed(
+                &store,
+                genesis,
+                &witness_receipts(2, second.policy_head, rev_root),
+                &anchor
+            ),
+            Ok(UnifiedRecoveryAssessment::CandidateConsistent)
+        );
+        let old_db = TempDb::new();
+        let old_store = old_db.open();
+        old_store
+            .append(root_pin(), genesis, NewPolicyEvent::Revoke(&proof))
+            .unwrap();
+        let old_receipts = witness_receipts(1, first.policy_head, rev_root);
+        assert_eq!(
+            witnessed(&old_store, genesis, &old_receipts, &anchor),
+            Err(StoreError::Conflict)
+        );
+        assert!(
+            old_store
+                .inspect(root_pin(), genesis)
+                .unwrap()
+                .admission_paused
+        );
+        assert_eq!(anchor.state.lock().unwrap().policy_sequence, 2);
+    }
+
+    #[test]
+    fn witness_policy_head_cannot_be_substituted_with_matching_revocation_root() {
+        let genesis = trusted_genesis();
+        let db = TempDb::new();
+        let store = db.open();
+        let proof = signed_revocation(1, 11, 3);
+        store
+            .append(root_pin(), genesis, NewPolicyEvent::Revoke(&proof))
+            .unwrap();
+        let cancel = signed_cancellation(2);
+        let second = store
+            .append(root_pin(), genesis, NewPolicyEvent::Cancel(&cancel))
+            .unwrap();
+        let revoke_root = append_revocation_root([0; 32], 1, &proof.persistence_bytes()).unwrap();
+        let forged = witness_receipts(2, [89; 32], revoke_root);
+        assert_eq!(
+            witnessed(&store, genesis, &forged, &fake_anchor(&genesis)),
+            Ok(UnifiedRecoveryAssessment::HistoryConflict)
+        );
+        let corrupted_anchor = fake_anchor(&genesis);
+        let expected = witness_receipts(2, second.policy_head, revoke_root);
+        {
+            let mut guard = corrupted_anchor.state.lock().unwrap();
+            guard.policy_sequence = 2;
+            guard.revocation_root = revoke_root;
+            guard.policy_head = [78; 32];
+        }
+        assert_eq!(
+            witnessed(&store, genesis, &expected, &corrupted_anchor),
+            Err(StoreError::Conflict)
+        );
+    }
+
+    #[test]
+    fn absent_or_ambiguous_external_anchor_never_approves_recovery() {
+        let genesis = trusted_genesis();
+        let db = TempDb::new();
+        let store = db.open();
+        let receipts = witness_receipts(0, [0; 32], [0; 32]);
+        let mut missing = fake_anchor(&genesis);
+        missing.missing = true;
+        assert_eq!(
+            witnessed(&store, genesis, &receipts, &missing),
+            Err(StoreError::PersistenceFailure)
+        );
+        let mut failed_cas = fake_anchor(&genesis);
+        failed_cas.fail_cas = true;
+        assert_eq!(
+            witnessed(&store, genesis, &receipts, &failed_cas),
+            Err(StoreError::PersistenceFailure)
+        );
+        assert_eq!(failed_cas.state.lock().unwrap().policy_sequence, 0);
+    }
+
+    #[test]
+    fn changed_witness_signature_or_writer_epoch_is_rejected() {
+        let genesis = trusted_genesis();
+        let db = TempDb::new();
+        let store = db.open();
+        let mut invalid = witness_receipts(0, [0; 32], [0; 32]);
+        invalid[0].signature[4] ^= 1;
+        assert_eq!(
+            witnessed(&store, genesis, &invalid, &fake_anchor(&genesis)),
+            Err(StoreError::Conflict)
+        );
+        let mut wrong_epoch = witness_receipts(0, [0; 32], [0; 32]);
+        wrong_epoch[0].checkpoint.writer_epoch = 2;
+        assert_eq!(
+            witnessed(&store, genesis, &wrong_epoch, &fake_anchor(&genesis)),
+            Err(StoreError::Conflict)
+        );
+    }
+
+    #[test]
+    fn transferred_owner_manifest_advances_only_after_both_signatures() {
+        let genesis = trusted_genesis();
+        let db = TempDb::new();
+        let store = db.open();
+        let successor = signed_manifest(33, 4);
+        let transfer = signed_transfer(&genesis, &successor, 1);
+        let after = store
+            .append(
+                root_pin(),
+                genesis,
+                NewPolicyEvent::Transfer {
+                    transfer: &transfer,
+                    successor_manifest: &successor,
+                },
+            )
+            .unwrap();
+        let anchor = fake_anchor(&genesis);
+        let cp = witness_receipts(1, after.policy_head, [0; 32]);
+        assert_eq!(
+            witnessed(&store, genesis, &cp, &anchor),
+            Ok(UnifiedRecoveryAssessment::CandidateConsistent)
+        );
+        let current = anchor.state.lock().unwrap();
+        assert_eq!(current.policy_sequence, 1);
+        assert_ne!(current.current_manifest, current.genesis_manifest);
+        assert_eq!(current.policy_head, after.policy_head);
+        assert_eq!(current.revocation_root, [0; 32]);
+    }
+
+    #[test]
+    fn receipt_cannot_skip_persisted_policy_sequence_or_mask_history_conflict() {
+        let genesis = trusted_genesis();
+        let db = TempDb::new();
+        let store = db.open();
+        let proof = signed_revocation(1, 11, 3);
+        let first = store
+            .append(root_pin(), genesis, NewPolicyEvent::Revoke(&proof))
+            .unwrap();
+        let root = append_revocation_root([0; 32], 1, &proof.persistence_bytes()).unwrap();
+        assert_eq!(
+            witnessed(
+                &store,
+                genesis,
+                &witness_receipts(2, [9; 32], root),
+                &fake_anchor(&genesis)
+            ),
+            Ok(UnifiedRecoveryAssessment::LocalBehind)
+        );
+        assert_eq!(
+            witnessed(
+                &store,
+                genesis,
+                &witness_receipts(0, [0; 32], [0; 32]),
+                &fake_anchor(&genesis)
+            ),
+            Ok(UnifiedRecoveryAssessment::WitnessBehind)
+        );
+        assert_eq!(
+            witnessed(
+                &store,
+                genesis,
+                &witness_receipts(1, first.policy_head, [99; 32]),
+                &fake_anchor(&genesis)
+            ),
+            Ok(UnifiedRecoveryAssessment::HistoryConflict)
+        );
+    }
+
+    fn local_confirmed_seq(path: &PathBuf) -> Option<i64> {
+        let connection = Connection::open(path).unwrap();
+        connection
+            .query_row(
+                "SELECT seq FROM unified_policy_witnessed WHERE space=?1 AND resource=?2",
+                params![[1u8; 16].as_slice(), [2u8; 16].as_slice()],
+                |row| row.get(0),
+            )
+            .optional()
+            .unwrap()
+    }
+
+    #[test]
+    fn legacy_revocation_schema_cannot_be_silently_opened_as_empty_unified_history() {
+        let db = TempDb::new();
+        let connection = Connection::open(&db.0).unwrap();
+        connection
+            .execute_batch(
+                "CREATE TABLE policy_versions (
+               space BLOB, resource BLOB, epoch INTEGER
+             );
+             CREATE TABLE revocations (
+               space BLOB, resource BLOB, epoch INTEGER, signed_event BLOB
+             );
+             INSERT INTO policy_versions VALUES (
+               x'01010101010101010101010101010101',
+               x'02020202020202020202020202020202', 1
+             );
+             INSERT INTO revocations VALUES (
+               x'01010101010101010101010101010101',
+               x'02020202020202020202020202020202', 1, x'FFFF'
+             );",
+            )
+            .unwrap();
+        drop(connection);
+        assert!(matches!(
+            UnifiedPolicyJournal::open(db.0.clone()),
+            Err(StoreError::Conflict),
+        ));
+        let preserved = Connection::open(&db.0).unwrap();
+        let count: i64 = preserved
+            .query_row("SELECT COUNT(*) FROM revocations", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(count, 1);
+        let unified_exists: i64 = preserved
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_master
+             WHERE type='table' AND name='unified_policy_events'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(unified_exists, 0);
+    }
+
+    #[test]
+    fn witness_confirmation_recorded_only_after_successful_external_cas() {
+        let genesis = trusted_genesis();
+        let db = TempDb::new();
+        let store = db.open();
+        let proof = signed_revocation(1, 11, 3);
+        let after = store
+            .append(root_pin(), genesis, NewPolicyEvent::Revoke(&proof))
+            .unwrap();
+        assert_eq!(local_confirmed_seq(&db.0), None);
+        let revocation = append_revocation_root([0; 32], 1, &proof.persistence_bytes()).unwrap();
+        let receipts = witness_receipts(1, after.policy_head, revocation);
+        let anchor = fake_anchor(&genesis);
+        assert_eq!(
+            witnessed(&store, genesis, &receipts, &anchor),
+            Ok(UnifiedRecoveryAssessment::CandidateConsistent)
+        );
+        assert_eq!(local_confirmed_seq(&db.0), Some(1));
+        assert_eq!(anchor.state.lock().unwrap().policy_sequence, 1);
+        assert!(store.inspect(root_pin(), genesis).unwrap().admission_paused);
+        drop(store);
+        let restarted = db.open();
+        assert_eq!(
+            witnessed(&restarted, genesis, &receipts, &anchor),
+            Ok(UnifiedRecoveryAssessment::CandidateConsistent)
+        );
+        assert_eq!(local_confirmed_seq(&db.0), Some(1));
+    }
+
+    #[test]
+    fn durable_anchor_cas_before_sql_marker_failure_is_recoverable_without_ready() {
+        let genesis = trusted_genesis();
+        let db = TempDb::new();
+        let store = db.open();
+        let proof = signed_revocation(1, 11, 3);
+        let after = store
+            .append(root_pin(), genesis, NewPolicyEvent::Revoke(&proof))
+            .unwrap();
+        let revocation = append_revocation_root([0; 32], 1, &proof.persistence_bytes()).unwrap();
+        let receipts = witness_receipts(1, after.policy_head, revocation);
+        let anchor = fake_anchor(&genesis);
+
+        let conn = Connection::open(&db.0).unwrap();
+        conn.execute_batch(
+            "CREATE TRIGGER interrupt_after_external_cas
+             BEFORE INSERT ON unified_policy_witnessed
+             BEGIN SELECT RAISE(ABORT, 'simulated-power-loss-before-marker'); END;",
+        )
+        .unwrap();
+        drop(conn);
+        assert_eq!(
+            witnessed(&store, genesis, &receipts, &anchor),
+            Err(StoreError::PersistenceFailure)
+        );
+        assert_eq!(anchor.state.lock().unwrap().policy_sequence, 1);
+        assert_eq!(local_confirmed_seq(&db.0), None);
+        assert!(store.inspect(root_pin(), genesis).unwrap().admission_paused);
+        drop(store);
+
+        let conn = Connection::open(&db.0).unwrap();
+        conn.execute_batch("DROP TRIGGER interrupt_after_external_cas")
+            .unwrap();
+        drop(conn);
+        let restarted = db.open();
+        assert_eq!(local_confirmed_seq(&db.0), None);
+        assert_eq!(
+            witnessed(&restarted, genesis, &receipts, &anchor),
+            Ok(UnifiedRecoveryAssessment::CandidateConsistent)
+        );
+        assert_eq!(local_confirmed_seq(&db.0), Some(1));
+        assert!(
+            restarted
+                .inspect(root_pin(), genesis)
+                .unwrap()
+                .admission_paused
+        );
+    }
+
+    #[test]
+    fn ambiguous_external_cas_leaves_no_local_confirmation() {
+        let genesis = trusted_genesis();
+        let db = TempDb::new();
+        let store = db.open();
+        let receipts = witness_receipts(0, [0; 32], [0; 32]);
+        let mut anchor = fake_anchor(&genesis);
+        anchor.fail_cas = true;
+        assert_eq!(
+            witnessed(&store, genesis, &receipts, &anchor),
+            Err(StoreError::PersistenceFailure)
+        );
+        assert_eq!(local_confirmed_seq(&db.0), None);
+        assert_eq!(anchor.state.lock().unwrap().policy_sequence, 0);
+    }
+
+    #[test]
+    fn mirror_rewrite_trigger_rolls_back_entire_append() {
+        let db = TempDb::new();
+        let store = db.open();
+        let genesis = trusted_genesis();
+        let conn = Connection::open(&db.0).unwrap();
+        conn.execute_batch(
+            "CREATE TRIGGER tamper_outbox_after_audit
+             AFTER INSERT ON unified_policy_audit
+             BEGIN
+               UPDATE unified_policy_outbox SET evidence=x'01'
+               WHERE space=NEW.space AND resource=NEW.resource AND seq=NEW.seq;
+             END;",
+        )
+        .unwrap();
+        drop(conn);
+        assert_eq!(
+            store.append(
+                root_pin(),
+                genesis,
+                NewPolicyEvent::Revoke(&signed_revocation(1, 11, 3)),
+            ),
+            Err(StoreError::Conflict)
+        );
+        // The changed Outbox was in the same rolled-back transaction.
+        assert_eq!(store.inspect(root_pin(), genesis).unwrap().sequence, 0);
+        assert!(store.pending_outbox().unwrap().is_empty());
+
+        let conn = Connection::open(&db.0).unwrap();
+        conn.execute_batch("DROP TRIGGER tamper_outbox_after_audit")
+            .unwrap();
+        drop(conn);
+        assert_eq!(
+            store
+                .append(
+                    root_pin(),
+                    genesis,
+                    NewPolicyEvent::Revoke(&signed_revocation(1, 11, 3)),
+                )
+                .unwrap()
+                .sequence,
+            1
+        );
+    }
+
+    #[test]
+    fn mirrored_outbox_and_audit_tampering_fail_closed() {
+        // Tamper with one local SQL mirror while leaving signed events intact.
+        let attacks = [
+            "DELETE FROM unified_policy_outbox WHERE seq=1",
+            "UPDATE unified_policy_outbox SET evidence=x'01' WHERE seq=1",
+            "UPDATE unified_policy_outbox SET kind=3 WHERE seq=1",
+            "INSERT INTO unified_policy_outbox(space,resource,seq,kind,evidence)
+             SELECT space,resource,2,kind,evidence FROM unified_policy_events WHERE seq=1",
+            "DELETE FROM unified_policy_audit WHERE seq=1",
+            "UPDATE unified_policy_audit SET policy_head=zeroblob(32) WHERE seq=1",
+            "UPDATE unified_policy_audit SET kind=3 WHERE seq=1",
+            "INSERT INTO unified_policy_audit(space,resource,seq,kind,policy_head)
+             SELECT space,resource,2,kind,policy_head FROM unified_policy_events WHERE seq=1",
+        ];
+        for attack in attacks {
+            let db = TempDb::new();
+            let genesis = trusted_genesis();
+            {
+                let store = db.open();
+                store
+                    .append(
+                        root_pin(),
+                        genesis,
+                        NewPolicyEvent::Revoke(&signed_revocation(1, 11, 3)),
+                    )
+                    .unwrap();
+                assert_eq!(store.pending_outbox().unwrap().len(), 1);
+            }
+            let conn = Connection::open(&db.0).unwrap();
+            conn.execute_batch(attack).unwrap();
+            drop(conn);
+
+            let store = db.open();
+            assert_eq!(
+                store.inspect(root_pin(), genesis),
+                Err(StoreError::Conflict),
+                "{attack}"
+            );
+            assert_eq!(
+                store.pending_outbox(),
+                Err(StoreError::Conflict),
+                "{attack}"
+            );
+            assert_eq!(
+                store.append(
+                    root_pin(),
+                    genesis,
+                    NewPolicyEvent::Cancel(&signed_cancellation(2)),
+                ),
+                Err(StoreError::Conflict),
+                "{attack}"
+            );
+        }
+    }
+
+    #[test]
+    fn empty_journal_with_injected_outbox_or_audit_is_not_trusted() {
+        for table in ["unified_policy_outbox", "unified_policy_audit"] {
+            let db = TempDb::new();
+            let store = db.open();
+            let conn = Connection::open(&db.0).unwrap();
+            let (kind, evidence) =
+                encode_event(NewPolicyEvent::Revoke(&signed_revocation(1, 11, 3)));
+            let space = root_pin().space;
+            let resource = trusted_genesis().resource();
+            if table == "unified_policy_outbox" {
+                conn.execute(
+                    "INSERT INTO unified_policy_outbox(space,resource,seq,kind,evidence)
+                     VALUES(?1,?2,1,?3,?4)",
+                    params![
+                        space.as_bytes().as_slice(),
+                        resource.as_bytes().as_slice(),
+                        kind,
+                        evidence
+                    ],
+                )
+                .unwrap();
+            } else {
+                conn.execute(
+                    "INSERT INTO unified_policy_audit(space,resource,seq,kind,policy_head)
+                     VALUES(?1,?2,1,?3,?4)",
+                    params![
+                        space.as_bytes().as_slice(),
+                        resource.as_bytes().as_slice(),
+                        kind,
+                        [9_u8; 32].as_slice()
+                    ],
+                )
+                .unwrap();
+            }
+            drop(conn);
+            assert_eq!(
+                store.inspect(root_pin(), trusted_genesis()),
+                Err(StoreError::Conflict),
+                "{table}"
+            );
+            assert_eq!(store.pending_outbox(), Err(StoreError::Conflict), "{table}");
+        }
+    }
+
+    // L-001Q uses separately allocated, in-memory fakes. The real Linux TPM
+    // adapter is read-only and MUST NOT be used for a counter increment.
+    struct ModelCounter {
+        pin: PinnedCounterIdentity,
+        number: Mutex<u64>,
+        fail_after_increment: std::sync::atomic::AtomicBool,
+        foreign_sqlite: Mutex<Option<PathBuf>>,
+        foreign_write_blocked: std::sync::atomic::AtomicBool,
+    }
+
+    impl CandidateMonotonicCounter for ModelCounter {
+        fn identity(&self) -> PinnedCounterIdentity {
+            self.pin
+        }
+
+        fn read(&self) -> Result<u64, BindingError> {
+            Ok(*self.number.lock().unwrap())
+        }
+
+        fn increment(&self) -> Result<(), BindingError> {
+            let mut number = self.number.lock().unwrap();
+            *number = number.checked_add(1).ok_or(BindingError::CounterOverflow)?;
+            if let Some(path) = self.foreign_sqlite.lock().unwrap().as_ref() {
+                let conn = Connection::open(path).unwrap();
+                conn.busy_timeout(Duration::ZERO).unwrap();
+                let attempt = conn.execute(
+                    "UPDATE unified_policy_outbox SET evidence=x'01' WHERE seq=1",
+                    [],
+                );
+                self.foreign_write_blocked
+                    .store(attempt.is_err(), std::sync::atomic::Ordering::SeqCst);
+            }
+            if self
+                .fail_after_increment
+                .swap(false, std::sync::atomic::Ordering::SeqCst)
+            {
+                return Err(BindingError::PersistenceUncertain);
+            }
+            Ok(())
+        }
+    }
+
+    struct ModelIntent {
+        saved: Mutex<StoredBinding>,
+    }
+
+    impl CandidateIntentStore for ModelIntent {
+        fn load(&self) -> Result<StoredBinding, BindingError> {
+            Ok(*self.saved.lock().unwrap())
+        }
+
+        fn prepare(
+            &self,
+            expected: crate::tpm_counter_binding::Committed,
+            next: crate::tpm_counter_binding::Prepared,
+        ) -> Result<(), BindingError> {
+            let mut saved = self.saved.lock().unwrap();
+            if *saved != StoredBinding::Committed(expected) {
+                return Err(BindingError::PersistenceUncertain);
+            }
+            *saved = StoredBinding::Prepared(next);
+            Ok(())
+        }
+
+        fn finalize(
+            &self,
+            expected: crate::tpm_counter_binding::Prepared,
+        ) -> Result<(), BindingError> {
+            let mut saved = self.saved.lock().unwrap();
+            if *saved != StoredBinding::Prepared(expected) {
+                return Err(BindingError::PersistenceUncertain);
+            }
+            *saved = StoredBinding::Committed(crate::tpm_counter_binding::Committed {
+                identity: expected.before.identity,
+                counter: expected
+                    .before
+                    .counter
+                    .checked_add(1)
+                    .ok_or(BindingError::CounterOverflow)?,
+                policy: crate::unified_policy_anchor::UnifiedPolicyHighWater {
+                    policy_sequence: expected.after_sequence,
+                    policy_head: expected.after_head,
+                    revocation_root: expected.after_revocation_root,
+                    current_manifest: expected.after_manifest,
+                    ..expected.before.policy
+                },
+            });
+            Ok(())
+        }
+    }
+
+    fn model_counter_io(
+        genesis: &VerifiedResourceTrust,
+    ) -> (Arc<ModelCounter>, Arc<ModelIntent>, PinnedCounterIdentity) {
+        let pin = PinnedCounterIdentity {
+            device_binding: [55; 32],
+            nv_index: 0x0180_0ace,
+        };
+        (
+            Arc::new(ModelCounter {
+                pin,
+                number: Mutex::new(9),
+                fail_after_increment: std::sync::atomic::AtomicBool::new(false),
+                foreign_sqlite: Mutex::new(None),
+                foreign_write_blocked: std::sync::atomic::AtomicBool::new(false),
+            }),
+            Arc::new(ModelIntent {
+                saved: Mutex::new(StoredBinding::Committed(
+                    crate::tpm_counter_binding::Committed {
+                        identity: pin,
+                        counter: 9,
+                        policy: crate::unified_policy_anchor::UnifiedPolicyHighWater::initial(
+                            genesis,
+                        ),
+                    },
+                )),
+            }),
+            pin,
+        )
+    }
+
+    fn bound_counter(
+        store: &UnifiedPolicyJournal,
+        genesis: VerifiedResourceTrust,
+        receipts: &[SignedCheckpoint],
+        counter: &Arc<ModelCounter>,
+        intent: &Arc<ModelIntent>,
+        pin: PinnedCounterIdentity,
+        operation: CandidateCounterOperation,
+    ) -> Result<Diagnostic, StoreError> {
+        store.inspect_journal_bound_counter(
+            root_pin(),
+            genesis,
+            receipts,
+            150,
+            CandidateCounterIo {
+                pin,
+                counter: counter.clone(),
+                intent: intent.clone(),
+            },
+            operation,
+        )
+    }
+
+    #[test]
+    fn journal_bound_counter_accepts_exact_signed_mixed_policy() {
+        let db = TempDb::new();
+        let store = db.open();
+        let genesis = trusted_genesis();
+        let revoke = signed_revocation(1, 11, 3);
+        store
+            .append(root_pin(), genesis, NewPolicyEvent::Revoke(&revoke))
+            .unwrap();
+        let cancel = signed_cancellation(2);
+        let state = store
+            .append(root_pin(), genesis, NewPolicyEvent::Cancel(&cancel))
+            .unwrap();
+        let revoke_root = append_revocation_root([0; 32], 1, &revoke.persistence_bytes()).unwrap();
+        let receipts = witness_receipts(2, state.policy_head, revoke_root);
+        let (counter, intent, pin) = model_counter_io(&genesis);
+        assert_eq!(
+            bound_counter(
+                &store,
+                genesis,
+                &receipts,
+                &counter,
+                &intent,
+                pin,
+                CandidateCounterOperation::Begin
+            ),
+            Ok(Diagnostic::MatchingCounterOnly)
+        );
+        assert_eq!(*counter.number.lock().unwrap(), 10);
+        let StoredBinding::Committed(committed) = intent.load().unwrap() else {
+            panic!("counter intent was not finalized");
+        };
+        assert_eq!(committed.policy.policy_sequence, 2);
+        assert_eq!(committed.policy.policy_head, state.policy_head);
+        assert_eq!(committed.policy.revocation_root, revoke_root);
+        assert_eq!(
+            bound_counter(
+                &store,
+                genesis,
+                &receipts,
+                &counter,
+                &intent,
+                pin,
+                CandidateCounterOperation::Reconcile
+            ),
+            Ok(Diagnostic::MatchingCounterOnly)
+        );
+        assert_eq!(*counter.number.lock().unwrap(), 10);
+        assert!(state.admission_paused);
+    }
+
+    #[test]
+    fn signed_checkpoint_for_wrong_journal_never_touches_counter() {
+        let db = TempDb::new();
+        let store = db.open();
+        let genesis = trusted_genesis();
+        let revoke = signed_revocation(1, 11, 3);
+        let state = store
+            .append(root_pin(), genesis, NewPolicyEvent::Revoke(&revoke))
+            .unwrap();
+        let root = append_revocation_root([0; 32], 1, &revoke.persistence_bytes()).unwrap();
+        let (counter, intent, pin) = model_counter_io(&genesis);
+        for receipts in [
+            witness_receipts(1, [0xaa; 32], root),
+            witness_receipts(1, state.policy_head, [0xbb; 32]),
+            witness_receipts(2, state.policy_head, root),
+        ] {
+            assert_eq!(
+                bound_counter(
+                    &store,
+                    genesis,
+                    &receipts,
+                    &counter,
+                    &intent,
+                    pin,
+                    CandidateCounterOperation::Begin
+                ),
+                Err(StoreError::Conflict)
+            );
+        }
+        assert_eq!(*counter.number.lock().unwrap(), 9);
+        assert!(matches!(
+            intent.load().unwrap(),
+            StoredBinding::Committed(_)
+        ));
+    }
+
+    #[test]
+    fn corrupted_mirror_blocks_counter_stage_before_increment() {
+        let db = TempDb::new();
+        let store = db.open();
+        let genesis = trusted_genesis();
+        let revoke = signed_revocation(1, 11, 3);
+        let state = store
+            .append(root_pin(), genesis, NewPolicyEvent::Revoke(&revoke))
+            .unwrap();
+        let root = append_revocation_root([0; 32], 1, &revoke.persistence_bytes()).unwrap();
+        let receipts = witness_receipts(1, state.policy_head, root);
+        let (counter, intent, pin) = model_counter_io(&genesis);
+        let conn = Connection::open(&db.0).unwrap();
+        conn.execute("DELETE FROM unified_policy_audit WHERE seq=1", [])
+            .unwrap();
+        drop(conn);
+        assert_eq!(
+            bound_counter(
+                &store,
+                genesis,
+                &receipts,
+                &counter,
+                &intent,
+                pin,
+                CandidateCounterOperation::Begin
+            ),
+            Err(StoreError::Conflict)
+        );
+        assert_eq!(*counter.number.lock().unwrap(), 9);
+        assert!(matches!(
+            intent.load().unwrap(),
+            StoredBinding::Committed(_)
+        ));
+    }
+
+    #[test]
+    fn ambiguous_increment_requires_same_verified_journal_on_reconcile() {
+        let db = TempDb::new();
+        let store = db.open();
+        let genesis = trusted_genesis();
+        let revoke = signed_revocation(1, 11, 3);
+        let state = store
+            .append(root_pin(), genesis, NewPolicyEvent::Revoke(&revoke))
+            .unwrap();
+        let root = append_revocation_root([0; 32], 1, &revoke.persistence_bytes()).unwrap();
+        let receipts = witness_receipts(1, state.policy_head, root);
+        let (counter, intent, pin) = model_counter_io(&genesis);
+        counter
+            .fail_after_increment
+            .store(true, std::sync::atomic::Ordering::SeqCst);
+        assert_eq!(
+            bound_counter(
+                &store,
+                genesis,
+                &receipts,
+                &counter,
+                &intent,
+                pin,
+                CandidateCounterOperation::Begin
+            ),
+            Err(StoreError::PersistenceFailure)
+        );
+        assert_eq!(*counter.number.lock().unwrap(), 10);
+        assert!(matches!(intent.load().unwrap(), StoredBinding::Prepared(_)));
+        assert_eq!(
+            bound_counter(
+                &store,
+                genesis,
+                &witness_receipts(1, [0; 32], root),
+                &counter,
+                &intent,
+                pin,
+                CandidateCounterOperation::Reconcile
+            ),
+            Err(StoreError::Conflict)
+        );
+        assert_eq!(
+            bound_counter(
+                &store,
+                genesis,
+                &receipts,
+                &counter,
+                &intent,
+                pin,
+                CandidateCounterOperation::Reconcile
+            ),
+            Ok(Diagnostic::MatchingCounterOnly)
+        );
+        assert!(matches!(
+            intent.load().unwrap(),
+            StoredBinding::Committed(_)
+        ));
+        assert_eq!(*counter.number.lock().unwrap(), 10);
+    }
+
+    #[test]
+    fn second_sqlite_writer_cannot_swap_snapshot_during_counter_transition() {
+        let db = TempDb::new();
+        let store = db.open();
+        let genesis = trusted_genesis();
+        let revoke = signed_revocation(1, 11, 3);
+        let state = store
+            .append(root_pin(), genesis, NewPolicyEvent::Revoke(&revoke))
+            .unwrap();
+        let root = append_revocation_root([0; 32], 1, &revoke.persistence_bytes()).unwrap();
+        let receipts = witness_receipts(1, state.policy_head, root);
+        let (counter, intent, pin) = model_counter_io(&genesis);
+        *counter.foreign_sqlite.lock().unwrap() = Some(db.0.clone());
+        assert_eq!(
+            bound_counter(
+                &store,
+                genesis,
+                &receipts,
+                &counter,
+                &intent,
+                pin,
+                CandidateCounterOperation::Begin
+            ),
+            Ok(Diagnostic::MatchingCounterOnly)
+        );
+        assert!(
+            counter
+                .foreign_write_blocked
+                .load(std::sync::atomic::Ordering::SeqCst)
+        );
+        assert_eq!(store.pending_outbox().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn committed_counter_number_without_replayed_policy_match_is_rejected() {
+        let db = TempDb::new();
+        let store = db.open();
+        let genesis = trusted_genesis();
+        let (counter, intent, pin) = model_counter_io(&genesis);
+        let revoke = signed_revocation(1, 11, 3);
+        let state = store
+            .append(root_pin(), genesis, NewPolicyEvent::Revoke(&revoke))
+            .unwrap();
+        let root = append_revocation_root([0; 32], 1, &revoke.persistence_bytes()).unwrap();
+        assert_eq!(
+            bound_counter(
+                &store,
+                genesis,
+                &witness_receipts(1, state.policy_head, root),
+                &counter,
+                &intent,
+                pin,
+                CandidateCounterOperation::Reconcile
+            ),
+            Err(StoreError::Conflict)
+        );
+        assert_eq!(*counter.number.lock().unwrap(), 9);
+    }
+
+    #[test]
+    fn owner_transfer_policy_commits_current_manifest_not_just_old_owner() {
+        let db = TempDb::new();
+        let store = db.open();
+        let genesis = trusted_genesis();
+        let successor = signed_manifest(33, 4);
+        let transfer = signed_transfer(&genesis, &successor, 1);
+        let snapshot = store
+            .append(
+                root_pin(),
+                genesis,
+                NewPolicyEvent::Transfer {
+                    transfer: &transfer,
+                    successor_manifest: &successor,
+                },
+            )
+            .unwrap();
+        let receipts = witness_receipts(1, snapshot.policy_head, [0; 32]);
+        let (counter, intent, pin) = model_counter_io(&genesis);
+        assert_eq!(
+            bound_counter(
+                &store,
+                genesis,
+                &receipts,
+                &counter,
+                &intent,
+                pin,
+                CandidateCounterOperation::Begin
+            ),
+            Ok(Diagnostic::MatchingCounterOnly)
+        );
+        let StoredBinding::Committed(binding) = intent.load().unwrap() else {
+            panic!("transfer did not finalize");
+        };
+        let current = verify_resource_trust_for_spike(&root_pin(), &successor, 150).unwrap();
+        assert_eq!(
+            binding.policy.current_manifest,
+            current.manifest_commitment()
+        );
+        assert_ne!(
+            binding.policy.current_manifest,
+            genesis.manifest_commitment()
+        );
+    }
+
+    // L-001R: the prior counter state must be an actual SIGNED prefix of
+    // the current ledger. Valid latest witnesses alone do not prove this.
+    fn set_committed_prefix(
+        intent: &Arc<ModelIntent>,
+        sequence: u64,
+        head: [u8; 32],
+        revoke_root: [u8; 32],
+        manifest: [u8; 32],
+    ) {
+        let mut saved = intent.saved.lock().unwrap();
+        let StoredBinding::Committed(mut binding) = *saved else {
+            panic!("fixture requires a committed counter");
+        };
+        binding.policy.policy_sequence = sequence;
+        binding.policy.policy_head = head;
+        binding.policy.revocation_root = revoke_root;
+        binding.policy.current_manifest = manifest;
+        *saved = StoredBinding::Committed(binding);
+    }
+
+    #[test]
+    fn fabricated_earlier_policy_head_cannot_be_laundered_by_later_valid_witnesses() {
+        let db = TempDb::new();
+        let store = db.open();
+        let genesis = trusted_genesis();
+        let revoke = signed_revocation(1, 11, 3);
+        let earlier = store
+            .append(root_pin(), genesis, NewPolicyEvent::Revoke(&revoke))
+            .unwrap();
+        let revoke_root = append_revocation_root([0; 32], 1, &revoke.persistence_bytes()).unwrap();
+        let cancel = signed_cancellation(2);
+        let current = store
+            .append(root_pin(), genesis, NewPolicyEvent::Cancel(&cancel))
+            .unwrap();
+        let receipts = witness_receipts(2, current.policy_head, revoke_root);
+        let (counter, intent, pin) = model_counter_io(&genesis);
+        set_committed_prefix(
+            &intent,
+            1,
+            [92; 32],
+            revoke_root,
+            genesis.manifest_commitment(),
+        );
+        assert_ne!(earlier.policy_head, [92; 32]);
+        assert_eq!(
+            bound_counter(
+                &store,
+                genesis,
+                &receipts,
+                &counter,
+                &intent,
+                pin,
+                CandidateCounterOperation::Begin
+            ),
+            Err(StoreError::Conflict)
+        );
+        assert_eq!(*counter.number.lock().unwrap(), 9);
+        let StoredBinding::Committed(stored) = intent.load().unwrap() else {
+            panic!("forged prior changed its phase");
+        };
+        assert_eq!(stored.policy.policy_head, [92; 32]);
+    }
+
+    #[test]
+    fn fabricated_prior_revocation_root_and_manifest_are_rejected_before_staging() {
+        let db = TempDb::new();
+        let store = db.open();
+        let genesis = trusted_genesis();
+        let revoke = signed_revocation(1, 11, 3);
+        let earlier = store
+            .append(root_pin(), genesis, NewPolicyEvent::Revoke(&revoke))
+            .unwrap();
+        let revoke_root = append_revocation_root([0; 32], 1, &revoke.persistence_bytes()).unwrap();
+        let cancel = signed_cancellation(2);
+        let current = store
+            .append(root_pin(), genesis, NewPolicyEvent::Cancel(&cancel))
+            .unwrap();
+        let receipts = witness_receipts(2, current.policy_head, revoke_root);
+        for (prior_root, prior_manifest) in [
+            ([71; 32], genesis.manifest_commitment()),
+            (revoke_root, [63; 32]),
+        ] {
+            let (counter, intent, pin) = model_counter_io(&genesis);
+            set_committed_prefix(&intent, 1, earlier.policy_head, prior_root, prior_manifest);
+            assert_eq!(
+                bound_counter(
+                    &store,
+                    genesis,
+                    &receipts,
+                    &counter,
+                    &intent,
+                    pin,
+                    CandidateCounterOperation::Begin
+                ),
+                Err(StoreError::Conflict)
+            );
+            assert_eq!(*counter.number.lock().unwrap(), 9);
+            assert!(matches!(
+                intent.load().unwrap(),
+                StoredBinding::Committed(_)
+            ));
+        }
+    }
+
+    #[test]
+    fn authentic_prior_prefix_allows_subsequent_signed_cancellation() {
+        let db = TempDb::new();
+        let store = db.open();
+        let genesis = trusted_genesis();
+        let revoke = signed_revocation(1, 11, 3);
+        let earlier = store
+            .append(root_pin(), genesis, NewPolicyEvent::Revoke(&revoke))
+            .unwrap();
+        let revoke_root = append_revocation_root([0; 32], 1, &revoke.persistence_bytes()).unwrap();
+        let cancel = signed_cancellation(2);
+        let current = store
+            .append(root_pin(), genesis, NewPolicyEvent::Cancel(&cancel))
+            .unwrap();
+        let receipts = witness_receipts(2, current.policy_head, revoke_root);
+        let (counter, intent, pin) = model_counter_io(&genesis);
+        set_committed_prefix(
+            &intent,
+            1,
+            earlier.policy_head,
+            revoke_root,
+            genesis.manifest_commitment(),
+        );
+        assert_eq!(
+            bound_counter(
+                &store,
+                genesis,
+                &receipts,
+                &counter,
+                &intent,
+                pin,
+                CandidateCounterOperation::Begin
+            ),
+            Ok(Diagnostic::MatchingCounterOnly)
+        );
+        assert_eq!(*counter.number.lock().unwrap(), 10);
+    }
+
+    #[test]
+    fn owner_transfer_prefix_requires_actual_successor_manifest() {
+        let db = TempDb::new();
+        let store = db.open();
+        let genesis = trusted_genesis();
+        let successor = signed_manifest(33, 4);
+        let transfer = signed_transfer(&genesis, &successor, 1);
+        let earlier = store
+            .append(
+                root_pin(),
+                genesis,
+                NewPolicyEvent::Transfer {
+                    transfer: &transfer,
+                    successor_manifest: &successor,
+                },
+            )
+            .unwrap();
+        let revoke = signed_revocation(2, 33, 4);
+        let current = store
+            .append(root_pin(), genesis, NewPolicyEvent::Revoke(&revoke))
+            .unwrap();
+        let revoke_root = append_revocation_root([0; 32], 2, &revoke.persistence_bytes()).unwrap();
+        let receipts = witness_receipts(2, current.policy_head, revoke_root);
+        let verified_successor =
+            verify_resource_trust_for_spike(&root_pin(), &successor, 150).unwrap();
+        let (counter, intent, pin) = model_counter_io(&genesis);
+        set_committed_prefix(
+            &intent,
+            1,
+            earlier.policy_head,
+            [0; 32],
+            genesis.manifest_commitment(),
+        );
+        assert_eq!(
+            bound_counter(
+                &store,
+                genesis,
+                &receipts,
+                &counter,
+                &intent,
+                pin,
+                CandidateCounterOperation::Begin
+            ),
+            Err(StoreError::Conflict)
+        );
+        set_committed_prefix(
+            &intent,
+            1,
+            earlier.policy_head,
+            [0; 32],
+            verified_successor.manifest_commitment(),
+        );
+        assert_eq!(
+            bound_counter(
+                &store,
+                genesis,
+                &receipts,
+                &counter,
+                &intent,
+                pin,
+                CandidateCounterOperation::Begin
+            ),
+            Ok(Diagnostic::MatchingCounterOnly)
+        );
+        assert_eq!(*counter.number.lock().unwrap(), 10);
+    }
+
+    #[test]
+    fn prepared_without_increment_never_auto_increments_during_recovery() {
+        let db = TempDb::new();
+        let store = db.open();
+        let genesis = trusted_genesis();
+        let revoke = signed_revocation(1, 11, 3);
+        let current = store
+            .append(root_pin(), genesis, NewPolicyEvent::Revoke(&revoke))
+            .unwrap();
+        let revoke_root = append_revocation_root([0; 32], 1, &revoke.persistence_bytes()).unwrap();
+        let receipts = witness_receipts(1, current.policy_head, revoke_root);
+        let (counter, intent, pin) = model_counter_io(&genesis);
+        let StoredBinding::Committed(before) = intent.load().unwrap() else {
+            panic!("missing initial committed state");
+        };
+        *intent.saved.lock().unwrap() =
+            StoredBinding::Prepared(crate::tpm_counter_binding::Prepared {
+                before,
+                after_sequence: 1,
+                after_head: current.policy_head,
+                after_revocation_root: revoke_root,
+                after_manifest: genesis.manifest_commitment(),
+            });
+        assert_eq!(
+            bound_counter(
+                &store,
+                genesis,
+                &receipts,
+                &counter,
+                &intent,
+                pin,
+                CandidateCounterOperation::Reconcile
+            ),
+            Ok(Diagnostic::IntentBeforeIncrement)
+        );
+        assert_eq!(*counter.number.lock().unwrap(), 9);
+        assert!(matches!(intent.load().unwrap(), StoredBinding::Prepared(_)));
+        assert_eq!(
+            bound_counter(
+                &store,
+                genesis,
+                &receipts,
+                &counter,
+                &intent,
+                pin,
+                CandidateCounterOperation::Begin
+            ),
+            Err(StoreError::PersistenceFailure)
+        );
+        assert_eq!(*counter.number.lock().unwrap(), 9);
+    }
+
+    #[test]
+    fn counter_jump_and_missing_prepared_intent_fail_closed_on_restart() {
+        let db = TempDb::new();
+        let store = db.open();
+        let genesis = trusted_genesis();
+        let revoke = signed_revocation(1, 11, 3);
+        let current = store
+            .append(root_pin(), genesis, NewPolicyEvent::Revoke(&revoke))
+            .unwrap();
+        let revoke_root = append_revocation_root([0; 32], 1, &revoke.persistence_bytes()).unwrap();
+        let receipts = witness_receipts(1, current.policy_head, revoke_root);
+        let (counter, intent, pin) = model_counter_io(&genesis);
+        let StoredBinding::Committed(before) = intent.load().unwrap() else {
+            panic!("missing initial committed state");
+        };
+        *intent.saved.lock().unwrap() =
+            StoredBinding::Prepared(crate::tpm_counter_binding::Prepared {
+                before,
+                after_sequence: 1,
+                after_head: current.policy_head,
+                after_revocation_root: revoke_root,
+                after_manifest: genesis.manifest_commitment(),
+            });
+        *counter.number.lock().unwrap() = 11;
+        assert_eq!(
+            bound_counter(
+                &store,
+                genesis,
+                &receipts,
+                &counter,
+                &intent,
+                pin,
+                CandidateCounterOperation::Reconcile
+            ),
+            Err(StoreError::Conflict)
+        );
+        assert!(matches!(intent.load().unwrap(), StoredBinding::Prepared(_)));
+        *intent.saved.lock().unwrap() = StoredBinding::Missing;
+        assert_eq!(
+            bound_counter(
+                &store,
+                genesis,
+                &receipts,
+                &counter,
+                &intent,
+                pin,
+                CandidateCounterOperation::Reconcile
+            ),
+            Err(StoreError::Conflict)
+        );
+        assert_eq!(*counter.number.lock().unwrap(), 11);
+    }
+
+    /// L-001S integration: a *model* independent medium is recovered only
+    /// after the SQLite history and current dual-witness checkpoint are
+    /// replayed and the historical high-water prefix is verified.
+    fn crash_media(
+        genesis: &VerifiedResourceTrust,
+    ) -> crate::durable_intent_simulator::CrashRecoverySimulator {
+        use crate::tpm_counter_binding::{Committed, PinnedCounterIdentity};
+        crate::durable_intent_simulator::CrashRecoverySimulator::enrolled_for_test(Committed {
+            identity: PinnedCounterIdentity {
+                device_binding: [55; 32],
+                nv_index: 0x0180_0111,
+            },
+            counter: 9,
+            policy: crate::unified_policy_anchor::UnifiedPolicyHighWater::initial(genesis),
+        })
+    }
+
+    fn simulated_bound(
+        store: &UnifiedPolicyJournal,
+        genesis: VerifiedResourceTrust,
+        receipts: &[SignedCheckpoint],
+        media: &crate::durable_intent_simulator::CrashRecoverySimulator,
+        operation: CandidateCounterOperation,
+    ) -> Result<Diagnostic, StoreError> {
+        let (counter, intent) = media.handles().unwrap();
+        store.inspect_journal_bound_counter(
+            root_pin(),
+            genesis,
+            receipts,
+            150,
+            CandidateCounterIo {
+                pin: PinnedCounterIdentity {
+                    device_binding: [55; 32],
+                    nv_index: 0x0180_0111,
+                },
+                counter,
+                intent,
+            },
+            operation,
+        )
+    }
+
+    #[test]
+    fn journal_bound_recovery_survives_every_simulated_power_cut() {
+        use crate::durable_intent_simulator::CrashPoint;
+        use crate::tpm_counter_binding::StoredBinding;
+        let db = TempDb::new();
+        let store = db.open();
+        let genesis = trusted_genesis();
+        let evidence = signed_revocation(1, 11, 3);
+        let snapshot = store
+            .append(root_pin(), genesis, NewPolicyEvent::Revoke(&evidence))
+            .unwrap();
+        let revocations =
+            append_revocation_root([0; 32], 1, &evidence.persistence_bytes()).unwrap();
+        let receipts = witness_receipts(1, snapshot.policy_head, revocations);
+
+        for point in [
+            CrashPoint::PrepareBeforeWrite,
+            CrashPoint::PrepareBeforeSync,
+            CrashPoint::PrepareAfterSync,
+            CrashPoint::IncrementBeforeWrite,
+            CrashPoint::IncrementAfterWrite,
+            CrashPoint::FinalizeBeforeWrite,
+            CrashPoint::FinalizeBeforeSync,
+            CrashPoint::FinalizeAfterSync,
+        ] {
+            let media = crash_media(&genesis);
+            media.fail_once(point).unwrap();
+            assert_eq!(
+                simulated_bound(
+                    &store,
+                    genesis,
+                    &receipts,
+                    &media,
+                    CandidateCounterOperation::Begin
+                ),
+                Err(StoreError::PersistenceFailure),
+                "failed crash point: {point:?}"
+            );
+            media.reboot().unwrap();
+            let first = media.durable_image().unwrap();
+            let expected_count = if matches!(
+                point,
+                CrashPoint::IncrementAfterWrite
+                    | CrashPoint::FinalizeBeforeWrite
+                    | CrashPoint::FinalizeBeforeSync
+                    | CrashPoint::FinalizeAfterSync
+            ) {
+                10
+            } else {
+                9
+            };
+            assert_eq!(first.nv_counter, expected_count, "{point:?}");
+            let outcome = simulated_bound(
+                &store,
+                genesis,
+                &receipts,
+                &media,
+                CandidateCounterOperation::Reconcile,
+            );
+            if matches!(
+                point,
+                CrashPoint::PrepareBeforeWrite | CrashPoint::PrepareBeforeSync
+            ) {
+                // No durable Prepared intent was ever installed. A matching
+                // NV number against *old* state is NOT a verified current
+                // policy, and cannot become a misleading success result.
+                assert_eq!(outcome, Err(StoreError::Conflict), "{point:?}");
+                assert!(matches!(
+                    media.durable_image().unwrap().intent,
+                    StoredBinding::Committed(_)
+                ));
+            } else if matches!(
+                point,
+                CrashPoint::PrepareAfterSync | CrashPoint::IncrementBeforeWrite
+            ) {
+                assert_eq!(outcome, Ok(Diagnostic::IntentBeforeIncrement), "{point:?}");
+                assert!(matches!(
+                    media.durable_image().unwrap().intent,
+                    StoredBinding::Prepared(_)
+                ));
+            } else {
+                assert_eq!(outcome, Ok(Diagnostic::MatchingCounterOnly), "{point:?}");
+                let after = media.durable_image().unwrap();
+                assert_eq!(after.nv_counter, 10);
+                let StoredBinding::Committed(committed) = after.intent else {
+                    panic!("signed replay did not reconcile final committed state");
+                };
+                assert_eq!(committed.policy.policy_head, snapshot.policy_head);
+                assert_eq!(committed.policy.revocation_root, revocations);
+                assert_eq!(committed.policy.policy_sequence, 1);
+            }
+            // Reconciliation is never permitted to silently increase NV.
+            assert_eq!(media.durable_image().unwrap().nv_counter, expected_count);
+        }
+    }
+
+    #[test]
+    fn crash_recovery_never_finalizes_against_changed_or_corrupt_journal() {
+        use crate::durable_intent_simulator::CrashPoint;
+        use crate::tpm_counter_binding::StoredBinding;
+        let db = TempDb::new();
+        let store = db.open();
+        let genesis = trusted_genesis();
+        let evidence = signed_revocation(1, 11, 3);
+        let snapshot = store
+            .append(root_pin(), genesis, NewPolicyEvent::Revoke(&evidence))
+            .unwrap();
+        let revocations =
+            append_revocation_root([0; 32], 1, &evidence.persistence_bytes()).unwrap();
+        let receipts = witness_receipts(1, snapshot.policy_head, revocations);
+        let media = crash_media(&genesis);
+        media.fail_once(CrashPoint::IncrementAfterWrite).unwrap();
+        assert_eq!(
+            simulated_bound(
+                &store,
+                genesis,
+                &receipts,
+                &media,
+                CandidateCounterOperation::Begin
+            ),
+            Err(StoreError::PersistenceFailure)
+        );
+        media.reboot().unwrap();
+        assert_eq!(
+            simulated_bound(
+                &store,
+                genesis,
+                &witness_receipts(1, [22; 32], revocations),
+                &media,
+                CandidateCounterOperation::Reconcile
+            ),
+            Err(StoreError::Conflict)
+        );
+        let conn = Connection::open(&db.0).unwrap();
+        conn.execute("DELETE FROM unified_policy_audit WHERE seq=1", [])
+            .unwrap();
+        drop(conn);
+        assert_eq!(
+            simulated_bound(
+                &store,
+                genesis,
+                &receipts,
+                &media,
+                CandidateCounterOperation::Reconcile
+            ),
+            Err(StoreError::Conflict)
+        );
+        assert_eq!(media.durable_image().unwrap().nv_counter, 10);
+        assert!(matches!(
+            media.durable_image().unwrap().intent,
+            StoredBinding::Prepared(_)
+        ));
+    }
+
+    #[test]
+    fn restored_old_intent_cannot_launder_current_signed_checkpoint() {
+        use crate::durable_intent_simulator::CrashPoint;
+        use crate::tpm_counter_binding::StoredBinding;
+        let db = TempDb::new();
+        let store = db.open();
+        let genesis = trusted_genesis();
+        let evidence = signed_revocation(1, 11, 3);
+        let snapshot = store
+            .append(root_pin(), genesis, NewPolicyEvent::Revoke(&evidence))
+            .unwrap();
+        let revocations =
+            append_revocation_root([0; 32], 1, &evidence.persistence_bytes()).unwrap();
+        let receipts = witness_receipts(1, snapshot.policy_head, revocations);
+        let media = crash_media(&genesis);
+        let initial = media.durable_image().unwrap().intent;
+        media.fail_once(CrashPoint::FinalizeAfterSync).unwrap();
+        assert_eq!(
+            simulated_bound(
+                &store,
+                genesis,
+                &receipts,
+                &media,
+                CandidateCounterOperation::Begin
+            ),
+            Err(StoreError::PersistenceFailure)
+        );
+        media.reboot().unwrap();
+        assert_eq!(
+            simulated_bound(
+                &store,
+                genesis,
+                &receipts,
+                &media,
+                CandidateCounterOperation::Reconcile
+            ),
+            Ok(Diagnostic::MatchingCounterOnly)
+        );
+        media.restore_untrusted_intent_for_test(initial).unwrap();
+        assert_eq!(
+            simulated_bound(
+                &store,
+                genesis,
+                &receipts,
+                &media,
+                CandidateCounterOperation::Reconcile
+            ),
+            Err(StoreError::Conflict)
+        );
+        assert_eq!(media.durable_image().unwrap().nv_counter, 10);
+        assert!(matches!(
+            media.durable_image().unwrap().intent,
+            StoredBinding::Committed(_)
+        ));
+    }
+
+    // L-001U: raw bytes may come from rollbackable media, but the signer pin
+    // and replay fence are deliberately supplied as a SEPARATE dependency.
+    // These are deterministic mocks, not trusted enrolled hardware.
+    struct TestSignedFrame {
+        frame: Mutex<Vec<u8>>,
+    }
+
+    impl crate::authenticated_intent_read_gate::CandidateSignedIntentReader for TestSignedFrame {
+        fn read_frame(&self) -> Result<Vec<u8>, BindingError> {
+            Ok(self.frame.lock().unwrap().clone())
+        }
+    }
+
+    struct TestSignedTrust {
+        state: Mutex<(
+            crate::authenticated_intent_record::ExternalSignerPin,
+            crate::authenticated_intent_record::ExternalReplayFence,
+        )>,
+    }
+
+    impl crate::authenticated_intent_read_gate::CandidateTrustedIntentReader for TestSignedTrust {
+        fn read_trust(
+            &self,
+        ) -> Result<
+            (
+                crate::authenticated_intent_record::ExternalSignerPin,
+                crate::authenticated_intent_record::ExternalReplayFence,
+            ),
+            BindingError,
+        > {
+            Ok(*self.state.lock().unwrap())
+        }
+    }
+
+    fn signed_read_only_io(
+        genesis: &VerifiedResourceTrust,
+        counter: &Arc<ModelCounter>,
+        binding: StoredBinding,
+    ) -> (
+        CandidateCounterIo,
+        Arc<TestSignedFrame>,
+        Arc<TestSignedTrust>,
+    ) {
+        use crate::authenticated_intent_read_gate::AuthenticatedReadOnlyIntent;
+        use crate::authenticated_intent_record::{
+            ExternalReplayFence, ExternalSignerPin, IntentRecord, signed_record_digest,
+            signing_preimage,
+        };
+        let signing_key = SigningKey::from_bytes(&[48; 32]);
+        let record = IntentRecord {
+            record_sequence: 3,
+            signer_epoch: 2,
+            signer_public_key: signing_key.verifying_key().to_bytes(),
+            binding,
+        };
+        let mut bytes = signing_preimage(&record).unwrap();
+        let signature = signing_key.sign(&bytes).to_bytes();
+        bytes.extend_from_slice(&signature);
+        let pin = counter.pin;
+        let source = Arc::new(TestSignedFrame {
+            frame: Mutex::new(bytes.clone()),
+        });
+        let trust = Arc::new(TestSignedTrust {
+            state: Mutex::new((
+                ExternalSignerPin {
+                    signer_public_key: signing_key.verifying_key().to_bytes(),
+                    signer_epoch: 2,
+                    device: pin,
+                    space: genesis.space(),
+                    resource: genesis.resource(),
+                    root_public_key: genesis.root_public_key(),
+                    root_key_epoch: genesis.root_key_epoch(),
+                    genesis_manifest: genesis.manifest_commitment(),
+                    writer_epoch: genesis.writer_epoch(),
+                },
+                ExternalReplayFence {
+                    minimum_record_sequence: 3,
+                    minimum_counter: 9,
+                    last_record_digest: signed_record_digest(&bytes),
+                },
+            )),
+        });
+        let adapter =
+            AuthenticatedReadOnlyIntent::new(pin, counter.clone(), source.clone(), trust.clone());
+        (
+            CandidateCounterIo {
+                pin,
+                counter: counter.clone(),
+                intent: Arc::new(adapter),
+            },
+            source,
+            trust,
+        )
+    }
+
+    #[test]
+    fn signed_committed_read_requires_authentication_and_exact_replayed_history() {
+        use crate::tpm_counter_binding::Committed;
+        let db = TempDb::new();
+        let store = db.open();
+        let genesis = trusted_genesis();
+        let revoke = signed_revocation(1, 11, 3);
+        let snapshot = store
+            .append(root_pin(), genesis, NewPolicyEvent::Revoke(&revoke))
+            .unwrap();
+        let revoke_root = append_revocation_root([0; 32], 1, &revoke.persistence_bytes()).unwrap();
+        let receipts = witness_receipts(1, snapshot.policy_head, revoke_root);
+        let (counter, _, pin) = model_counter_io(&genesis);
+        let committed = Committed {
+            identity: pin,
+            counter: 9,
+            policy: crate::unified_policy_anchor::UnifiedPolicyHighWater {
+                policy_sequence: 1,
+                policy_head: snapshot.policy_head,
+                revocation_root: revoke_root,
+                ..crate::unified_policy_anchor::UnifiedPolicyHighWater::initial(&genesis)
+            },
+        };
+        let (io, source, trust) =
+            signed_read_only_io(&genesis, &counter, StoredBinding::Committed(committed));
+        assert_eq!(
+            store.inspect_journal_bound_counter(
+                root_pin(),
+                genesis,
+                &receipts,
+                150,
+                CandidateCounterIo {
+                    pin: io.pin,
+                    counter: io.counter.clone(),
+                    intent: io.intent.clone(),
+                },
+                CandidateCounterOperation::Reconcile,
+            ),
+            Ok(Diagnostic::MatchingCounterOnly)
+        );
+        source.frame.lock().unwrap()[70] ^= 0x40;
+        assert_eq!(
+            store.inspect_journal_bound_counter(
+                root_pin(),
+                genesis,
+                &receipts,
+                150,
+                CandidateCounterIo {
+                    pin: io.pin,
+                    counter: io.counter.clone(),
+                    intent: io.intent.clone(),
+                },
+                CandidateCounterOperation::Reconcile,
+            ),
+            Err(StoreError::Conflict)
+        );
+        source.frame.lock().unwrap()[70] ^= 0x40;
+        trust.state.lock().unwrap().1.minimum_record_sequence = 4;
+        assert_eq!(
+            store.inspect_journal_bound_counter(
+                root_pin(),
+                genesis,
+                &receipts,
+                150,
+                io,
+                CandidateCounterOperation::Reconcile,
+            ),
+            Err(StoreError::Conflict)
+        );
+        assert_eq!(*counter.number.lock().unwrap(), 9);
+    }
+
+    #[test]
+    fn signed_prepared_read_does_not_finalize_or_retry_irreversible_increment() {
+        use crate::tpm_counter_binding::{Committed, Prepared};
+        let db = TempDb::new();
+        let store = db.open();
+        let genesis = trusted_genesis();
+        let revoke = signed_revocation(1, 11, 3);
+        let snapshot = store
+            .append(root_pin(), genesis, NewPolicyEvent::Revoke(&revoke))
+            .unwrap();
+        let revoke_root = append_revocation_root([0; 32], 1, &revoke.persistence_bytes()).unwrap();
+        let receipts = witness_receipts(1, snapshot.policy_head, revoke_root);
+        let (counter, _, pin) = model_counter_io(&genesis);
+        let prepared = Prepared {
+            before: Committed {
+                identity: pin,
+                counter: 9,
+                policy: crate::unified_policy_anchor::UnifiedPolicyHighWater::initial(&genesis),
+            },
+            after_sequence: 1,
+            after_head: snapshot.policy_head,
+            after_revocation_root: revoke_root,
+            after_manifest: genesis.manifest_commitment(),
+        };
+        let (io, source, _) =
+            signed_read_only_io(&genesis, &counter, StoredBinding::Prepared(prepared));
+        assert_eq!(
+            store.inspect_journal_bound_counter(
+                root_pin(),
+                genesis,
+                &receipts,
+                150,
+                CandidateCounterIo {
+                    pin,
+                    counter: io.counter.clone(),
+                    intent: io.intent.clone(),
+                },
+                CandidateCounterOperation::Reconcile,
+            ),
+            Ok(Diagnostic::IntentBeforeIncrement)
+        );
+        assert_eq!(*counter.number.lock().unwrap(), 9);
+        *counter.number.lock().unwrap() = 10;
+        // A fully verified post-increment record is STILL read-only:
+        // finalization demands a separate authenticated write design.
+        assert_eq!(
+            store.inspect_journal_bound_counter(
+                root_pin(),
+                genesis,
+                &receipts,
+                150,
+                CandidateCounterIo {
+                    pin,
+                    counter: io.counter.clone(),
+                    intent: io.intent.clone(),
+                },
+                CandidateCounterOperation::Reconcile,
+            ),
+            Err(StoreError::PersistenceFailure)
+        );
+        assert_eq!(*counter.number.lock().unwrap(), 10);
+        assert_eq!(
+            store.inspect_journal_bound_counter(
+                root_pin(),
+                genesis,
+                &receipts,
+                150,
+                io,
+                CandidateCounterOperation::Begin,
+            ),
+            Err(StoreError::PersistenceFailure)
+        );
+        assert_eq!(*counter.number.lock().unwrap(), 10);
+        assert!(!source.frame.lock().unwrap().is_empty());
+    }
+
+    // L-001V: model-only signed writer and replay-fence CAS through the
+    // complete Root/Owner journal and two-Witness signed checkpoint path.
+    struct CasModelSigner(SigningKey);
+
+    impl crate::authenticated_intent_write_model::CandidateExternalIntentSigner for CasModelSigner {
+        fn sign(&self, preimage: &[u8]) -> Result<[u8; 64], BindingError> {
+            Ok(self.0.sign(preimage).to_bytes())
+        }
+    }
+
+    fn cas_model(
+        genesis: &VerifiedResourceTrust,
+    ) -> crate::authenticated_intent_write_model::AuthenticatedWriteSimulator {
+        use crate::authenticated_intent_record::{
+            ExternalReplayFence, ExternalSignerPin, IntentRecord, signed_record_digest,
+            signing_preimage,
+        };
+        use crate::authenticated_intent_write_model::AuthenticatedWriteSimulator;
+        use crate::tpm_counter_binding::Committed;
+
+        let signing = SigningKey::from_bytes(&[49; 32]);
+        let device = PinnedCounterIdentity {
+            device_binding: [55; 32],
+            nv_index: 0x0180_0ace,
+        };
+        let committed = Committed {
+            identity: device,
+            counter: 9,
+            policy: crate::unified_policy_anchor::UnifiedPolicyHighWater::initial(genesis),
+        };
+        let trust_pin = ExternalSignerPin {
+            signer_public_key: signing.verifying_key().to_bytes(),
+            signer_epoch: 2,
+            device,
+            space: genesis.space(),
+            resource: genesis.resource(),
+            root_public_key: genesis.root_public_key(),
+            root_key_epoch: genesis.root_key_epoch(),
+            genesis_manifest: genesis.manifest_commitment(),
+            writer_epoch: genesis.writer_epoch(),
+        };
+        let original = IntentRecord {
+            record_sequence: 1,
+            signer_epoch: 2,
+            signer_public_key: trust_pin.signer_public_key,
+            binding: StoredBinding::Committed(committed),
+        };
+        let mut frame = signing_preimage(&original).unwrap();
+        let sig = signing.sign(&frame).to_bytes();
+        frame.extend_from_slice(&sig);
+        let fence = ExternalReplayFence {
+            minimum_record_sequence: 1,
+            minimum_counter: 9,
+            last_record_digest: signed_record_digest(&frame),
+        };
+        AuthenticatedWriteSimulator::enrolled_for_test(
+            frame,
+            trust_pin,
+            fence,
+            9,
+            Arc::new(CasModelSigner(signing)),
+        )
+        .unwrap()
+    }
+
+    fn cas_bound(
+        journal: &UnifiedPolicyJournal,
+        genesis: VerifiedResourceTrust,
+        receipts: &[SignedCheckpoint],
+        model: &crate::authenticated_intent_write_model::AuthenticatedWriteSimulator,
+        operation: CandidateCounterOperation,
+    ) -> Result<Diagnostic, StoreError> {
+        let (counter, intent) = model.handles().unwrap();
+        journal.inspect_journal_bound_counter(
+            root_pin(),
+            genesis,
+            receipts,
+            150,
+            CandidateCounterIo {
+                pin: PinnedCounterIdentity {
+                    device_binding: [55; 32],
+                    nv_index: 0x0180_0ace,
+                },
+                counter,
+                intent,
+            },
+            operation,
+        )
+    }
+
+    #[test]
+    fn signed_cas_writer_journal_bound_begin_then_reconcile_is_only_diagnostic() {
+        let db = TempDb::new();
+        let journal = db.open();
+        let genesis = trusted_genesis();
+        let revoke = signed_revocation(1, 11, 3);
+        let snapshot = journal
+            .append(root_pin(), genesis, NewPolicyEvent::Revoke(&revoke))
+            .unwrap();
+        let root = append_revocation_root([0; 32], 1, &revoke.persistence_bytes()).unwrap();
+        let receipts = witness_receipts(1, snapshot.policy_head, root);
+        let model = cas_model(&genesis);
+
+        assert_eq!(
+            cas_bound(
+                &journal,
+                genesis,
+                &receipts,
+                &model,
+                CandidateCounterOperation::Begin
+            ),
+            Ok(Diagnostic::MatchingCounterOnly)
+        );
+        let after = model.image().unwrap();
+        assert_eq!(after.counter, 10);
+        assert_eq!(after.fence.minimum_counter, 10);
+        assert_eq!(after.fence.minimum_record_sequence, 3);
+        assert_eq!(
+            cas_bound(
+                &journal,
+                genesis,
+                &receipts,
+                &model,
+                CandidateCounterOperation::Reconcile
+            ),
+            Ok(Diagnostic::MatchingCounterOnly)
+        );
+        assert_eq!(model.image().unwrap().counter, 10);
+    }
+
+    #[test]
+    fn signed_cas_writer_crash_after_preparing_never_reincrements() {
+        use crate::authenticated_intent_write_model::WriteCrashPoint;
+        let db = TempDb::new();
+        let journal = db.open();
+        let genesis = trusted_genesis();
+        let revoke = signed_revocation(1, 11, 3);
+        let snapshot = journal
+            .append(root_pin(), genesis, NewPolicyEvent::Revoke(&revoke))
+            .unwrap();
+        let root = append_revocation_root([0; 32], 1, &revoke.persistence_bytes()).unwrap();
+        let receipts = witness_receipts(1, snapshot.policy_head, root);
+        let model = cas_model(&genesis);
+        model.fail_once(WriteCrashPoint::PrepareAfterCas).unwrap();
+        assert_eq!(
+            cas_bound(
+                &journal,
+                genesis,
+                &receipts,
+                &model,
+                CandidateCounterOperation::Begin
+            ),
+            Err(StoreError::PersistenceFailure)
+        );
+        model.reboot().unwrap();
+        assert_eq!(
+            cas_bound(
+                &journal,
+                genesis,
+                &receipts,
+                &model,
+                CandidateCounterOperation::Reconcile
+            ),
+            Ok(Diagnostic::IntentBeforeIncrement)
+        );
+        assert_eq!(model.image().unwrap().counter, 9);
+        assert_eq!(model.image().unwrap().fence.minimum_record_sequence, 2);
+        assert_eq!(
+            cas_bound(
+                &journal,
+                genesis,
+                &receipts,
+                &model,
+                CandidateCounterOperation::Begin
+            ),
+            Err(StoreError::PersistenceFailure)
+        );
+    }
+
+    #[test]
+    fn signed_cas_writer_recovers_after_counter_increment_only_with_same_witness() {
+        use crate::authenticated_intent_write_model::WriteCrashPoint;
+        let db = TempDb::new();
+        let journal = db.open();
+        let genesis = trusted_genesis();
+        let revoke = signed_revocation(1, 11, 3);
+        let snapshot = journal
+            .append(root_pin(), genesis, NewPolicyEvent::Revoke(&revoke))
+            .unwrap();
+        let root = append_revocation_root([0; 32], 1, &revoke.persistence_bytes()).unwrap();
+        let receipts = witness_receipts(1, snapshot.policy_head, root);
+        let model = cas_model(&genesis);
+        model.fail_once(WriteCrashPoint::CounterAfterWrite).unwrap();
+        assert_eq!(
+            cas_bound(
+                &journal,
+                genesis,
+                &receipts,
+                &model,
+                CandidateCounterOperation::Begin
+            ),
+            Err(StoreError::PersistenceFailure)
+        );
+        model.reboot().unwrap();
+        assert_eq!(model.image().unwrap().counter, 10);
+        assert_eq!(
+            cas_bound(
+                &journal,
+                genesis,
+                &witness_receipts(1, [55; 32], root),
+                &model,
+                CandidateCounterOperation::Reconcile
+            ),
+            Err(StoreError::Conflict)
+        );
+        assert_eq!(model.image().unwrap().fence.minimum_record_sequence, 2);
+        assert_eq!(
+            cas_bound(
+                &journal,
+                genesis,
+                &receipts,
+                &model,
+                CandidateCounterOperation::Reconcile
+            ),
+            Ok(Diagnostic::MatchingCounterOnly)
+        );
+        assert_eq!(model.image().unwrap().counter, 10);
+        assert_eq!(model.image().unwrap().fence.minimum_record_sequence, 3);
+    }
+
+    // L-001X deliberately keeps the legacy journal-bound counter transaction
+    // untouched. These probes prove a separate nonblocking path; they do
+    // NOT claim to solve the final journal-vs-external-CAS race.
+
+    fn nonblocking_fixture(
+        db: &UnifiedPolicyJournal,
+        genesis: VerifiedResourceTrust,
+    ) -> (
+        [SignedCheckpoint; 2],
+        crate::authenticated_intent_write_model::AuthenticatedWriteSimulator,
+        crate::tpm_counter_binding::Committed,
+        crate::tpm_counter_binding::Prepared,
+    ) {
+        use crate::tpm_counter_binding::Prepared;
+        let proof = signed_revocation(1, 11, 3);
+        let state = db
+            .append(root_pin(), genesis, NewPolicyEvent::Revoke(&proof))
+            .unwrap();
+        let rev_root = append_revocation_root([0; 32], 1, &proof.persistence_bytes()).unwrap();
+        let receipts = witness_receipts(1, state.policy_head, rev_root);
+        let model = cas_model(&genesis);
+        let (_, store) = model.handles().unwrap();
+        let StoredBinding::Committed(old) = store.load().unwrap() else {
+            panic!("model is not initially Committed");
+        };
+        let next = Prepared {
+            before: old,
+            after_sequence: 1,
+            after_head: state.policy_head,
+            after_revocation_root: rev_root,
+            after_manifest: genesis.manifest_commitment(),
+        };
+        (receipts, model, old, next)
+    }
+
+    #[test]
+    fn signed_preflight_external_signing_has_no_sqlite_write_lock() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        let db = TempDb::new();
+        let journal = db.open();
+        let genesis = trusted_genesis();
+        let (receipts, model, before, prepared) = nonblocking_fixture(&journal, genesis);
+        let (_, store) = model.handles().unwrap();
+        let old_frame = model.image().unwrap();
+        let published = AtomicUsize::new(0);
+        let snapshot = journal
+            .coordinated_candidate_prepare_probe(
+                CandidatePreflightRequest {
+                    root: root_pin(),
+                    genesis,
+                    receipts: &receipts,
+                    now_ms: 150,
+                    prior: before.policy,
+                },
+                || {
+                    // A second SQLite writer obtains a write transaction
+                    // WHILE the external signer callback is on the stack.
+                    // L-001Q's old in-transaction signer would block here.
+                    let other = Connection::open(&db.0).unwrap();
+                    other.execute_batch("BEGIN IMMEDIATE; ROLLBACK;").unwrap();
+                    Ok(prepared)
+                },
+                |candidate| {
+                    store.prepare(before, candidate).map_err(binding_error)?;
+                    published.fetch_add(1, Ordering::SeqCst);
+                    Ok(())
+                },
+            )
+            .unwrap();
+        assert_eq!(snapshot.sequence, 1);
+        assert_eq!(published.load(Ordering::SeqCst), 1);
+        assert_eq!(model.image().unwrap().fence.minimum_record_sequence, 2);
+        assert_ne!(
+            model.image().unwrap().fence.last_record_digest,
+            old_frame.fence.last_record_digest
+        );
+        assert_eq!(model.image().unwrap().counter, 9);
+        assert_eq!(store.load(), Ok(StoredBinding::Prepared(prepared)));
+    }
+
+    #[test]
+    fn signed_policy_append_while_signer_waits_refuses_prepared_cas() {
+        let db = TempDb::new();
+        let journal = db.open();
+        let genesis = trusted_genesis();
+        let (receipts, model, before, prepared) = nonblocking_fixture(&journal, genesis);
+        let old_image = model.image().unwrap();
+        let (_, intent) = model.handles().unwrap();
+        let mut publishes = 0usize;
+        let outcome = journal.coordinated_candidate_prepare_probe(
+            CandidatePreflightRequest {
+                root: root_pin(),
+                genesis,
+                receipts: &receipts,
+                now_ms: 150,
+                prior: before.policy,
+            },
+            || {
+                let cancel = signed_cancellation(2);
+                let advanced = journal
+                    .append(root_pin(), genesis, NewPolicyEvent::Cancel(&cancel))
+                    .unwrap();
+                assert_eq!(advanced.sequence, 2);
+                Ok(prepared)
+            },
+            |candidate| {
+                publishes += 1;
+                intent.prepare(before, candidate).map_err(binding_error)
+            },
+        );
+        assert_eq!(outcome, Err(StoreError::Conflict));
+        assert_eq!(publishes, 0);
+        assert_eq!(model.image().unwrap(), old_image);
+        assert_eq!(intent.load(), Ok(StoredBinding::Committed(before)));
+    }
+
+    #[test]
+    fn owner_transfer_during_external_step_cannot_publish_old_manifest() {
+        let db = TempDb::new();
+        let journal = db.open();
+        let genesis = trusted_genesis();
+        let (receipts, model, before, prepared) = nonblocking_fixture(&journal, genesis);
+        let mut published = false;
+        let outcome = journal.coordinated_candidate_prepare_probe(
+            CandidatePreflightRequest {
+                root: root_pin(),
+                genesis,
+                receipts: &receipts,
+                now_ms: 150,
+                prior: before.policy,
+            },
+            || {
+                let successor = signed_manifest(33, 4);
+                let transfer = signed_transfer(&genesis, &successor, 2);
+                assert_eq!(
+                    journal
+                        .append(
+                            root_pin(),
+                            genesis,
+                            NewPolicyEvent::Transfer {
+                                transfer: &transfer,
+                                successor_manifest: &successor,
+                            },
+                        )
+                        .unwrap()
+                        .sequence,
+                    2
+                );
+                Ok(prepared)
+            },
+            |_| {
+                published = true;
+                Ok(())
+            },
+        );
+        assert_eq!(outcome, Err(StoreError::Conflict));
+        assert!(!published);
+        assert_eq!(model.image().unwrap().counter, 9);
+        assert_eq!(model.image().unwrap().fence.minimum_record_sequence, 1);
+    }
+
+    #[test]
+    fn audit_mirror_mutation_while_signing_refuses_prepared_cas() {
+        let db = TempDb::new();
+        let journal = db.open();
+        let genesis = trusted_genesis();
+        let (receipts, model, before, prepared) = nonblocking_fixture(&journal, genesis);
+        let mut published = false;
+        let outcome = journal.coordinated_candidate_prepare_probe(
+            CandidatePreflightRequest {
+                root: root_pin(),
+                genesis,
+                receipts: &receipts,
+                now_ms: 150,
+                prior: before.policy,
+            },
+            || {
+                let other = Connection::open(&db.0).unwrap();
+                other
+                    .execute("DELETE FROM unified_policy_audit WHERE seq=1", [])
+                    .unwrap();
+                Ok(prepared)
+            },
+            |_| {
+                published = true;
+                Ok(())
+            },
+        );
+        assert_eq!(outcome, Err(StoreError::Conflict));
+        assert!(!published);
+        assert_eq!(model.image().unwrap().fence.minimum_record_sequence, 1);
+        assert_eq!(model.image().unwrap().counter, 9);
+    }
+
+    #[test]
+    fn wrong_witness_or_unauthenticated_historical_prefix_never_signs() {
+        let db = TempDb::new();
+        let journal = db.open();
+        let genesis = trusted_genesis();
+        let (receipts, model, before, prepared) = nonblocking_fixture(&journal, genesis);
+        let wrong = witness_receipts(1, [99; 32], [0; 32]);
+        let mut touched_signer = false;
+        let mut published = false;
+        assert_eq!(
+            journal.coordinated_candidate_prepare_probe(
+                CandidatePreflightRequest {
+                    root: root_pin(),
+                    genesis,
+                    receipts: &wrong,
+                    now_ms: 150,
+                    prior: before.policy,
+                },
+                || {
+                    touched_signer = true;
+                    Ok(prepared)
+                },
+                |_| {
+                    published = true;
+                    Ok(())
+                },
+            ),
+            Err(StoreError::Conflict)
+        );
+        assert!(!touched_signer);
+        assert!(!published);
+        let mut forged_prior = before.policy;
+        forged_prior.policy_head = [91; 32];
+        assert_eq!(
+            journal.coordinated_candidate_prepare_probe(
+                CandidatePreflightRequest {
+                    root: root_pin(),
+                    genesis,
+                    receipts: &receipts,
+                    now_ms: 150,
+                    prior: forged_prior,
+                },
+                || {
+                    touched_signer = true;
+                    Ok(prepared)
+                },
+                |_| {
+                    published = true;
+                    Ok(())
+                },
+            ),
+            Err(StoreError::Conflict)
+        );
+        assert!(!touched_signer);
+        assert!(!published);
+        assert_eq!(model.image().unwrap().counter, 9);
+    }
+
+    #[test]
+    fn external_signer_refusal_never_publishes_and_same_snapshot_revalidates() {
+        let db = TempDb::new();
+        let journal = db.open();
+        let genesis = trusted_genesis();
+        let (receipts, model, before, prepared) = nonblocking_fixture(&journal, genesis);
+        let token = journal
+            .preflight_candidate_journal(root_pin(), genesis, &receipts, 150, before.policy)
+            .unwrap();
+        assert_eq!(token.snapshot().sequence, 1);
+        assert_eq!(
+            journal.revalidate_candidate_journal(root_pin(), genesis, &receipts, 150, token),
+            Ok(())
+        );
+        let mut published = false;
+        assert_eq!(
+            journal.coordinated_candidate_prepare_probe(
+                CandidatePreflightRequest {
+                    root: root_pin(),
+                    genesis,
+                    receipts: &receipts,
+                    now_ms: 150,
+                    prior: before.policy,
+                },
+                || Err::<crate::tpm_counter_binding::Prepared, _>(StoreError::PersistenceFailure),
+                |_| {
+                    published = true;
+                    Ok(())
+                },
+            ),
+            Err(StoreError::PersistenceFailure)
+        );
+        assert!(!published);
+        assert_eq!(model.image().unwrap().counter, 9);
+        assert_eq!(model.image().unwrap().fence.minimum_record_sequence, 1);
+        let _ = prepared;
+    }
+
+    // L-001Y: process-local versioned reservation model. Intentionally not
+    // an independently durable fence and NEVER an admission authority.
+    fn reservation_request<'a>(
+        genesis: VerifiedResourceTrust,
+        receipts: &'a [SignedCheckpoint],
+        prior: UnifiedPolicyHighWater,
+    ) -> CandidatePreflightRequest<'a> {
+        CandidatePreflightRequest {
+            root: root_pin(),
+            genesis,
+            receipts,
+            now_ms: 150,
+            prior,
+        }
+    }
+
+    #[test]
+    fn reserved_model_prepare_keeps_sqlite_unlocked_during_signing() {
+        let db = TempDb::new();
+        let journal = db.open();
+        let genesis = trusted_genesis();
+        let (receipts, model, before, prepared) = nonblocking_fixture(&journal, genesis);
+        let (_, intent) = model.handles().unwrap();
+        let request = || reservation_request(genesis, &receipts, before.policy);
+        let ticket = journal.reserve_candidate_journal(request()).unwrap();
+
+        // Signing phase. Another SQLite writer can acquire BEGIN IMMEDIATE.
+        let other = Connection::open(&db.0).unwrap();
+        other.execute_batch("BEGIN IMMEDIATE; ROLLBACK;").unwrap();
+        let signed = prepared;
+        let snapshot = journal
+            .commit_candidate_reservation(request(), ticket, signed, |p| {
+                intent.prepare(before, p).map_err(binding_error)
+            })
+            .unwrap();
+        assert_eq!(snapshot.sequence, 1);
+        assert_eq!(model.image().unwrap().fence.minimum_record_sequence, 2);
+        assert_eq!(model.image().unwrap().counter, 9);
+        assert_eq!(intent.load(), Ok(StoredBinding::Prepared(prepared)));
+        assert_eq!(journal.candidate_reservation_health(), Ok((true, false)));
+        assert_eq!(
+            journal.reserve_candidate_journal(request()),
+            Err(StoreError::Conflict)
+        );
+    }
+
+    #[test]
+    fn append_after_separate_revalidation_invalidates_ticket_before_cas() {
+        let db = TempDb::new();
+        let journal = db.open();
+        let genesis = trusted_genesis();
+        let (receipts, model, before, prepared) = nonblocking_fixture(&journal, genesis);
+        let request = || reservation_request(genesis, &receipts, before.policy);
+        let token = journal.reserve_candidate_journal(request()).unwrap();
+        // This second check would have passed in the L-001X probe and
+        // exposed a gap before its caller-supplied publisher.
+        journal
+            .revalidate_candidate_journal(
+                root_pin(),
+                genesis,
+                &receipts,
+                150,
+                journal
+                    .preflight_candidate_journal(root_pin(), genesis, &receipts, 150, before.policy)
+                    .unwrap(),
+            )
+            .unwrap();
+        let cancel = signed_cancellation(2);
+        assert_eq!(
+            journal
+                .append(root_pin(), genesis, NewPolicyEvent::Cancel(&cancel))
+                .unwrap()
+                .sequence,
+            2
+        );
+        let mut invoked = false;
+        assert_eq!(
+            journal.commit_candidate_reservation(request(), token, prepared, |_| {
+                invoked = true;
+                Ok(())
+            }),
+            Err(StoreError::Conflict)
+        );
+        assert!(!invoked);
+        assert_eq!(model.image().unwrap().counter, 9);
+        assert_eq!(model.image().unwrap().fence.minimum_record_sequence, 1);
+        assert_eq!(journal.candidate_reservation_health(), Ok((false, false)));
+    }
+
+    #[test]
+    fn different_reserved_writer_is_refused_until_cancelled() {
+        let db = TempDb::new();
+        let journal = db.open();
+        let genesis = trusted_genesis();
+        let (receipts, model, before, prepared) = nonblocking_fixture(&journal, genesis);
+        let request = || reservation_request(genesis, &receipts, before.policy);
+        let first = journal.reserve_candidate_journal(request()).unwrap();
+        assert_eq!(
+            journal.reserve_candidate_journal(request()),
+            Err(StoreError::Conflict)
+        );
+        journal.cancel_candidate_reservation(first).unwrap();
+        assert_eq!(
+            journal.cancel_candidate_reservation(first),
+            Err(StoreError::Conflict)
+        );
+        let next = journal.reserve_candidate_journal(request()).unwrap();
+        assert_ne!(first, next);
+        let mut called = false;
+        assert_eq!(
+            journal.commit_candidate_reservation(request(), first, prepared, |_| {
+                called = true;
+                Ok(())
+            }),
+            Err(StoreError::Conflict)
+        );
+        assert!(!called);
+        journal.cancel_candidate_reservation(next).unwrap();
+        assert_eq!(model.image().unwrap().fence.minimum_record_sequence, 1);
+    }
+
+    #[test]
+    fn final_replay_rejects_tampered_audit_without_publishing() {
+        let db = TempDb::new();
+        let journal = db.open();
+        let genesis = trusted_genesis();
+        let (receipts, model, before, prepared) = nonblocking_fixture(&journal, genesis);
+        let request = || reservation_request(genesis, &receipts, before.policy);
+        let ticket = journal.reserve_candidate_journal(request()).unwrap();
+        Connection::open(&db.0)
+            .unwrap()
+            .execute("DELETE FROM unified_policy_audit WHERE seq=1", [])
+            .unwrap();
+        let mut called = false;
+        assert_eq!(
+            journal.commit_candidate_reservation(request(), ticket, prepared, |_| {
+                called = true;
+                Ok(())
+            }),
+            Err(StoreError::Conflict)
+        );
+        assert!(!called);
+        assert_eq!(model.image().unwrap().counter, 9);
+        assert_eq!(
+            journal.cancel_candidate_reservation(ticket),
+            Err(StoreError::Conflict)
+        );
+    }
+
+    #[test]
+    fn publisher_failure_is_ambiguous_and_quarantines_future_reservations() {
+        let db = TempDb::new();
+        let journal = db.open();
+        let genesis = trusted_genesis();
+        let (receipts, model, before, prepared) = nonblocking_fixture(&journal, genesis);
+        let request = || reservation_request(genesis, &receipts, before.policy);
+        let ticket = journal.reserve_candidate_journal(request()).unwrap();
+        let mut calls = 0usize;
+        assert_eq!(
+            journal.commit_candidate_reservation(request(), ticket, prepared, |_| {
+                calls += 1;
+                Err(StoreError::PersistenceFailure)
+            }),
+            Err(StoreError::PersistenceFailure)
+        );
+        assert_eq!(calls, 1);
+        assert_eq!(journal.candidate_reservation_health(), Ok((true, false)));
+        assert_eq!(
+            journal.reserve_candidate_journal(request()),
+            Err(StoreError::Conflict)
+        );
+        assert_eq!(model.image().unwrap().counter, 9);
+        assert_eq!(model.image().unwrap().fence.minimum_record_sequence, 1);
+    }
+
+    #[test]
+    fn independent_journal_instance_cannot_commit_foreign_ticket() {
+        let db = TempDb::new();
+        let first = db.open();
+        let other = db.open();
+        let genesis = trusted_genesis();
+        let (receipts, model, before, prepared) = nonblocking_fixture(&first, genesis);
+        let request = || reservation_request(genesis, &receipts, before.policy);
+        let token = first.reserve_candidate_journal(request()).unwrap();
+        let mut called = false;
+        assert_eq!(
+            other.commit_candidate_reservation(request(), token, prepared, |_| {
+                called = true;
+                Ok(())
+            }),
+            Err(StoreError::Conflict)
+        );
+        assert!(!called);
+        first.cancel_candidate_reservation(token).unwrap();
+        assert_eq!(model.image().unwrap().counter, 9);
+    }
+
+    #[test]
+    fn policy_append_after_prepared_publishes_marks_stale_without_suppressing_revocation() {
+        let db = TempDb::new();
+        let journal = db.open();
+        let genesis = trusted_genesis();
+        let (receipts, model, before, prepared) = nonblocking_fixture(&journal, genesis);
+        let request = || reservation_request(genesis, &receipts, before.policy);
+        let token = journal.reserve_candidate_journal(request()).unwrap();
+        let (_, intent) = model.handles().unwrap();
+        journal
+            .commit_candidate_reservation(request(), token, prepared, |p| {
+                intent.prepare(before, p).map_err(binding_error)
+            })
+            .unwrap();
+        assert_eq!(journal.candidate_reservation_health(), Ok((true, false)));
+        // A signed emergency policy append is never blocked forever by
+        // Prepared; it marks the *in-memory* candidate stale/quarantined.
+        let cancel = signed_cancellation(2);
+        assert_eq!(
+            journal
+                .append(root_pin(), genesis, NewPolicyEvent::Cancel(&cancel))
+                .unwrap()
+                .sequence,
+            2
+        );
+        assert_eq!(journal.candidate_reservation_health(), Ok((true, true)));
+        assert_eq!(
+            journal.reserve_candidate_journal(request()),
+            Err(StoreError::Conflict)
+        );
+        assert_eq!(model.image().unwrap().counter, 9);
+        assert_eq!(model.image().unwrap().fence.minimum_record_sequence, 2);
+    }
+
+    #[test]
+    fn append_attempt_between_last_replay_and_model_cas_cannot_interleave() {
+        use std::sync::mpsc::{self, TryRecvError};
+        use std::thread;
+
+        let db = TempDb::new();
+        let journal = db.open();
+        let genesis = trusted_genesis();
+        let (receipts, model, before, prepared) = nonblocking_fixture(&journal, genesis);
+        let request = || reservation_request(genesis, &receipts, before.policy);
+        let ticket = journal.reserve_candidate_journal(request()).unwrap();
+        let (_, intent) = model.handles().unwrap();
+        let (go_tx, go_rx) = mpsc::channel::<()>();
+        let (started_tx, started_rx) = mpsc::channel::<()>();
+        let (finished_tx, finished_rx) = mpsc::channel::<()>();
+        thread::scope(|scope| {
+            let writer_journal = &journal;
+            let writer = scope.spawn(move || {
+                go_rx.recv().unwrap();
+                started_tx.send(()).unwrap();
+                let cancel = signed_cancellation(2);
+                let result =
+                    writer_journal.append(root_pin(), genesis, NewPolicyEvent::Cancel(&cancel));
+                finished_tx.send(()).unwrap();
+                result
+            });
+            journal
+                .commit_candidate_reservation(request(), ticket, prepared, |p| {
+                    go_tx.send(()).unwrap();
+                    started_rx.recv().unwrap();
+                    // The publisher has the journal's in-process gate. Even
+                    // if the competing thread has begun its append call,
+                    // that call cannot finish before this signed model CAS.
+                    assert_eq!(finished_rx.try_recv(), Err(TryRecvError::Empty));
+                    intent.prepare(before, p).map_err(binding_error)
+                })
+                .unwrap();
+            assert_eq!(writer.join().unwrap().unwrap().sequence, 2);
+        });
+        assert_eq!(model.image().unwrap().fence.minimum_record_sequence, 2);
+        assert_eq!(model.image().unwrap().counter, 9);
+        assert_eq!(journal.candidate_reservation_health(), Ok((true, true)));
+    }
+
+    // L-001Z: a second actor or direct SQLite writer bypasses the L-001Y
+    // instance mutex. Post-publication replay can detect *observed* drift,
+    // but CANNOT undo the signed Prepared CAS or prevent later drift.
+    #[test]
+    fn independent_actor_append_during_cas_is_detected_and_quarantined() {
+        let db = TempDb::new();
+        let journal = db.open();
+        let competing_actor = db.open();
+        let genesis = trusted_genesis();
+        let (receipts, model, before, prepared) = nonblocking_fixture(&journal, genesis);
+        let request = || reservation_request(genesis, &receipts, before.policy);
+        let token = journal.reserve_candidate_journal(request()).unwrap();
+        let (_, intent) = model.handles().unwrap();
+        let result = journal.commit_candidate_reservation(request(), token, prepared, |p| {
+            let cancelled = signed_cancellation(2);
+            // A different actor can append because the L-001Y lock is
+            // local to this journal object, not the shared SQLite file.
+            assert_eq!(
+                competing_actor
+                    .append(root_pin(), genesis, NewPolicyEvent::Cancel(&cancelled))
+                    .unwrap()
+                    .sequence,
+                2
+            );
+            intent.prepare(before, p).map_err(binding_error)
+        });
+        assert_eq!(result, Err(StoreError::Conflict));
+        // Prepared may already be durable in the model, hence quarantining
+        // rather than a false claim that the CAS did not happen.
+        assert_eq!(intent.load(), Ok(StoredBinding::Prepared(prepared)));
+        assert_eq!(model.image().unwrap().counter, 9);
+        assert_eq!(journal.candidate_reservation_health(), Ok((true, true)));
+        assert_eq!(
+            journal.reserve_candidate_journal(request()),
+            Err(StoreError::Conflict)
+        );
+    }
+
+    #[test]
+    fn direct_sqlite_audit_tamper_during_cas_is_detected_after_publish() {
+        let db = TempDb::new();
+        let journal = db.open();
+        let genesis = trusted_genesis();
+        let (receipts, model, before, prepared) = nonblocking_fixture(&journal, genesis);
+        let request = || reservation_request(genesis, &receipts, before.policy);
+        let ticket = journal.reserve_candidate_journal(request()).unwrap();
+        let (_, intent) = model.handles().unwrap();
+        assert_eq!(
+            journal.commit_candidate_reservation(request(), ticket, prepared, |p| {
+                intent.prepare(before, p).map_err(binding_error)?;
+                // Bypass ALL typed signed journal writers. A stale Audit
+                // mirror must not pass the final signed history replay.
+                Connection::open(&db.0)
+                    .unwrap()
+                    .execute("DELETE FROM unified_policy_audit WHERE seq=1", [])
+                    .unwrap();
+                Ok(())
+            }),
+            Err(StoreError::Conflict)
+        );
+        assert_eq!(intent.load(), Ok(StoredBinding::Prepared(prepared)));
+        assert_eq!(journal.candidate_reservation_health(), Ok((true, true)));
+        assert_eq!(model.image().unwrap().counter, 9);
+    }
+
+    #[test]
+    fn second_actor_can_inspect_while_in_memory_publisher_is_running() {
+        let db = TempDb::new();
+        let journal = db.open();
+        let independent = db.open();
+        let genesis = trusted_genesis();
+        let (receipts, model, before, prepared) = nonblocking_fixture(&journal, genesis);
+        let request = || reservation_request(genesis, &receipts, before.policy);
+        let ticket = journal.reserve_candidate_journal(request()).unwrap();
+        let (_, intent) = model.handles().unwrap();
+        let committed = journal.commit_candidate_reservation(request(), ticket, prepared, |p| {
+            assert_eq!(
+                independent.inspect(root_pin(), genesis).unwrap().sequence,
+                1
+            );
+            intent.prepare(before, p).map_err(binding_error)
+        });
+        assert_eq!(committed.unwrap().sequence, 1);
+        assert_eq!(journal.candidate_reservation_health(), Ok((true, false)));
+        assert_eq!(model.image().unwrap().fence.minimum_record_sequence, 2);
+    }
+
+    #[test]
+    fn append_after_postflight_remains_unfenced_and_requires_independent_recheck() {
+        let db = TempDb::new();
+        let journal = db.open();
+        let competing_actor = db.open();
+        let genesis = trusted_genesis();
+        let (receipts, model, before, prepared) = nonblocking_fixture(&journal, genesis);
+        let request = || reservation_request(genesis, &receipts, before.policy);
+        let ticket = journal.reserve_candidate_journal(request()).unwrap();
+        let (_, intent) = model.handles().unwrap();
+        assert_eq!(
+            journal
+                .commit_candidate_reservation(request(), ticket, prepared, |p| {
+                    intent.prepare(before, p).map_err(binding_error)
+                })
+                .unwrap()
+                .sequence,
+            1
+        );
+        let cancelled = signed_cancellation(2);
+        competing_actor
+            .append(root_pin(), genesis, NewPolicyEvent::Cancel(&cancelled))
+            .unwrap();
+        // Another actor bypassed the volatile quarantine flag. A fresh
+        // signed revalidation detects stale Witness evidence, but no
+        // process-local ticket API can claim full cross-process fencing.
+        assert_eq!(journal.candidate_reservation_health(), Ok((true, false)));
+        assert_eq!(
+            journal.preflight_candidate_journal(root_pin(), genesis, &receipts, 150, before.policy),
+            Err(StoreError::Conflict)
+        );
+        assert_eq!(model.image().unwrap().counter, 9);
+    }
+
+    #[test]
+    fn reopened_actor_has_no_durable_reservation_quarantine() {
+        let db = TempDb::new();
+        let journal = db.open();
+        let genesis = trusted_genesis();
+        let (receipts, model, before, prepared) = nonblocking_fixture(&journal, genesis);
+        let request = || reservation_request(genesis, &receipts, before.policy);
+        let token = journal.reserve_candidate_journal(request()).unwrap();
+        let (_, intent) = model.handles().unwrap();
+        journal
+            .commit_candidate_reservation(request(), token, prepared, |p| {
+                intent.prepare(before, p).map_err(binding_error)
+            })
+            .unwrap();
+        assert_eq!(journal.candidate_reservation_health(), Ok((true, false)));
+        drop(journal);
+        let reopened = db.open();
+        assert_eq!(reopened.candidate_reservation_health(), Ok((false, false)));
+        // This by itself is NOT safe enrollment: an external signed-intent
+        // verifier must supply the actual Prepared as the prior binding.
+        // Local-only reservation state has demonstrably vanished.
+        assert_eq!(model.image().unwrap().fence.minimum_record_sequence, 2);
+    }
+}

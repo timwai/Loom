@@ -1,0 +1,4 @@
+{"ready": true, "bind": "172.17.0.1", "port": 19999}
+{"payload": "LOOM-PROTECTED-ECHO", "peer": ["172.17.0.4", 43748], "time": 1792455482.1860414}
+{"payload": "LOOM-PROTECTED-ECHO", "peer": ["172.17.0.4", 58995], "time": 1792455483.7213302}
+{"payload": "LOOM-PROTECTED-ECHO", "peer": ["172.17.0.4", 36369], "time": 1792455492.6831973}

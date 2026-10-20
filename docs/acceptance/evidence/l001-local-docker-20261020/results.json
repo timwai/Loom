@@ -1,0 +1,4096 @@
+{
+  "schema": 1,
+  "started_utc": "20261019T160015Z",
+  "commands": {
+    "source-commit": {
+      "argv": [
+        "git",
+        "rev-parse",
+        "HEAD"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.009943625000000005,
+      "log": "logs/source-commit.log"
+    },
+    "source-diff": {
+      "argv": [
+        "git",
+        "diff",
+        "--binary",
+        "HEAD"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.016081624999999995,
+      "log": "logs/source-diff.log"
+    },
+    "source-inventory": {
+      "argv": [
+        "git",
+        "ls-files",
+        "--cached",
+        "--others",
+        "--exclude-standard"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.009191749999999999,
+      "log": "logs/source-inventory.log"
+    },
+    "host-uname": {
+      "argv": [
+        "uname",
+        "-a"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.0032447500000000046,
+      "log": "logs/host-uname.log"
+    },
+    "host-macos": {
+      "argv": [
+        "sw_vers"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.008978874999999997,
+      "log": "logs/host-macos.log"
+    },
+    "host-resources": {
+      "argv": [
+        "sysctl",
+        "-n",
+        "hw.model",
+        "hw.ncpu",
+        "hw.memsize"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.003333041000000009,
+      "log": "logs/host-resources.log"
+    },
+    "host-rust": {
+      "argv": [
+        "rustc",
+        "--version",
+        "--verbose"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.17001516700000002,
+      "log": "logs/host-rust.log"
+    },
+    "docker-version": {
+      "argv": [
+        "docker",
+        "version",
+        "--format",
+        "{{json .}}"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.46756375000000006,
+      "log": "logs/docker-version.log"
+    },
+    "docker-resources": {
+      "argv": [
+        "docker",
+        "info",
+        "--format",
+        "cpus={{.NCPU}} memory={{.MemTotal}} kernel={{.KernelVersion}} os={{.OperatingSystem}}"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.06999299999999997,
+      "log": "logs/docker-resources.log"
+    },
+    "docker-build-lab": {
+      "argv": [
+        "docker",
+        "build",
+        "-f",
+        "scripts/l001-lab.Dockerfile",
+        "-t",
+        "loom-l001-lab:local",
+        "."
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.4072025829999999,
+      "log": "logs/docker-build-lab.log"
+    },
+    "docker-start-builder": {
+      "argv": [
+        "docker",
+        "run",
+        "-d",
+        "--name",
+        "loom-l001-build-20261019t160015z",
+        "--label",
+        "loom.task=l001-local-docker",
+        "--cpus=4",
+        "--memory=4g",
+        "--pids-limit=512",
+        "-v",
+        "/Volumes/Data/Code/Loom:/workspace",
+        "-v",
+        "loom-l001-cargo:/usr/local/cargo/registry",
+        "-v",
+        "loom-l001-target:/build",
+        "loom-l001-lab:local",
+        "sleep",
+        "infinity"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.19011112500000005,
+      "log": "logs/docker-start-builder.log"
+    },
+    "builder-resources": {
+      "argv": [
+        "docker",
+        "inspect",
+        "loom-l001-build-20261019t160015z",
+        "--format",
+        "{{json .HostConfig}}"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.03228883299999996,
+      "log": "logs/builder-resources.log"
+    },
+    "linux-toolchains": {
+      "argv": [
+        "docker",
+        "exec",
+        "loom-l001-build-20261019t160015z",
+        "sh",
+        "-c",
+        "rustc --version; go version; node --version; java -version; kotlinc -version; dpkg-query -W make cmake python3 nodejs default-jdk-headless kotlin"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 4.360403917,
+      "log": "logs/linux-toolchains.log"
+    },
+    "host-release-build": {
+      "argv": [
+        "cargo",
+        "build",
+        "--release",
+        "--workspace",
+        "--examples",
+        "--locked"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 2.476525292,
+      "log": "logs/host-release-build.log"
+    },
+    "linux-release-build": {
+      "argv": [
+        "docker",
+        "exec",
+        "loom-l001-build-20261019t160015z",
+        "cargo",
+        "build",
+        "--release",
+        "--workspace",
+        "--examples",
+        "--locked"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 2.1996364170000007,
+      "log": "logs/linux-release-build.log"
+    },
+    "host-tests": {
+      "argv": [
+        "cargo",
+        "test",
+        "--workspace",
+        "--all-targets",
+        "--locked"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 3.377867417000001,
+      "log": "logs/host-tests.log"
+    },
+    "linux-tests": {
+      "argv": [
+        "docker",
+        "exec",
+        "loom-l001-build-20261019t160015z",
+        "cargo",
+        "test",
+        "--workspace",
+        "--all-targets",
+        "--locked"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 3.1064085000000006,
+      "log": "logs/linux-tests.log"
+    },
+    "host-format": {
+      "argv": [
+        "cargo",
+        "fmt",
+        "--all",
+        "--",
+        "--check"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.34419270800000135,
+      "log": "logs/host-format.log"
+    },
+    "host-clippy": {
+      "argv": [
+        "cargo",
+        "clippy",
+        "--workspace",
+        "--all-targets",
+        "--locked",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.5621760830000007,
+      "log": "logs/host-clippy.log"
+    },
+    "linux-clippy": {
+      "argv": [
+        "docker",
+        "exec",
+        "loom-l001-build-20261019t160015z",
+        "cargo",
+        "clippy",
+        "--workspace",
+        "--all-targets",
+        "--locked",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 1.0187790830000019,
+      "log": "logs/linux-clippy.log"
+    },
+    "linux-doc": {
+      "argv": [
+        "docker",
+        "exec",
+        "loom-l001-build-20261019t160015z",
+        "cargo",
+        "doc",
+        "--workspace",
+        "--no-deps",
+        "--locked"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.5659887090000026,
+      "log": "logs/linux-doc.log"
+    },
+    "acceptance-manifest": {
+      "argv": [
+        "python3",
+        "scripts/l001_gate.py"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.051308708000000536,
+      "log": "logs/acceptance-manifest.log"
+    },
+    "release-still-refused": {
+      "argv": [
+        "python3",
+        "scripts/l001_gate.py",
+        "--require-complete"
+      ],
+      "exit_code": 1,
+      "expected_exit_code": 1,
+      "elapsed_s": 0.031917874999997764,
+      "log": "logs/release-still-refused.log"
+    },
+    "host-wire-go": {
+      "argv": [
+        "go",
+        "run",
+        "./interop/wire01/go/main.go",
+        "."
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.26871012499999836,
+      "log": "logs/host-wire-go.log"
+    },
+    "host-wire-js": {
+      "argv": [
+        "node",
+        "./interop/wire01/js/check.mjs",
+        "."
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.1800902089999994,
+      "log": "logs/host-wire-js.log"
+    },
+    "host-signature-go": {
+      "argv": [
+        "go",
+        "run",
+        "./test-vectors/wire-v1/check.go"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.07492520899999988,
+      "log": "logs/host-signature-go.log"
+    },
+    "host-signature-js": {
+      "argv": [
+        "node",
+        "./test-vectors/wire-v1/check.mjs"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.02936012500000018,
+      "log": "logs/host-signature-js.log"
+    },
+    "linux-wire-go": {
+      "argv": [
+        "docker",
+        "exec",
+        "loom-l001-build-20261019t160015z",
+        "go",
+        "run",
+        "./interop/wire01/go/main.go",
+        "."
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 1.690116665999998,
+      "log": "logs/linux-wire-go.log"
+    },
+    "linux-wire-js": {
+      "argv": [
+        "docker",
+        "exec",
+        "loom-l001-build-20261019t160015z",
+        "node",
+        "./interop/wire01/js/check.mjs",
+        "."
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.13423354200000048,
+      "log": "logs/linux-wire-js.log"
+    },
+    "linux-signature-go": {
+      "argv": [
+        "docker",
+        "exec",
+        "loom-l001-build-20261019t160015z",
+        "go",
+        "run",
+        "./test-vectors/wire-v1/check.go"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.27211920799999945,
+      "log": "logs/linux-signature-go.log"
+    },
+    "linux-signature-js": {
+      "argv": [
+        "docker",
+        "exec",
+        "loom-l001-build-20261019t160015z",
+        "node",
+        "./test-vectors/wire-v1/check.mjs"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.0897872090000007,
+      "log": "logs/linux-signature-js.log"
+    },
+    "wire-kotlin-compile": {
+      "argv": [
+        "docker",
+        "exec",
+        "loom-l001-build-20261019t160015z",
+        "kotlinc",
+        "interop/wire01/kotlin/Main.kt",
+        "-include-runtime",
+        "-d",
+        "/build/l001-wire.jar"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 1.3165472079999994,
+      "log": "logs/wire-kotlin-compile.log"
+    },
+    "wire-kotlin": {
+      "argv": [
+        "docker",
+        "exec",
+        "loom-l001-build-20261019t160015z",
+        "java",
+        "-jar",
+        "/build/l001-wire.jar",
+        "."
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.07878787499999973,
+      "log": "logs/wire-kotlin.log"
+    },
+    "host-bootstrap": {
+      "argv": [
+        "cargo",
+        "run",
+        "-p",
+        "loomd",
+        "--locked",
+        "--quiet"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 1.642736792000001,
+      "log": "logs/host-bootstrap.log"
+    },
+    "host-tpm-refused": {
+      "argv": [
+        "cargo",
+        "run",
+        "-p",
+        "loom-store",
+        "--example",
+        "probe_tpm2",
+        "--locked",
+        "--quiet"
+      ],
+      "exit_code": 2,
+      "expected_exit_code": 2,
+      "elapsed_s": 0.9950372079999994,
+      "log": "logs/host-tpm-refused.log"
+    },
+    "linux-bootstrap": {
+      "argv": [
+        "docker",
+        "exec",
+        "loom-l001-build-20261019t160015z",
+        "cargo",
+        "run",
+        "-p",
+        "loomd",
+        "--locked",
+        "--quiet"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.8129642500000003,
+      "log": "logs/linux-bootstrap.log"
+    },
+    "linux-tpm-refused": {
+      "argv": [
+        "docker",
+        "exec",
+        "loom-l001-build-20261019t160015z",
+        "cargo",
+        "run",
+        "-p",
+        "loom-store",
+        "--example",
+        "probe_tpm2",
+        "--locked",
+        "--quiet"
+      ],
+      "exit_code": 2,
+      "expected_exit_code": 2,
+      "elapsed_s": 0.7752078749999995,
+      "log": "logs/linux-tpm-refused.log"
+    },
+    "host-codec": {
+      "argv": [
+        "/Volumes/Data/Code/Loom/target/release/examples/l001_storage_lab",
+        "codec"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.7516346250000012,
+      "log": "logs/host-codec.log"
+    },
+    "linux-codec": {
+      "argv": [
+        "docker",
+        "exec",
+        "loom-l001-build-20261019t160015z",
+        "/build/release/examples/l001_storage_lab",
+        "codec"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.5268524580000005,
+      "log": "logs/linux-codec.log"
+    },
+    "host-storage": {
+      "argv": [
+        "/Volumes/Data/Code/Loom/target/release/examples/l001_storage_lab",
+        "bench",
+        "/Volumes/Data/Code/Loom/target/l001-local-docker/20261019T160015Z/bench.sqlite",
+        "100"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.8116706670000013,
+      "log": "logs/host-storage.log"
+    },
+    "linux-mkdir": {
+      "argv": [
+        "docker",
+        "exec",
+        "loom-l001-build-20261019t160015z",
+        "mkdir",
+        "-p",
+        "/build/l001-lab/20261019T160015Z"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.07807229200000165,
+      "log": "logs/linux-mkdir.log"
+    },
+    "linux-storage": {
+      "argv": [
+        "docker",
+        "exec",
+        "loom-l001-build-20261019t160015z",
+        "/build/release/examples/l001_storage_lab",
+        "bench",
+        "/build/l001-lab/20261019T160015Z/bench.sqlite",
+        "100"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 1.115470417000001,
+      "log": "logs/linux-storage.log"
+    },
+    "host-storage-faults": {
+      "argv": [
+        "python3",
+        "scripts/l001_storage_faults.py",
+        "/Volumes/Data/Code/Loom/target/release/examples/l001_storage_lab",
+        "/Volumes/Data/Code/Loom/target/l001-local-docker/20261019T160015Z/faults"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.37170695800000075,
+      "log": "logs/host-storage-faults.log"
+    },
+    "linux-storage-faults": {
+      "argv": [
+        "docker",
+        "exec",
+        "loom-l001-build-20261019t160015z",
+        "python3",
+        "/workspace/scripts/l001_storage_faults.py",
+        "/build/release/examples/l001_storage_lab",
+        "/build/l001-lab/20261019T160015Z/faults"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.7006728330000023,
+      "log": "logs/linux-storage-faults.log"
+    },
+    "host-quorum-recovery": {
+      "argv": [
+        "python3",
+        "scripts/l001_quorum_faults.py",
+        "/Volumes/Data/Code/Loom/target/release/examples/l001_storage_lab",
+        "/Volumes/Data/Code/Loom/target/l001-local-docker/20261019T160015Z/quorum"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.29520875000000046,
+      "log": "logs/host-quorum-recovery.log"
+    },
+    "linux-quorum-recovery": {
+      "argv": [
+        "docker",
+        "exec",
+        "loom-l001-build-20261019t160015z",
+        "python3",
+        "/workspace/scripts/l001_quorum_faults.py",
+        "/build/release/examples/l001_storage_lab",
+        "/build/l001-lab/20261019T160015Z/quorum"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.4200319579999956,
+      "log": "logs/linux-quorum-recovery.log"
+    },
+    "container-kill-0": {
+      "argv": [
+        "docker",
+        "kill",
+        "--signal=KILL",
+        "loom-l001-kill-0-20261019t160015z"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.058291709000002356,
+      "log": "logs/container-kill-0.log"
+    },
+    "container-recovery-0": {
+      "argv": [
+        "docker",
+        "exec",
+        "loom-l001-build-20261019t160015z",
+        "/build/release/examples/l001_storage_lab",
+        "inspect",
+        "/build/l001-lab/20261019T160015Z/container-kill-0.sqlite"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.04182887500000021,
+      "log": "logs/container-recovery-0.log"
+    },
+    "container-kill-1": {
+      "argv": [
+        "docker",
+        "kill",
+        "--signal=KILL",
+        "loom-l001-kill-1-20261019t160015z"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.05992945799999916,
+      "log": "logs/container-kill-1.log"
+    },
+    "container-recovery-1": {
+      "argv": [
+        "docker",
+        "exec",
+        "loom-l001-build-20261019t160015z",
+        "/build/release/examples/l001_storage_lab",
+        "inspect",
+        "/build/l001-lab/20261019T160015Z/container-kill-1.sqlite"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.046258041999998056,
+      "log": "logs/container-recovery-1.log"
+    },
+    "container-kill-2": {
+      "argv": [
+        "docker",
+        "kill",
+        "--signal=KILL",
+        "loom-l001-kill-2-20261019t160015z"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.05734308299999924,
+      "log": "logs/container-kill-2.log"
+    },
+    "container-recovery-2": {
+      "argv": [
+        "docker",
+        "exec",
+        "loom-l001-build-20261019t160015z",
+        "/build/release/examples/l001_storage_lab",
+        "inspect",
+        "/build/l001-lab/20261019T160015Z/container-kill-2.sqlite"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.044884792000004836,
+      "log": "logs/container-recovery-2.log"
+    },
+    "create-test-identities": {
+      "argv": [
+        "/Volumes/Data/Code/Loom/target/release/examples/l001_channel_lab",
+        "fixture",
+        "/Volumes/Data/Code/Loom/target/l001-local-docker/20261019T160015Z/fixtures"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.35239379200000087,
+      "log": "logs/create-test-identities.log"
+    },
+    "network-create": {
+      "argv": [
+        "docker",
+        "network",
+        "create",
+        "--label",
+        "loom.task=l001-local-docker",
+        "loom-l001-20261019t160015z"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.061305625000002806,
+      "log": "logs/network-create.log"
+    },
+    "linux-server-start": {
+      "argv": [
+        "docker",
+        "run",
+        "--rm",
+        "--name",
+        "loom-l001-server-20261019t160015z",
+        "--label",
+        "loom.task=l001-local-docker",
+        "--cpus=2",
+        "--memory=512m",
+        "--pids-limit=128",
+        "--cap-drop=ALL",
+        "--security-opt=no-new-privileges",
+        "--read-only",
+        "--tmpfs",
+        "/tmp:rw,noexec,nosuid,size=64m",
+        "-d",
+        "--network",
+        "loom-l001-20261019t160015z",
+        "-p",
+        "127.0.0.1::38443",
+        "-v",
+        "loom-l001-target:/build:ro",
+        "-v",
+        "/Volumes/Data/Code/Loom/target/l001-local-docker/20261019T160015Z/fixtures:/fixtures:ro",
+        "rust:1.90.0-slim-bookworm@sha256:64232e656c058f4468e8d024e990acff04f0fd5a5c0a88a574dc37773d7325c9",
+        "/build/release/examples/l001_channel_lab",
+        "server",
+        "0.0.0.0:38443",
+        "/fixtures"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.15500379199999514,
+      "log": "logs/linux-server-start.log"
+    },
+    "linux-server-port": {
+      "argv": [
+        "docker",
+        "port",
+        "loom-l001-server-20261019t160015z",
+        "38443/tcp"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.035023708000004206,
+      "log": "logs/linux-server-port.log"
+    },
+    "host-linux-ready": {
+      "argv": [
+        "/Volumes/Data/Code/Loom/target/release/examples/l001_channel_lab",
+        "probe",
+        "127.0.0.1:32769",
+        "/Volumes/Data/Code/Loom/target/l001-local-docker/20261019T160015Z/fixtures"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.05589383299999895,
+      "log": "logs/host-linux-ready.log"
+    },
+    "host-host": {
+      "argv": [
+        "/Volumes/Data/Code/Loom/target/release/examples/l001_channel_lab",
+        "bench",
+        "127.0.0.1:55783",
+        "/Volumes/Data/Code/Loom/target/l001-local-docker/20261019T160015Z/fixtures"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.3365492079999939,
+      "log": "logs/host-host.log"
+    },
+    "host-host-negative": {
+      "argv": [
+        "/Volumes/Data/Code/Loom/target/release/examples/l001_channel_lab",
+        "rejections",
+        "127.0.0.1:55783",
+        "/Volumes/Data/Code/Loom/target/l001-local-docker/20261019T160015Z/fixtures"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.03255720899999659,
+      "log": "logs/host-host-negative.log"
+    },
+    "host-linux": {
+      "argv": [
+        "/Volumes/Data/Code/Loom/target/release/examples/l001_channel_lab",
+        "bench",
+        "127.0.0.1:32769",
+        "/Volumes/Data/Code/Loom/target/l001-local-docker/20261019T160015Z/fixtures"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.41047054100000224,
+      "log": "logs/host-linux.log"
+    },
+    "host-linux-negative": {
+      "argv": [
+        "/Volumes/Data/Code/Loom/target/release/examples/l001_channel_lab",
+        "rejections",
+        "127.0.0.1:32769",
+        "/Volumes/Data/Code/Loom/target/l001-local-docker/20261019T160015Z/fixtures"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.034049707999997736,
+      "log": "logs/host-linux-negative.log"
+    },
+    "linux-linux": {
+      "argv": [
+        "docker",
+        "run",
+        "--rm",
+        "--name",
+        "loom-l001-client-ll-bench-20261019t160015z",
+        "--label",
+        "loom.task=l001-local-docker",
+        "--cpus=2",
+        "--memory=512m",
+        "--pids-limit=128",
+        "--cap-drop=ALL",
+        "--security-opt=no-new-privileges",
+        "--read-only",
+        "--tmpfs",
+        "/tmp:rw,noexec,nosuid,size=64m",
+        "--network",
+        "loom-l001-20261019t160015z",
+        "-v",
+        "loom-l001-target:/build:ro",
+        "-v",
+        "/Volumes/Data/Code/Loom/target/l001-local-docker/20261019T160015Z/fixtures:/fixtures:ro",
+        "rust:1.90.0-slim-bookworm@sha256:64232e656c058f4468e8d024e990acff04f0fd5a5c0a88a574dc37773d7325c9",
+        "/build/release/examples/l001_channel_lab",
+        "bench",
+        "loom-l001-server-20261019t160015z:38443",
+        "/fixtures"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.4843198330000007,
+      "log": "logs/linux-linux.log"
+    },
+    "linux-linux-negative": {
+      "argv": [
+        "docker",
+        "run",
+        "--rm",
+        "--name",
+        "loom-l001-client-ll-negative-20261019t160015z",
+        "--label",
+        "loom.task=l001-local-docker",
+        "--cpus=2",
+        "--memory=512m",
+        "--pids-limit=128",
+        "--cap-drop=ALL",
+        "--security-opt=no-new-privileges",
+        "--read-only",
+        "--tmpfs",
+        "/tmp:rw,noexec,nosuid,size=64m",
+        "--network",
+        "loom-l001-20261019t160015z",
+        "-v",
+        "loom-l001-target:/build:ro",
+        "-v",
+        "/Volumes/Data/Code/Loom/target/l001-local-docker/20261019T160015Z/fixtures:/fixtures:ro",
+        "rust:1.90.0-slim-bookworm@sha256:64232e656c058f4468e8d024e990acff04f0fd5a5c0a88a574dc37773d7325c9",
+        "/build/release/examples/l001_channel_lab",
+        "rejections",
+        "loom-l001-server-20261019t160015z:38443",
+        "/fixtures"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.20984233300000454,
+      "log": "logs/linux-linux-negative.log"
+    },
+    "linux-host": {
+      "argv": [
+        "docker",
+        "run",
+        "--rm",
+        "--name",
+        "loom-l001-client-lh-bench-20261019t160015z",
+        "--label",
+        "loom.task=l001-local-docker",
+        "--cpus=2",
+        "--memory=512m",
+        "--pids-limit=128",
+        "--cap-drop=ALL",
+        "--security-opt=no-new-privileges",
+        "--read-only",
+        "--tmpfs",
+        "/tmp:rw,noexec,nosuid,size=64m",
+        "--network",
+        "loom-l001-20261019t160015z",
+        "-v",
+        "loom-l001-target:/build:ro",
+        "-v",
+        "/Volumes/Data/Code/Loom/target/l001-local-docker/20261019T160015Z/fixtures:/fixtures:ro",
+        "rust:1.90.0-slim-bookworm@sha256:64232e656c058f4468e8d024e990acff04f0fd5a5c0a88a574dc37773d7325c9",
+        "/build/release/examples/l001_channel_lab",
+        "bench",
+        "host.docker.internal:55783",
+        "/fixtures"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.6818622500000018,
+      "log": "logs/linux-host.log"
+    },
+    "linux-host-negative": {
+      "argv": [
+        "docker",
+        "run",
+        "--rm",
+        "--name",
+        "loom-l001-client-lh-negative-20261019t160015z",
+        "--label",
+        "loom.task=l001-local-docker",
+        "--cpus=2",
+        "--memory=512m",
+        "--pids-limit=128",
+        "--cap-drop=ALL",
+        "--security-opt=no-new-privileges",
+        "--read-only",
+        "--tmpfs",
+        "/tmp:rw,noexec,nosuid,size=64m",
+        "--network",
+        "loom-l001-20261019t160015z",
+        "-v",
+        "loom-l001-target:/build:ro",
+        "-v",
+        "/Volumes/Data/Code/Loom/target/l001-local-docker/20261019T160015Z/fixtures:/fixtures:ro",
+        "rust:1.90.0-slim-bookworm@sha256:64232e656c058f4468e8d024e990acff04f0fd5a5c0a88a574dc37773d7325c9",
+        "/build/release/examples/l001_channel_lab",
+        "rejections",
+        "host.docker.internal:55783",
+        "/fixtures"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.2010539579999957,
+      "log": "logs/linux-host-negative.log"
+    },
+    "relay-confidentiality": {
+      "argv": [
+        "/Volumes/Data/Code/Loom/target/release/examples/l001_channel_lab",
+        "probe",
+        "127.0.0.1:55993",
+        "/Volumes/Data/Code/Loom/target/l001-local-docker/20261019T160015Z/fixtures"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.03396475000000265,
+      "log": "logs/relay-confidentiality.log"
+    },
+    "relay-active-tamper": {
+      "argv": [
+        "/Volumes/Data/Code/Loom/target/release/examples/l001_channel_lab",
+        "probe",
+        "127.0.0.1:55997",
+        "/Volumes/Data/Code/Loom/target/l001-local-docker/20261019T160015Z/fixtures"
+      ],
+      "exit_code": 1,
+      "expected_exit_code": 1,
+      "elapsed_s": 0.05509637499999798,
+      "log": "logs/relay-active-tamper.log"
+    },
+    "linux-server-logs": {
+      "argv": [
+        "docker",
+        "logs",
+        "loom-l001-server-20261019t160015z"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.05056841700000092,
+      "log": "logs/linux-server-logs.log"
+    }
+  },
+  "benchmarks": {
+    "host-codec": {
+      "metrics": [
+        {
+          "name": "codec_encode_payload_256",
+          "unit": "ms",
+          "n": 10,
+          "median": 6.873545e-05,
+          "p95": 0.00011121874999999999,
+          "samples": [
+            0.00011121874999999999,
+            9.800625e-05,
+            8.915415e-05,
+            7.732915e-05,
+            6.806875e-05,
+            6.81521e-05,
+            6.873545e-05,
+            6.841875e-05,
+            6.004374999999999e-05,
+            5.011875e-05
+          ]
+        },
+        {
+          "name": "codec_decode_payload_256",
+          "unit": "ms",
+          "n": 10,
+          "median": 0.00013787914999999998,
+          "p95": 0.0001603333,
+          "samples": [
+            0.0001603333,
+            0.0001594521,
+            0.0001449375,
+            0.00013485414999999998,
+            0.00014356665,
+            0.00013787914999999998,
+            0.0001301979,
+            0.00013266040000000002,
+            0.0001241792,
+            0.00012226875
+          ]
+        },
+        {
+          "name": "codec_encode_payload_4096",
+          "unit": "ms",
+          "n": 10,
+          "median": 9.17958e-05,
+          "p95": 0.000102,
+          "samples": [
+            9.107085e-05,
+            9.321665e-05,
+            8.848335e-05,
+            8.843335e-05,
+            0.000102,
+            9.17958e-05,
+            8.731665000000001e-05,
+            9.332290000000001e-05,
+            9.25521e-05,
+            8.176874999999999e-05
+          ]
+        },
+        {
+          "name": "codec_decode_payload_4096",
+          "unit": "ms",
+          "n": 10,
+          "median": 0.0002539125,
+          "p95": 0.00026608335000000003,
+          "samples": [
+            0.00025690209999999997,
+            0.00025025205000000003,
+            0.00026608335000000003,
+            0.00026041045,
+            0.0002502542,
+            0.0002539125,
+            0.00024736875,
+            0.00025091875,
+            0.00025322500000000004,
+            0.00025894375
+          ]
+        },
+        {
+          "name": "codec_encode_payload_61440",
+          "unit": "ms",
+          "n": 10,
+          "median": 0.001034,
+          "p95": 0.0010569375,
+          "samples": [
+            0.001014542,
+            0.0010160625,
+            0.0010203125,
+            0.001034,
+            0.0010565625,
+            0.0010499375,
+            0.0010569375,
+            0.0010358125,
+            0.00103175,
+            0.001005375
+          ]
+        },
+        {
+          "name": "codec_decode_payload_61440",
+          "unit": "ms",
+          "n": 10,
+          "median": 0.0036935415,
+          "p95": 0.0038263335,
+          "samples": [
+            0.003776875,
+            0.0036375625,
+            0.003748083,
+            0.003746146,
+            0.0038263335,
+            0.0036935415,
+            0.003667875,
+            0.0036782705,
+            0.003581667,
+            0.003563604
+          ]
+        },
+        {
+          "name": "sign_encode_verify_delegated_revocation",
+          "unit": "ms",
+          "n": 10,
+          "median": 0.20974458,
+          "p95": 0.216755,
+          "samples": [
+            0.20740167,
+            0.20965208,
+            0.216755,
+            0.21312541000000002,
+            0.2105375,
+            0.20457,
+            0.2085325,
+            0.20974458,
+            0.20794667,
+            0.21453417
+          ]
+        }
+      ],
+      "codec_samples_are_batch_means": true
+    },
+    "linux-codec": {
+      "metrics": [
+        {
+          "name": "codec_encode_payload_256",
+          "unit": "ms",
+          "n": 10,
+          "median": 2.59522e-05,
+          "p95": 5.35753e-05,
+          "samples": [
+            5.35753e-05,
+            3.028975e-05,
+            2.5070950000000004e-05,
+            2.533765e-05,
+            2.5160550000000004e-05,
+            2.53189e-05,
+            2.507515e-05,
+            2.6035550000000002e-05,
+            2.59522e-05,
+            2.6606399999999997e-05
+          ]
+        },
+        {
+          "name": "codec_decode_payload_256",
+          "unit": "ms",
+          "n": 10,
+          "median": 9.099215000000001e-05,
+          "p95": 9.23109e-05,
+          "samples": [
+            8.666505e-05,
+            9.1538e-05,
+            9.19547e-05,
+            9.189840000000001e-05,
+            9.23109e-05,
+            8.51796e-05,
+            8.742965e-05,
+            8.91776e-05,
+            8.892760000000001e-05,
+            9.099215000000001e-05
+          ]
+        },
+        {
+          "name": "codec_encode_payload_4096",
+          "unit": "ms",
+          "n": 10,
+          "median": 0.0001060881,
+          "p95": 0.00010765475,
+          "samples": [
+            0.00010185055000000001,
+            0.00010467555000000002,
+            0.00010612140000000001,
+            0.0001060881,
+            0.00010710059999999999,
+            0.0001058818,
+            0.00010609850000000001,
+            0.00010765475,
+            0.00010093595,
+            0.0001010318
+          ]
+        },
+        {
+          "name": "codec_decode_payload_4096",
+          "unit": "ms",
+          "n": 10,
+          "median": 0.0002252679,
+          "p95": 0.00024094920000000003,
+          "samples": [
+            0.00024094920000000003,
+            0.00022797414999999995,
+            0.00022583870000000004,
+            0.0002238908,
+            0.0002252679,
+            0.000214197,
+            0.0002176845,
+            0.0002212595,
+            0.00022533455,
+            0.00022399705000000002
+          ]
+        },
+        {
+          "name": "codec_encode_payload_61440",
+          "unit": "ms",
+          "n": 10,
+          "median": 0.00166178,
+          "p95": 0.001736322,
+          "samples": [
+            0.001736322,
+            0.0017310715,
+            0.0016783215,
+            0.001678134,
+            0.00166178,
+            0.001641634,
+            0.001574529,
+            0.0015415085,
+            0.001525842,
+            0.001556529
+          ]
+        },
+        {
+          "name": "codec_decode_payload_61440",
+          "unit": "ms",
+          "n": 10,
+          "median": 0.0043002315,
+          "p95": 0.0045189205,
+          "samples": [
+            0.0037656245,
+            0.0039217085,
+            0.0044145655,
+            0.0044460655,
+            0.0044940035,
+            0.0045189205,
+            0.0041459805,
+            0.004261023,
+            0.0043002315,
+            0.004277294
+          ]
+        },
+        {
+          "name": "sign_encode_verify_delegated_revocation",
+          "unit": "ms",
+          "n": 10,
+          "median": 0.23439042999999998,
+          "p95": 0.24320132,
+          "samples": [
+            0.23251333999999999,
+            0.23229126,
+            0.23275876,
+            0.23671337,
+            0.24320132,
+            0.23942004,
+            0.23536752,
+            0.22925373999999998,
+            0.2305225,
+            0.23439042999999998
+          ]
+        }
+      ],
+      "codec_samples_are_batch_means": true
+    },
+    "host-storage": {
+      "metrics": [
+        {
+          "name": "signed_journal_append_full_history_replay",
+          "unit": "ms",
+          "n": 100,
+          "median": 6.010708,
+          "p95": 9.930041000000001,
+          "samples": [
+            1.2667920000000001,
+            0.8097920000000001,
+            0.856333,
+            0.741833,
+            0.885292,
+            1.0473329999999998,
+            1.392417,
+            1.223333,
+            1.426042,
+            1.351125,
+            1.467042,
+            1.691709,
+            1.689209,
+            1.90925,
+            1.947208,
+            2.1245000000000003,
+            2.2447909999999998,
+            2.197041,
+            2.395125,
+            2.412958,
+            2.7047920000000003,
+            2.672708,
+            3.059292,
+            2.909083,
+            3.04475,
+            3.090375,
+            3.1919169999999997,
+            3.683208,
+            3.4879160000000002,
+            3.874209,
+            3.747584,
+            3.938375,
+            4.050834,
+            4.0526670000000005,
+            4.126291,
+            4.462958,
+            4.687042,
+            5.267834,
+            5.174584,
+            4.931292,
+            4.906458,
+            5.102207999999999,
+            5.33875,
+            5.171083,
+            5.37975,
+            5.768375,
+            5.440791000000001,
+            5.582458,
+            6.010708,
+            6.3583750000000006,
+            6.137667,
+            6.004792,
+            5.835542,
+            6.040875000000001,
+            6.035083,
+            6.118458,
+            6.4683329999999994,
+            6.191166,
+            6.133334,
+            6.489375000000001,
+            6.624124999999999,
+            6.645042,
+            6.689625,
+            6.932542,
+            7.211375,
+            7.381875000000001,
+            7.174875,
+            7.522125,
+            7.6735,
+            7.760040999999999,
+            7.771667000000001,
+            7.778290999999999,
+            8.009374999999999,
+            7.913042,
+            8.146375,
+            8.26725,
+            8.009959,
+            8.545125,
+            8.471207999999999,
+            8.482334,
+            8.981458,
+            9.282290999999999,
+            9.209791000000001,
+            9.210792000000001,
+            8.753708000000001,
+            9.10725,
+            9.074208,
+            9.169208999999999,
+            9.394209,
+            9.404124999999999,
+            9.565917,
+            9.600916,
+            9.693916999999999,
+            10.0555,
+            9.930041000000001,
+            9.924875,
+            10.295709,
+            10.510375,
+            10.263125,
+            10.583874999999999
+          ]
+        },
+        {
+          "name": "signed_journal_inspect",
+          "unit": "ms",
+          "n": 20,
+          "median": 10.352458,
+          "p95": 10.596124999999999,
+          "samples": [
+            10.337458000000002,
+            10.657333,
+            10.596124999999999,
+            10.352458,
+            10.231709,
+            10.153291,
+            10.2995,
+            10.2545,
+            10.544125,
+            10.589125,
+            10.247166,
+            10.51,
+            10.471625,
+            10.146042,
+            10.290041,
+            10.371917,
+            10.468167000000001,
+            10.372875,
+            10.212833,
+            10.26875
+          ]
+        }
+      ],
+      "append_first_ms": 1.2667920000000001,
+      "append_last_ms": 10.583874999999999,
+      "history_length": 100
+    },
+    "linux-storage": {
+      "metrics": [
+        {
+          "name": "signed_journal_append_full_history_replay",
+          "unit": "ms",
+          "n": 100,
+          "median": 7.234206,
+          "p95": 12.149982999999999,
+          "samples": [
+            2.027927,
+            1.856136,
+            2.505013,
+            2.5317640000000003,
+            2.846515,
+            2.9882250000000004,
+            2.895557,
+            3.2758510000000003,
+            3.858229,
+            4.445524,
+            4.054314,
+            4.113689,
+            4.546983,
+            4.810276,
+            5.400737,
+            5.529363,
+            6.152991,
+            6.231574999999999,
+            6.554868,
+            5.896991,
+            6.030698999999999,
+            6.568244,
+            5.935991,
+            5.979533,
+            6.185908,
+            5.657614,
+            6.104824,
+            6.3423680000000004,
+            6.373826,
+            6.167992,
+            5.813073,
+            5.600905,
+            5.772823,
+            6.420868,
+            6.278284,
+            6.486576,
+            6.449452,
+            6.223158000000001,
+            5.877865000000001,
+            5.666947,
+            5.86549,
+            5.661072,
+            6.318326,
+            6.164658,
+            6.48141,
+            6.666453,
+            6.481452,
+            6.816537,
+            7.352623,
+            7.792126,
+            7.673208,
+            6.924121,
+            7.751125,
+            7.734541999999999,
+            6.901161999999999,
+            7.234206,
+            7.305998,
+            7.5546240000000004,
+            7.844792999999999,
+            8.180418999999999,
+            8.317128,
+            8.358086,
+            8.552547,
+            8.551796,
+            8.329295,
+            9.161050000000001,
+            8.804798000000002,
+            8.901131,
+            9.44826,
+            9.534635,
+            9.471468,
+            8.97334,
+            9.669344,
+            9.807595000000001,
+            10.215389,
+            12.124315,
+            9.987763000000001,
+            10.489932,
+            10.134722,
+            10.732141,
+            10.057471,
+            10.351098,
+            10.704017,
+            11.217144,
+            11.040977,
+            11.061268,
+            11.378978,
+            11.333395,
+            11.314061,
+            11.899398,
+            11.957523,
+            11.690854999999999,
+            12.089148,
+            12.149982999999999,
+            13.384989,
+            13.891865999999998,
+            12.446609,
+            11.955898,
+            13.50499,
+            12.910153000000001
+          ]
+        },
+        {
+          "name": "signed_journal_inspect",
+          "unit": "ms",
+          "n": 20,
+          "median": 11.36952,
+          "p95": 11.528478999999999,
+          "samples": [
+            10.959976,
+            10.922309,
+            11.310478,
+            11.346645,
+            11.36952,
+            11.409729,
+            11.402354,
+            11.40852,
+            11.403687,
+            11.431853,
+            11.398312,
+            11.528478999999999,
+            11.592853999999999,
+            11.459478,
+            10.927059,
+            11.199936000000001,
+            11.225311,
+            11.244727,
+            11.265061,
+            11.271685999999999
+          ]
+        }
+      ],
+      "append_first_ms": 2.027927,
+      "append_last_ms": 12.910153000000001,
+      "history_length": 100
+    },
+    "host-host": {
+      "lab_only": true,
+      "payload_verified": true,
+      "metrics": [
+        {
+          "name": "tcp_tls_association",
+          "unit": "ms",
+          "n": 50,
+          "median": 1.708625,
+          "p95": 2.5899170000000002,
+          "min": 1.465375,
+          "max": 3.0531249999999996,
+          "samples": [
+            2.134667,
+            1.657917,
+            1.803667,
+            1.859833,
+            1.926291,
+            1.6464999999999999,
+            1.8855,
+            1.682875,
+            1.955542,
+            1.580583,
+            1.620042,
+            2.1298329999999996,
+            1.5765,
+            1.562625,
+            1.586416,
+            2.215042,
+            2.111209,
+            1.798958,
+            1.595,
+            3.0531249999999996,
+            1.708625,
+            1.715333,
+            1.615625,
+            1.9082089999999998,
+            1.753917,
+            1.5459580000000002,
+            1.5448330000000001,
+            2.268875,
+            1.9598329999999997,
+            1.776875,
+            1.57025,
+            1.805708,
+            1.676458,
+            1.745958,
+            1.641375,
+            2.017042,
+            1.465375,
+            1.646042,
+            1.4732910000000001,
+            1.620292,
+            1.640917,
+            2.5899170000000002,
+            1.768916,
+            1.655875,
+            1.6895,
+            1.822125,
+            2.6577089999999997,
+            1.615167,
+            1.567667,
+            1.6355
+          ]
+        },
+        {
+          "name": "echo_1024_bytes",
+          "unit": "ms",
+          "n": 200,
+          "median": 0.08,
+          "p95": 0.107833,
+          "min": 0.062375,
+          "max": 0.25825000000000004,
+          "samples": [
+            0.081959,
+            0.089292,
+            0.0875,
+            0.080292,
+            0.076667,
+            0.09208300000000001,
+            0.078875,
+            0.075375,
+            0.08174999999999999,
+            0.082042,
+            0.079083,
+            0.079875,
+            0.080042,
+            0.083167,
+            0.080708,
+            0.076084,
+            0.111459,
+            0.102209,
+            0.12175000000000001,
+            0.083708,
+            0.0785,
+            0.079291,
+            0.08937500000000001,
+            0.091084,
+            0.079334,
+            0.076917,
+            0.081417,
+            0.093583,
+            0.07875,
+            0.106333,
+            0.24441699999999997,
+            0.09875,
+            0.086583,
+            0.076833,
+            0.082958,
+            0.0925,
+            0.080417,
+            0.076208,
+            0.088458,
+            0.06575,
+            0.090125,
+            0.084708,
+            0.080542,
+            0.074625,
+            0.078125,
+            0.077209,
+            0.077542,
+            0.079625,
+            0.076958,
+            0.077583,
+            0.073834,
+            0.072875,
+            0.073958,
+            0.08141599999999999,
+            0.08566700000000001,
+            0.07575,
+            0.077958,
+            0.066083,
+            0.076583,
+            0.072708,
+            0.07183300000000001,
+            0.06837499999999999,
+            0.070417,
+            0.070167,
+            0.07083300000000001,
+            0.07175,
+            0.07262500000000001,
+            0.07179200000000001,
+            0.078708,
+            0.09608299999999999,
+            0.092625,
+            0.10625,
+            0.09899999999999999,
+            0.09925,
+            0.092292,
+            0.097834,
+            0.09804199999999999,
+            0.092333,
+            0.10575,
+            0.102209,
+            0.10008399999999999,
+            0.099042,
+            0.089916,
+            0.09849999999999999,
+            0.098542,
+            0.09575,
+            0.09725,
+            0.097583,
+            0.09975,
+            0.097333,
+            0.109375,
+            0.095917,
+            0.09674999999999999,
+            0.10041599999999999,
+            0.103,
+            0.095416,
+            0.103292,
+            0.09175,
+            0.09916699999999999,
+            0.103917,
+            0.098083,
+            0.098125,
+            0.103959,
+            0.10029199999999999,
+            0.0735,
+            0.07454100000000001,
+            0.06899999999999999,
+            0.071875,
+            0.07195800000000001,
+            0.0735,
+            0.097916,
+            0.070167,
+            0.076542,
+            0.0915,
+            0.102833,
+            0.092625,
+            0.094375,
+            0.107833,
+            0.10708300000000001,
+            0.09112500000000001,
+            0.098792,
+            0.082041,
+            0.112625,
+            0.07212500000000001,
+            0.088375,
+            0.09608299999999999,
+            0.0895,
+            0.096125,
+            0.096042,
+            0.096875,
+            0.090292,
+            0.100291,
+            0.08820800000000001,
+            0.086875,
+            0.087041,
+            0.099875,
+            0.082291,
+            0.08,
+            0.07029099999999999,
+            0.078,
+            0.089125,
+            0.076,
+            0.216833,
+            0.084666,
+            0.197917,
+            0.168625,
+            0.25825000000000004,
+            0.146542,
+            0.07825,
+            0.07275000000000001,
+            0.071459,
+            0.070917,
+            0.069708,
+            0.084833,
+            0.06933299999999999,
+            0.06575,
+            0.06949999999999999,
+            0.06833299999999999,
+            0.068167,
+            0.06970900000000001,
+            0.06575,
+            0.06866699999999999,
+            0.077792,
+            0.078584,
+            0.079459,
+            0.078292,
+            0.083334,
+            0.078084,
+            0.074959,
+            0.07295900000000001,
+            0.07470900000000001,
+            0.07454200000000001,
+            0.073041,
+            0.070417,
+            0.072084,
+            0.072709,
+            0.067459,
+            0.062375,
+            0.06887499999999999,
+            0.067666,
+            0.064708,
+            0.075583,
+            0.076375,
+            0.076084,
+            0.0675,
+            0.07037500000000001,
+            0.077875,
+            0.06849999999999999,
+            0.068458,
+            0.067042,
+            0.06916699999999999,
+            0.06899999999999999,
+            0.06849999999999999,
+            0.072375,
+            0.06866699999999999,
+            0.070333,
+            0.07245800000000001,
+            0.07483300000000001,
+            0.067458,
+            0.066291
+          ]
+        },
+        {
+          "name": "download_32_mib",
+          "unit": "MiB/s",
+          "n": 5,
+          "median": 2969.8491632171563,
+          "p95": 3075.9863799168083,
+          "min": 2791.417925159992,
+          "max": 3075.9863799168083,
+          "samples": [
+            2791.417925159992,
+            2969.8491632171563,
+            3075.9863799168083,
+            3019.4849249384356,
+            2969.320883836919
+          ]
+        },
+        {
+          "name": "upload_32_mib",
+          "unit": "MiB/s",
+          "n": 5,
+          "median": 2821.828181351137,
+          "p95": 2864.8593045213834,
+          "min": 2692.10141650805,
+          "max": 2864.8593045213834,
+          "samples": [
+            2762.2718892135613,
+            2864.8593045213834,
+            2860.335195530726,
+            2692.10141650805,
+            2821.828181351137
+          ]
+        },
+        {
+          "name": "upload_eight_channels_64_mib_total",
+          "unit": "MiB/s",
+          "n": 1,
+          "median": 2804.1221647367443,
+          "p95": 2804.1221647367443,
+          "min": 2804.1221647367443,
+          "max": 2804.1221647367443,
+          "samples": [
+            2804.1221647367443
+          ]
+        }
+      ]
+    },
+    "host-linux": {
+      "lab_only": true,
+      "payload_verified": true,
+      "metrics": [
+        {
+          "name": "tcp_tls_association",
+          "unit": "ms",
+          "n": 50,
+          "median": 1.736625,
+          "p95": 3.1229999999999998,
+          "min": 1.3703750000000001,
+          "max": 3.88225,
+          "samples": [
+            3.88225,
+            3.1229999999999998,
+            3.352458,
+            2.938334,
+            2.8952090000000004,
+            2.764833,
+            1.990292,
+            1.7701660000000001,
+            1.5886660000000001,
+            1.725125,
+            1.538834,
+            1.684459,
+            1.574167,
+            1.938334,
+            2.455708,
+            1.895375,
+            1.569333,
+            1.466625,
+            1.580459,
+            1.736625,
+            1.4545000000000001,
+            1.576709,
+            1.665292,
+            1.512542,
+            1.502584,
+            1.768708,
+            1.712875,
+            2.085916,
+            1.976167,
+            1.864625,
+            1.807709,
+            1.9620420000000003,
+            1.734,
+            1.714458,
+            2.205875,
+            1.5073750000000001,
+            2.8787499999999997,
+            3.108083,
+            2.3955420000000003,
+            1.903042,
+            3.022958,
+            2.20125,
+            1.632209,
+            1.466,
+            1.512208,
+            1.489583,
+            1.3703750000000001,
+            1.524875,
+            1.410917,
+            1.566125
+          ]
+        },
+        {
+          "name": "echo_1024_bytes",
+          "unit": "ms",
+          "n": 200,
+          "median": 0.104167,
+          "p95": 0.12012500000000001,
+          "min": 0.088292,
+          "max": 0.148959,
+          "samples": [
+            0.146,
+            0.108917,
+            0.107584,
+            0.12045800000000001,
+            0.105583,
+            0.107833,
+            0.100291,
+            0.10483300000000001,
+            0.111333,
+            0.11683299999999999,
+            0.106334,
+            0.102042,
+            0.107916,
+            0.138708,
+            0.11787500000000001,
+            0.11412499999999999,
+            0.11745799999999999,
+            0.115792,
+            0.112708,
+            0.11604199999999999,
+            0.12012500000000001,
+            0.118625,
+            0.110416,
+            0.11175,
+            0.110417,
+            0.127083,
+            0.112417,
+            0.111333,
+            0.11474999999999999,
+            0.11441599999999999,
+            0.11950000000000001,
+            0.115375,
+            0.106958,
+            0.116791,
+            0.112083,
+            0.106167,
+            0.119084,
+            0.103959,
+            0.11025,
+            0.112791,
+            0.13025,
+            0.10087499999999999,
+            0.1,
+            0.110625,
+            0.1105,
+            0.110083,
+            0.104083,
+            0.10562500000000001,
+            0.110667,
+            0.101416,
+            0.10104199999999999,
+            0.10804200000000001,
+            0.109125,
+            0.10804200000000001,
+            0.105375,
+            0.103459,
+            0.116333,
+            0.104917,
+            0.10645900000000001,
+            0.102792,
+            0.107458,
+            0.108958,
+            0.107916,
+            0.108625,
+            0.106209,
+            0.110625,
+            0.110708,
+            0.129,
+            0.104584,
+            0.103459,
+            0.10354200000000001,
+            0.10754100000000001,
+            0.10579200000000001,
+            0.105292,
+            0.11075,
+            0.107792,
+            0.107333,
+            0.104875,
+            0.1065,
+            0.107125,
+            0.1085,
+            0.106666,
+            0.11625,
+            0.10500000000000001,
+            0.104458,
+            0.106792,
+            0.106375,
+            0.10875,
+            0.114333,
+            0.11495899999999999,
+            0.10933399999999999,
+            0.104959,
+            0.103292,
+            0.101125,
+            0.099542,
+            0.148959,
+            0.106625,
+            0.097333,
+            0.120417,
+            0.100209,
+            0.099834,
+            0.102042,
+            0.10120799999999999,
+            0.099375,
+            0.106458,
+            0.09720799999999999,
+            0.09945799999999999,
+            0.105834,
+            0.102333,
+            0.105083,
+            0.096375,
+            0.10575,
+            0.09825,
+            0.10320800000000001,
+            0.095583,
+            0.098875,
+            0.099583,
+            0.098291,
+            0.096292,
+            0.103167,
+            0.095167,
+            0.102833,
+            0.1035,
+            0.09912499999999999,
+            0.107,
+            0.09912499999999999,
+            0.103333,
+            0.096042,
+            0.10012499999999999,
+            0.097583,
+            0.11995800000000001,
+            0.09975,
+            0.105333,
+            0.095542,
+            0.097833,
+            0.101333,
+            0.09770799999999999,
+            0.127625,
+            0.0935,
+            0.096875,
+            0.111958,
+            0.098583,
+            0.10691600000000001,
+            0.10341700000000001,
+            0.11333399999999999,
+            0.10562500000000001,
+            0.1025,
+            0.104167,
+            0.0965,
+            0.09475,
+            0.095041,
+            0.097042,
+            0.093,
+            0.093292,
+            0.100333,
+            0.098417,
+            0.09595899999999999,
+            0.098875,
+            0.124917,
+            0.09725,
+            0.10325000000000001,
+            0.097458,
+            0.106666,
+            0.094041,
+            0.09720799999999999,
+            0.093875,
+            0.096834,
+            0.088459,
+            0.100375,
+            0.09704099999999999,
+            0.095292,
+            0.104959,
+            0.097667,
+            0.09866599999999999,
+            0.096167,
+            0.097959,
+            0.09208300000000001,
+            0.100042,
+            0.099709,
+            0.092959,
+            0.095084,
+            0.088959,
+            0.10166700000000001,
+            0.095375,
+            0.09425,
+            0.094416,
+            0.094833,
+            0.095375,
+            0.094833,
+            0.091541,
+            0.115958,
+            0.093708,
+            0.0975,
+            0.09562499999999999,
+            0.09025,
+            0.089791,
+            0.089333,
+            0.09658299999999999,
+            0.088292,
+            0.096625
+          ]
+        },
+        {
+          "name": "download_32_mib",
+          "unit": "MiB/s",
+          "n": 5,
+          "median": 2336.1784092727594,
+          "p95": 2414.5778933019155,
+          "min": 1825.685072634025,
+          "max": 2414.5778933019155,
+          "samples": [
+            2028.8315990521555,
+            2378.150798988067,
+            1825.685072634025,
+            2414.5778933019155,
+            2336.1784092727594
+          ]
+        },
+        {
+          "name": "upload_32_mib",
+          "unit": "MiB/s",
+          "n": 5,
+          "median": 2085.092358514429,
+          "p95": 2097.8562072975633,
+          "min": 1656.1611705664345,
+          "max": 2097.8562072975633,
+          "samples": [
+            1656.1611705664345,
+            2085.092358514429,
+            1925.2752541964983,
+            2097.8562072975633,
+            2096.024104277199
+          ]
+        },
+        {
+          "name": "upload_eight_channels_64_mib_total",
+          "unit": "MiB/s",
+          "n": 1,
+          "median": 1657.0186754289814,
+          "p95": 1657.0186754289814,
+          "min": 1657.0186754289814,
+          "max": 1657.0186754289814,
+          "samples": [
+            1657.0186754289814
+          ]
+        }
+      ]
+    },
+    "linux-linux": {
+      "lab_only": true,
+      "payload_verified": true,
+      "metrics": [
+        {
+          "name": "tcp_tls_association",
+          "unit": "ms",
+          "n": 50,
+          "median": 0.515336,
+          "p95": 0.7076279999999999,
+          "min": 0.46221100000000004,
+          "max": 13.090487,
+          "samples": [
+            0.588295,
+            0.573962,
+            0.528878,
+            0.567378,
+            0.535378,
+            0.565212,
+            0.5319619999999999,
+            0.581419,
+            0.5097940000000001,
+            0.579045,
+            0.5465859999999999,
+            13.090487,
+            0.848837,
+            0.629837,
+            0.53967,
+            0.593378,
+            0.7076279999999999,
+            0.659296,
+            0.525044,
+            0.516378,
+            0.497336,
+            0.5090859999999999,
+            0.521253,
+            0.506169,
+            0.46983600000000003,
+            0.480836,
+            0.483878,
+            0.46762699999999996,
+            0.501128,
+            0.5030020000000001,
+            0.483003,
+            0.467544,
+            0.475794,
+            0.46221100000000004,
+            0.484794,
+            0.521794,
+            0.5415030000000001,
+            0.530378,
+            0.51092,
+            0.505544,
+            0.515336,
+            0.503128,
+            0.5082939999999999,
+            0.503128,
+            0.494836,
+            0.502628,
+            0.485294,
+            0.517336,
+            0.486835,
+            0.503378
+          ]
+        },
+        {
+          "name": "echo_1024_bytes",
+          "unit": "ms",
+          "n": 200,
+          "median": 0.012792000000000001,
+          "p95": 0.017417,
+          "min": 0.010583,
+          "max": 0.027583,
+          "samples": [
+            0.010875,
+            0.011,
+            0.010792,
+            0.015167,
+            0.011625,
+            0.011208000000000001,
+            0.010750000000000001,
+            0.011,
+            0.010667,
+            0.010667,
+            0.010708,
+            0.011375,
+            0.010583,
+            0.010708,
+            0.010750000000000001,
+            0.010750000000000001,
+            0.010875,
+            0.010875,
+            0.010875,
+            0.011292,
+            0.012208,
+            0.012125,
+            0.011916000000000001,
+            0.012208,
+            0.012,
+            0.010625,
+            0.010834,
+            0.010708,
+            0.010916,
+            0.010792,
+            0.011083,
+            0.01175,
+            0.012084,
+            0.024541,
+            0.025709,
+            0.015834,
+            0.015583,
+            0.012458,
+            0.012625,
+            0.012917,
+            0.015041,
+            0.014584,
+            0.014916,
+            0.012584,
+            0.015000000000000001,
+            0.014708,
+            0.012417,
+            0.014875000000000001,
+            0.014875000000000001,
+            0.012583,
+            0.014542000000000001,
+            0.012041999999999999,
+            0.01475,
+            0.0145,
+            0.01225,
+            0.014667,
+            0.015000000000000001,
+            0.012041,
+            0.014292,
+            0.011875,
+            0.0135,
+            0.013001,
+            0.01325,
+            0.012625,
+            0.0165,
+            0.011292,
+            0.013,
+            0.011208000000000001,
+            0.01325,
+            0.013083,
+            0.013001,
+            0.011,
+            0.013083,
+            0.010917000000000001,
+            0.01275,
+            0.012959,
+            0.012958,
+            0.010916,
+            0.013,
+            0.012875,
+            0.013001,
+            0.017708,
+            0.010875,
+            0.012916,
+            0.012833,
+            0.011,
+            0.012792000000000001,
+            0.010832999999999999,
+            0.012833,
+            0.010917000000000001,
+            0.012875,
+            0.012958,
+            0.011083,
+            0.012833,
+            0.012917,
+            0.012958,
+            0.011,
+            0.012666,
+            0.012833,
+            0.012833,
+            0.010917000000000001,
+            0.012916,
+            0.017417,
+            0.016792,
+            0.014208,
+            0.021041999999999998,
+            0.027583,
+            0.017959,
+            0.012374999999999999,
+            0.014334,
+            0.0115,
+            0.013708,
+            0.011333,
+            0.013375,
+            0.011541000000000001,
+            0.013458000000000001,
+            0.011167,
+            0.013125000000000001,
+            0.011042,
+            0.013040999999999999,
+            0.022626,
+            0.01325,
+            0.011,
+            0.013167,
+            0.011167,
+            0.013084,
+            0.011125,
+            0.013375,
+            0.010917000000000001,
+            0.013417,
+            0.011083,
+            0.013083,
+            0.011125,
+            0.013208,
+            0.010832999999999999,
+            0.012792000000000001,
+            0.011708999999999999,
+            0.013292,
+            0.011041,
+            0.012875,
+            0.010875,
+            0.012876,
+            0.010708,
+            0.013167,
+            0.010750000000000001,
+            0.013167,
+            0.011,
+            0.013040999999999999,
+            0.010958,
+            0.012833,
+            0.011125,
+            0.012792000000000001,
+            0.010958,
+            0.012917,
+            0.010750000000000001,
+            0.012709,
+            0.011083,
+            0.012959,
+            0.021334,
+            0.016667,
+            0.0185,
+            0.012374999999999999,
+            0.015542000000000002,
+            0.011042,
+            0.015208000000000001,
+            0.010917000000000001,
+            0.012792000000000001,
+            0.010750000000000001,
+            0.012834,
+            0.010958,
+            0.013,
+            0.011167,
+            0.013125000000000001,
+            0.010916,
+            0.012959,
+            0.011,
+            0.013,
+            0.010667,
+            0.012707999999999999,
+            0.010875,
+            0.016125,
+            0.015125,
+            0.014957999999999999,
+            0.012292,
+            0.022251,
+            0.015042,
+            0.015417000000000002,
+            0.010959,
+            0.015709,
+            0.011167,
+            0.015375000000000002,
+            0.010750000000000001,
+            0.015291999999999998,
+            0.011083,
+            0.015042,
+            0.011125,
+            0.015083,
+            0.010876,
+            0.015417000000000002,
+            0.010916
+          ]
+        },
+        {
+          "name": "download_32_mib",
+          "unit": "MiB/s",
+          "n": 5,
+          "median": 2615.7540654948853,
+          "p95": 3346.328941206883,
+          "min": 1950.1288669531893,
+          "max": 3346.328941206883,
+          "samples": [
+            3346.328941206883,
+            2615.7540654948853,
+            1950.1288669531893,
+            3270.3915813579915,
+            2029.823305784191
+          ]
+        },
+        {
+          "name": "upload_32_mib",
+          "unit": "MiB/s",
+          "n": 5,
+          "median": 3512.7970097315456,
+          "p95": 3551.3929284442047,
+          "min": 2359.9852117426667,
+          "max": 3551.3929284442047,
+          "samples": [
+            3551.3929284442047,
+            3512.7970097315456,
+            3520.1878372229944,
+            2359.9852117426667,
+            3159.787595128121
+          ]
+        },
+        {
+          "name": "upload_eight_channels_64_mib_total",
+          "unit": "MiB/s",
+          "n": 1,
+          "median": 1924.4374448378046,
+          "p95": 1924.4374448378046,
+          "min": 1924.4374448378046,
+          "max": 1924.4374448378046,
+          "samples": [
+            1924.4374448378046
+          ]
+        }
+      ]
+    },
+    "linux-host": {
+      "lab_only": true,
+      "payload_verified": true,
+      "metrics": [
+        {
+          "name": "tcp_tls_association",
+          "unit": "ms",
+          "n": 50,
+          "median": 4.567275,
+          "p95": 5.6632810000000005,
+          "min": 3.079642,
+          "max": 6.728536999999999,
+          "samples": [
+            3.60202,
+            4.6777750000000005,
+            4.396649,
+            4.268982,
+            3.577228,
+            4.014855000000001,
+            3.079642,
+            3.6616869999999997,
+            4.338731,
+            3.9476040000000006,
+            4.567275,
+            4.046939,
+            4.815901,
+            5.845656,
+            4.973901000000001,
+            4.4439400000000004,
+            3.895229,
+            3.3785600000000002,
+            4.253565,
+            5.289362,
+            3.4029770000000004,
+            5.024944,
+            5.627406,
+            3.544978,
+            3.692979,
+            4.344732,
+            4.942277,
+            5.6632810000000005,
+            5.130069,
+            4.809234,
+            4.324649,
+            4.33694,
+            3.879105,
+            4.571774,
+            6.728536999999999,
+            5.603864,
+            4.881276000000001,
+            5.132944999999999,
+            5.248404,
+            5.629989,
+            4.560275,
+            5.354862,
+            4.487691,
+            5.166111,
+            4.331898,
+            5.466321,
+            4.659108000000001,
+            4.489815999999999,
+            5.396319999999999,
+            5.152486000000001
+          ]
+        },
+        {
+          "name": "echo_1024_bytes",
+          "unit": "ms",
+          "n": 200,
+          "median": 0.156168,
+          "p95": 0.21970900000000002,
+          "min": 0.08762500000000001,
+          "max": 0.252585,
+          "samples": [
+            0.22675199999999998,
+            0.210751,
+            0.209626,
+            0.208293,
+            0.200167,
+            0.208334,
+            0.226417,
+            0.218418,
+            0.21970900000000002,
+            0.211876,
+            0.224293,
+            0.209043,
+            0.202168,
+            0.19366699999999998,
+            0.203418,
+            0.215918,
+            0.197917,
+            0.20683400000000002,
+            0.220001,
+            0.22071,
+            0.222626,
+            0.252585,
+            0.226001,
+            0.237168,
+            0.19158399999999998,
+            0.19129300000000002,
+            0.20971,
+            0.19633399999999998,
+            0.203251,
+            0.208085,
+            0.213126,
+            0.210752,
+            0.216835,
+            0.20471,
+            0.198127,
+            0.195043,
+            0.200792,
+            0.208751,
+            0.206334,
+            0.191668,
+            0.206668,
+            0.196584,
+            0.182251,
+            0.18545899999999998,
+            0.19091799999999998,
+            0.184001,
+            0.176043,
+            0.18862600000000002,
+            0.183668,
+            0.191042,
+            0.179668,
+            0.174835,
+            0.174168,
+            0.17396,
+            0.19296,
+            0.199668,
+            0.194667,
+            0.19521,
+            0.213668,
+            0.203418,
+            0.21416800000000003,
+            0.213209,
+            0.201626,
+            0.22579300000000002,
+            0.206252,
+            0.18237599999999998,
+            0.181876,
+            0.18154299999999998,
+            0.170042,
+            0.169959,
+            0.146334,
+            0.156251,
+            0.154793,
+            0.17346,
+            0.156793,
+            0.163084,
+            0.153293,
+            0.16421,
+            0.17354299999999998,
+            0.160626,
+            0.162334,
+            0.160625,
+            0.154251,
+            0.16170900000000002,
+            0.157418,
+            0.151459,
+            0.16871,
+            0.14733500000000002,
+            0.170334,
+            0.174668,
+            0.15979300000000002,
+            0.17141699999999999,
+            0.166542,
+            0.158501,
+            0.15437599999999999,
+            0.16671,
+            0.150251,
+            0.14908400000000002,
+            0.15720900000000002,
+            0.162501,
+            0.166626,
+            0.16025,
+            0.156001,
+            0.166334,
+            0.150209,
+            0.154085,
+            0.156459,
+            0.16833399999999998,
+            0.151418,
+            0.14996,
+            0.156168,
+            0.158001,
+            0.161001,
+            0.197084,
+            0.13816699999999998,
+            0.130043,
+            0.120376,
+            0.128875,
+            0.116167,
+            0.111667,
+            0.13725099999999998,
+            0.118626,
+            0.125084,
+            0.137709,
+            0.112751,
+            0.116251,
+            0.12262500000000001,
+            0.121584,
+            0.139459,
+            0.123626,
+            0.127292,
+            0.133876,
+            0.125793,
+            0.136626,
+            0.121709,
+            0.110709,
+            0.134751,
+            0.120917,
+            0.129126,
+            0.104251,
+            0.134334,
+            0.125209,
+            0.12704200000000002,
+            0.132876,
+            0.108417,
+            0.104001,
+            0.13416799999999998,
+            0.11416799999999999,
+            0.111293,
+            0.102209,
+            0.117001,
+            0.102209,
+            0.104292,
+            0.101,
+            0.10337500000000001,
+            0.094792,
+            0.100542,
+            0.121,
+            0.104542,
+            0.10420900000000001,
+            0.131167,
+            0.117792,
+            0.10579200000000001,
+            0.104,
+            0.118959,
+            0.116543,
+            0.11254299999999999,
+            0.104625,
+            0.108459,
+            0.11012499999999999,
+            0.115834,
+            0.121334,
+            0.10437500000000001,
+            0.108834,
+            0.11450099999999999,
+            0.107751,
+            0.11758400000000001,
+            0.107667,
+            0.107125,
+            0.117376,
+            0.121793,
+            0.100793,
+            0.11729300000000001,
+            0.107959,
+            0.121959,
+            0.117375,
+            0.11529199999999999,
+            0.10629200000000001,
+            0.112501,
+            0.10900000000000001,
+            0.09816699999999999,
+            0.08762500000000001,
+            0.114667,
+            0.0995,
+            0.099126,
+            0.110751,
+            0.088542,
+            0.09979299999999999,
+            0.110126,
+            0.097918
+          ]
+        },
+        {
+          "name": "download_32_mib",
+          "unit": "MiB/s",
+          "n": 5,
+          "median": 2222.9371126228166,
+          "p95": 2283.7241832117725,
+          "min": 2156.1106297668994,
+          "max": 2283.7241832117725,
+          "samples": [
+            2248.9819842486922,
+            2203.6298604241506,
+            2222.9371126228166,
+            2283.7241832117725,
+            2156.1106297668994
+          ]
+        },
+        {
+          "name": "upload_32_mib",
+          "unit": "MiB/s",
+          "n": 5,
+          "median": 2738.2558559526815,
+          "p95": 2895.9773968964173,
+          "min": 2693.1912338308584,
+          "max": 2895.9773968964173,
+          "samples": [
+            2720.5339183841525,
+            2738.2558559526815,
+            2693.1912338308584,
+            2895.9773968964173,
+            2760.2318560256163
+          ]
+        },
+        {
+          "name": "upload_eight_channels_64_mib_total",
+          "unit": "MiB/s",
+          "n": 1,
+          "median": 2769.9482257724208,
+          "p95": 2769.9482257724208,
+          "min": 2769.9482257724208,
+          "max": 2769.9482257724208,
+          "samples": [
+            2769.9482257724208
+          ]
+        }
+      ]
+    }
+  },
+  "acceptance": {
+    "host-tests": {
+      "passed": 248,
+      "failed": 0
+    },
+    "linux-tests": {
+      "passed": 248,
+      "failed": 0
+    },
+    "host-storage-faults": {
+      "sigkill_restart_trials": [
+        {
+          "acknowledged_floor": 10,
+          "recovered": {
+            "sequence": 10,
+            "admission_paused": true,
+            "pending": 10
+          },
+          "signal": "SIGKILL",
+          "integrity_check": "ok"
+        },
+        {
+          "acknowledged_floor": 25,
+          "recovered": {
+            "sequence": 25,
+            "admission_paused": true,
+            "pending": 25
+          },
+          "signal": "SIGKILL",
+          "integrity_check": "ok"
+        },
+        {
+          "acknowledged_floor": 50,
+          "recovered": {
+            "sequence": 50,
+            "admission_paused": true,
+            "pending": 50
+          },
+          "signal": "SIGKILL",
+          "integrity_check": "ok"
+        }
+      ],
+      "signature_tamper": {
+        "rejected": true,
+        "exit_code": 1,
+        "stderr": "Error: \"inspect: Conflict\""
+      },
+      "missing_outbox": {
+        "rejected": true,
+        "exit_code": 1,
+        "stderr": "Error: \"inspect: Conflict\""
+      },
+      "restored_valid_old_backup": {
+        "sequence": 5,
+        "admission_paused": true,
+        "pending": 5
+      },
+      "independent_rollback_detection_available": false,
+      "physical_power_loss_tested": false
+    },
+    "linux-storage-faults": {
+      "sigkill_restart_trials": [
+        {
+          "acknowledged_floor": 10,
+          "recovered": {
+            "sequence": 10,
+            "admission_paused": true,
+            "pending": 10
+          },
+          "signal": "SIGKILL",
+          "integrity_check": "ok"
+        },
+        {
+          "acknowledged_floor": 25,
+          "recovered": {
+            "sequence": 25,
+            "admission_paused": true,
+            "pending": 25
+          },
+          "signal": "SIGKILL",
+          "integrity_check": "ok"
+        },
+        {
+          "acknowledged_floor": 50,
+          "recovered": {
+            "sequence": 50,
+            "admission_paused": true,
+            "pending": 50
+          },
+          "signal": "SIGKILL",
+          "integrity_check": "ok"
+        }
+      ],
+      "signature_tamper": {
+        "rejected": true,
+        "exit_code": 1,
+        "stderr": "Error: \"inspect: Conflict\""
+      },
+      "missing_outbox": {
+        "rejected": true,
+        "exit_code": 1,
+        "stderr": "Error: \"inspect: Conflict\""
+      },
+      "restored_valid_old_backup": {
+        "sequence": 5,
+        "admission_paused": true,
+        "pending": 5
+      },
+      "independent_rollback_detection_available": false,
+      "physical_power_loss_tested": false
+    },
+    "host-quorum-recovery": {
+      "status": "passed",
+      "checks": {
+        "current_signed_history": {
+          "sequence": 8,
+          "admission_paused": true,
+          "fresh_quorum_checked": true,
+          "diagnostic_only": true
+        },
+        "valid_old_local_backup": {
+          "rejected": true,
+          "reason": "LocalRollbackOrFork",
+          "exit_code": 1
+        },
+        "old_signed_response_new_nonce": {
+          "rejected": true,
+          "reason": "WrongChallenge",
+          "exit_code": 1
+        },
+        "one_witness_offline": {
+          "rejected": true,
+          "reason": "MissingOrDuplicateWitness",
+          "exit_code": 1
+        },
+        "forged_signature": {
+          "rejected": true,
+          "reason": "InvalidSignature",
+          "exit_code": 1
+        },
+        "split_witness_histories": {
+          "rejected": true,
+          "reason": "SplitWitnesses",
+          "exit_code": 1
+        },
+        "local_signed_evidence_tamper": {
+          "rejected": true,
+          "reason": "inspect: Conflict",
+          "exit_code": 1
+        },
+        "local_missing_outbox": {
+          "rejected": true,
+          "reason": "inspect: Conflict",
+          "exit_code": 1
+        },
+        "corrupt_witness_refuses_to_sign": {
+          "rejected": true,
+          "reason": "inspect: Conflict",
+          "exit_code": 1
+        },
+        "fresh_recheck_after_repair": {
+          "sequence": 8,
+          "admission_paused": true,
+          "fresh_quorum_checked": true,
+          "diagnostic_only": true
+        }
+      },
+      "commands": [
+        {
+          "argv": [
+            "/Volumes/Data/Code/Loom/target/release/examples/l001_storage_lab",
+            "fill",
+            "/Volumes/Data/Code/Loom/target/l001-local-docker/20261019T160015Z/quorum/peer.sqlite",
+            "5"
+          ],
+          "exit_code": 0
+        },
+        {
+          "argv": [
+            "/Volumes/Data/Code/Loom/target/release/examples/l001_storage_lab",
+            "witness-read",
+            "/Volumes/Data/Code/Loom/target/l001-local-docker/20261019T160015Z/quorum/witness-1.sqlite",
+            "21",
+            "cf1299a95a86b4cc74b82a0997511ea44464d3215f1a63c78a75e82f8cd90a22"
+          ],
+          "exit_code": 0
+        },
+        {
+          "argv": [
+            "/Volumes/Data/Code/Loom/target/release/examples/l001_storage_lab",
+            "witness-read",
+            "/Volumes/Data/Code/Loom/target/l001-local-docker/20261019T160015Z/quorum/witness-2.sqlite",
+            "22",
+            "cf1299a95a86b4cc74b82a0997511ea44464d3215f1a63c78a75e82f8cd90a22"
+          ],
+          "exit_code": 0
+        },
+        {
+          "argv": [
+            "/Volumes/Data/Code/Loom/target/release/examples/l001_storage_lab",
+            "fill",
+            "/Volumes/Data/Code/Loom/target/l001-local-docker/20261019T160015Z/quorum/peer.sqlite",
+            "3"
+          ],
+          "exit_code": 0
+        },
+        {
+          "argv": [
+            "/Volumes/Data/Code/Loom/target/release/examples/l001_storage_lab",
+            "fill",
+            "/Volumes/Data/Code/Loom/target/l001-local-docker/20261019T160015Z/quorum/witness-1.sqlite",
+            "3"
+          ],
+          "exit_code": 0
+        },
+        {
+          "argv": [
+            "/Volumes/Data/Code/Loom/target/release/examples/l001_storage_lab",
+            "fill",
+            "/Volumes/Data/Code/Loom/target/l001-local-docker/20261019T160015Z/quorum/witness-2.sqlite",
+            "3"
+          ],
+          "exit_code": 0
+        },
+        {
+          "argv": [
+            "/Volumes/Data/Code/Loom/target/release/examples/l001_storage_lab",
+            "witness-read",
+            "/Volumes/Data/Code/Loom/target/l001-local-docker/20261019T160015Z/quorum/witness-1.sqlite",
+            "21",
+            "b6316770c8c811f5125331dbf357a77697d4237c9b0bde4257767ac3df2f5985"
+          ],
+          "exit_code": 0
+        },
+        {
+          "argv": [
+            "/Volumes/Data/Code/Loom/target/release/examples/l001_storage_lab",
+            "witness-read",
+            "/Volumes/Data/Code/Loom/target/l001-local-docker/20261019T160015Z/quorum/witness-2.sqlite",
+            "22",
+            "b6316770c8c811f5125331dbf357a77697d4237c9b0bde4257767ac3df2f5985"
+          ],
+          "exit_code": 0
+        },
+        {
+          "argv": [
+            "/Volumes/Data/Code/Loom/target/release/examples/l001_storage_lab",
+            "recover",
+            "/Volumes/Data/Code/Loom/target/l001-local-docker/20261019T160015Z/quorum/peer.sqlite",
+            "b6316770c8c811f5125331dbf357a77697d4237c9b0bde4257767ac3df2f5985",
+            "0b8851fea263aa1cd685a908167b0d93e7efecaf2d81537577203c8613ad1133b6316770c8c811f5125331dbf357a77697d4237c9b0bde4257767ac3df2f598500000000000000080000000000000008fc3101ed2a259bb533313b4aae0a25c241f49e2caeba5dc4a9ec587ff227fe087d8ca0c00c1290e83870d6118b2c7868561b24c05c76a1045ead75002c4a61033aedb65d6a5b3d773fe1049b684e36fe3727f45b8af3d9e8e7af5e7da061913116cfdfe4f6a6db3d5dd8166a42dfcf8e2859a4ce3e319d5eb62cea49f272ad03",
+            "edd6d631a5833fb3a90153e8f286eeb2a4c86b09571583ade138e845b48214ebb6316770c8c811f5125331dbf357a77697d4237c9b0bde4257767ac3df2f598500000000000000080000000000000008fc3101ed2a259bb533313b4aae0a25c241f49e2caeba5dc4a9ec587ff227fe087d8ca0c00c1290e83870d6118b2c7868561b24c05c76a1045ead75002c4a61038a16dac7ddfe6c02e6eb404919ac894d3175665b0aff612aa9b1f58639b88b2357fbbc3a4fe77c26efe4156a3122ac2963ba125f4aa62f54762497dcf9cfd403"
+          ],
+          "exit_code": 0
+        },
+        {
+          "argv": [
+            "/Volumes/Data/Code/Loom/target/release/examples/l001_storage_lab",
+            "inspect",
+            "/Volumes/Data/Code/Loom/target/l001-local-docker/20261019T160015Z/quorum/peer.sqlite"
+          ],
+          "exit_code": 0
+        },
+        {
+          "argv": [
+            "/Volumes/Data/Code/Loom/target/release/examples/l001_storage_lab",
+            "witness-read",
+            "/Volumes/Data/Code/Loom/target/l001-local-docker/20261019T160015Z/quorum/witness-1.sqlite",
+            "21",
+            "780a536e489cb3b9d6ab0773a322a4ca92bf2056b2c5c716f7ecda4730b15091"
+          ],
+          "exit_code": 0
+        },
+        {
+          "argv": [
+            "/Volumes/Data/Code/Loom/target/release/examples/l001_storage_lab",
+            "witness-read",
+            "/Volumes/Data/Code/Loom/target/l001-local-docker/20261019T160015Z/quorum/witness-2.sqlite",
+            "22",
+            "780a536e489cb3b9d6ab0773a322a4ca92bf2056b2c5c716f7ecda4730b15091"
+          ],
+          "exit_code": 0
+        },
+        {
+          "argv": [
+            "/Volumes/Data/Code/Loom/target/release/examples/l001_storage_lab",
+            "recover",
+            "/Volumes/Data/Code/Loom/target/l001-local-docker/20261019T160015Z/quorum/peer.sqlite",
+            "780a536e489cb3b9d6ab0773a322a4ca92bf2056b2c5c716f7ecda4730b15091",
+            "0b8851fea263aa1cd685a908167b0d93e7efecaf2d81537577203c8613ad1133780a536e489cb3b9d6ab0773a322a4ca92bf2056b2c5c716f7ecda4730b1509100000000000000080000000000000008fc3101ed2a259bb533313b4aae0a25c241f49e2caeba5dc4a9ec587ff227fe087d8ca0c00c1290e83870d6118b2c7868561b24c05c76a1045ead75002c4a6103b121c6cdbf07a8a2bc64e54e2aa29a1319a8b021137e7bb333d29738d241f85dfac5f2b7856d278296be279241741d1696fc4cc7d18ca37a68f217ae8d9e4105",
+            "edd6d631a5833fb3a90153e8f286eeb2a4c86b09571583ade138e845b48214eb780a536e489cb3b9d6ab0773a322a4ca92bf2056b2c5c716f7ecda4730b1509100000000000000080000000000000008fc3101ed2a259bb533313b4aae0a25c241f49e2caeba5dc4a9ec587ff227fe087d8ca0c00c1290e83870d6118b2c7868561b24c05c76a1045ead75002c4a6103eea2cf445fc25661955c0523c945f0ffe14a1e74b521b0ec91abd28f98ecbb8ea09e4907ee836a57c22370037795e52c2de989ea3990c90c2c6f1b169129560c"
+          ],
+          "exit_code": 1
+        },
+        {
+          "argv": [
+            "/Volumes/Data/Code/Loom/target/release/examples/l001_storage_lab",
+            "recover",
+            "/Volumes/Data/Code/Loom/target/l001-local-docker/20261019T160015Z/quorum/peer.sqlite",
+            "780a536e489cb3b9d6ab0773a322a4ca92bf2056b2c5c716f7ecda4730b15091",
+            "0b8851fea263aa1cd685a908167b0d93e7efecaf2d81537577203c8613ad1133cf1299a95a86b4cc74b82a0997511ea44464d3215f1a63c78a75e82f8cd90a220000000000000005000000000000000571dc3774a17ed2292fc045e7b68105ff9334dc73a18aae1e4e397bf905bb7ff130ebe575a49c83ed742bc5a0d910bdbb8d2273d4345d1e1b498150ebebdbfdb04b01e69a2bcb6cc47bb65b1bd331d8bbae0025979718645fa80e4304d9d4524301dd03511366ded36cfb47da0a125b0638176f6dea9e1040359e8917bd1cf40e",
+            "edd6d631a5833fb3a90153e8f286eeb2a4c86b09571583ade138e845b48214ebcf1299a95a86b4cc74b82a0997511ea44464d3215f1a63c78a75e82f8cd90a220000000000000005000000000000000571dc3774a17ed2292fc045e7b68105ff9334dc73a18aae1e4e397bf905bb7ff130ebe575a49c83ed742bc5a0d910bdbb8d2273d4345d1e1b498150ebebdbfdb0900339fcb83f8a773ecc13df6a7cbd7b4daf8e5843c615b718b1d6ce5a0fe292affd987b414c875ce4713b56e47576cd1d97fb1802a6ccd9addce4b72019ac0a"
+          ],
+          "exit_code": 1
+        },
+        {
+          "argv": [
+            "/Volumes/Data/Code/Loom/target/release/examples/l001_storage_lab",
+            "recover",
+            "/Volumes/Data/Code/Loom/target/l001-local-docker/20261019T160015Z/quorum/peer.sqlite",
+            "780a536e489cb3b9d6ab0773a322a4ca92bf2056b2c5c716f7ecda4730b15091",
+            "0b8851fea263aa1cd685a908167b0d93e7efecaf2d81537577203c8613ad1133780a536e489cb3b9d6ab0773a322a4ca92bf2056b2c5c716f7ecda4730b1509100000000000000080000000000000008fc3101ed2a259bb533313b4aae0a25c241f49e2caeba5dc4a9ec587ff227fe087d8ca0c00c1290e83870d6118b2c7868561b24c05c76a1045ead75002c4a6103b121c6cdbf07a8a2bc64e54e2aa29a1319a8b021137e7bb333d29738d241f85dfac5f2b7856d278296be279241741d1696fc4cc7d18ca37a68f217ae8d9e4105"
+          ],
+          "exit_code": 1
+        },
+        {
+          "argv": [
+            "/Volumes/Data/Code/Loom/target/release/examples/l001_storage_lab",
+            "recover",
+            "/Volumes/Data/Code/Loom/target/l001-local-docker/20261019T160015Z/quorum/peer.sqlite",
+            "780a536e489cb3b9d6ab0773a322a4ca92bf2056b2c5c716f7ecda4730b15091",
+            "0b8851fea263aa1cd685a908167b0d93e7efecaf2d81537577203c8613ad1133780a536e489cb3b9d6ab0773a322a4ca92bf2056b2c5c716f7ecda4730b1509100000000000000080000000000000008fc3101ed2a259bb533313b4aae0a25c241f49e2caeba5dc4a9ec587ff227fe087d8ca0c00c1290e83870d6118b2c7868561b24c05c76a1045ead75002c4a6103b121c6cdbf07a8a2bc64e54e2aa29a1319a8b021137e7bb333d29738d241f85dfac5f2b7856d278296be279241741d1696fc4cc7d18ca37a68f217ae8d9e4104",
+            "edd6d631a5833fb3a90153e8f286eeb2a4c86b09571583ade138e845b48214eb780a536e489cb3b9d6ab0773a322a4ca92bf2056b2c5c716f7ecda4730b1509100000000000000080000000000000008fc3101ed2a259bb533313b4aae0a25c241f49e2caeba5dc4a9ec587ff227fe087d8ca0c00c1290e83870d6118b2c7868561b24c05c76a1045ead75002c4a6103eea2cf445fc25661955c0523c945f0ffe14a1e74b521b0ec91abd28f98ecbb8ea09e4907ee836a57c22370037795e52c2de989ea3990c90c2c6f1b169129560c"
+          ],
+          "exit_code": 1
+        },
+        {
+          "argv": [
+            "/Volumes/Data/Code/Loom/target/release/examples/l001_storage_lab",
+            "witness-read",
+            "/Volumes/Data/Code/Loom/target/l001-local-docker/20261019T160015Z/quorum/witness-1.sqlite",
+            "21",
+            "cc891b9f3da5725cf3cc59de209323ed89fa238050025cb75680d651f672241e"
+          ],
+          "exit_code": 0
+        },
+        {
+          "argv": [
+            "/Volumes/Data/Code/Loom/target/release/examples/l001_storage_lab",
+            "witness-read",
+            "/Volumes/Data/Code/Loom/target/l001-local-docker/20261019T160015Z/quorum/witness-2.sqlite",
+            "22",
+            "cc891b9f3da5725cf3cc59de209323ed89fa238050025cb75680d651f672241e"
+          ],
+          "exit_code": 0
+        },
+        {
+          "argv": [
+            "/Volumes/Data/Code/Loom/target/release/examples/l001_storage_lab",
+            "recover",
+            "/Volumes/Data/Code/Loom/target/l001-local-docker/20261019T160015Z/quorum/peer.sqlite",
+            "cc891b9f3da5725cf3cc59de209323ed89fa238050025cb75680d651f672241e",
+            "0b8851fea263aa1cd685a908167b0d93e7efecaf2d81537577203c8613ad1133cc891b9f3da5725cf3cc59de209323ed89fa238050025cb75680d651f672241e00000000000000080000000000000008fc3101ed2a259bb533313b4aae0a25c241f49e2caeba5dc4a9ec587ff227fe087d8ca0c00c1290e83870d6118b2c7868561b24c05c76a1045ead75002c4a6103517bc9aa9986e5eaa1fea52f25185bfb93bd80a7dafe43e57acee6da13d02f26e50e9b4a61ccce4b99635aa9d1a840a1191ad0fcccaa24b638d5888bc0aa540e",
+            "edd6d631a5833fb3a90153e8f286eeb2a4c86b09571583ade138e845b48214ebcc891b9f3da5725cf3cc59de209323ed89fa238050025cb75680d651f672241e0000000000000005000000000000000571dc3774a17ed2292fc045e7b68105ff9334dc73a18aae1e4e397bf905bb7ff130ebe575a49c83ed742bc5a0d910bdbb8d2273d4345d1e1b498150ebebdbfdb054b34b7b0734bfff9f2e2734b0a3225d4e7513e140c5f4120ce5b0c20a0e90c1d342522deca9adc0ba761175e7a68a9984137d37170dbb4042dd43d02bced70b"
+          ],
+          "exit_code": 1
+        },
+        {
+          "argv": [
+            "/Volumes/Data/Code/Loom/target/release/examples/l001_storage_lab",
+            "recover",
+            "/Volumes/Data/Code/Loom/target/l001-local-docker/20261019T160015Z/quorum/peer.sqlite",
+            "cc891b9f3da5725cf3cc59de209323ed89fa238050025cb75680d651f672241e",
+            "0b8851fea263aa1cd685a908167b0d93e7efecaf2d81537577203c8613ad1133780a536e489cb3b9d6ab0773a322a4ca92bf2056b2c5c716f7ecda4730b1509100000000000000080000000000000008fc3101ed2a259bb533313b4aae0a25c241f49e2caeba5dc4a9ec587ff227fe087d8ca0c00c1290e83870d6118b2c7868561b24c05c76a1045ead75002c4a6103b121c6cdbf07a8a2bc64e54e2aa29a1319a8b021137e7bb333d29738d241f85dfac5f2b7856d278296be279241741d1696fc4cc7d18ca37a68f217ae8d9e4105",
+            "edd6d631a5833fb3a90153e8f286eeb2a4c86b09571583ade138e845b48214eb780a536e489cb3b9d6ab0773a322a4ca92bf2056b2c5c716f7ecda4730b1509100000000000000080000000000000008fc3101ed2a259bb533313b4aae0a25c241f49e2caeba5dc4a9ec587ff227fe087d8ca0c00c1290e83870d6118b2c7868561b24c05c76a1045ead75002c4a6103eea2cf445fc25661955c0523c945f0ffe14a1e74b521b0ec91abd28f98ecbb8ea09e4907ee836a57c22370037795e52c2de989ea3990c90c2c6f1b169129560c"
+          ],
+          "exit_code": 1
+        },
+        {
+          "argv": [
+            "/Volumes/Data/Code/Loom/target/release/examples/l001_storage_lab",
+            "recover",
+            "/Volumes/Data/Code/Loom/target/l001-local-docker/20261019T160015Z/quorum/peer.sqlite",
+            "cc891b9f3da5725cf3cc59de209323ed89fa238050025cb75680d651f672241e",
+            "0b8851fea263aa1cd685a908167b0d93e7efecaf2d81537577203c8613ad1133780a536e489cb3b9d6ab0773a322a4ca92bf2056b2c5c716f7ecda4730b1509100000000000000080000000000000008fc3101ed2a259bb533313b4aae0a25c241f49e2caeba5dc4a9ec587ff227fe087d8ca0c00c1290e83870d6118b2c7868561b24c05c76a1045ead75002c4a6103b121c6cdbf07a8a2bc64e54e2aa29a1319a8b021137e7bb333d29738d241f85dfac5f2b7856d278296be279241741d1696fc4cc7d18ca37a68f217ae8d9e4105",
+            "edd6d631a5833fb3a90153e8f286eeb2a4c86b09571583ade138e845b48214eb780a536e489cb3b9d6ab0773a322a4ca92bf2056b2c5c716f7ecda4730b1509100000000000000080000000000000008fc3101ed2a259bb533313b4aae0a25c241f49e2caeba5dc4a9ec587ff227fe087d8ca0c00c1290e83870d6118b2c7868561b24c05c76a1045ead75002c4a6103eea2cf445fc25661955c0523c945f0ffe14a1e74b521b0ec91abd28f98ecbb8ea09e4907ee836a57c22370037795e52c2de989ea3990c90c2c6f1b169129560c"
+          ],
+          "exit_code": 1
+        },
+        {
+          "argv": [
+            "/Volumes/Data/Code/Loom/target/release/examples/l001_storage_lab",
+            "witness-read",
+            "/Volumes/Data/Code/Loom/target/l001-local-docker/20261019T160015Z/quorum/witness-1.sqlite",
+            "21",
+            "79bd2d43dc8ab507fb62691b6968724236a48328e9b8a24afec69e5325f32aae"
+          ],
+          "exit_code": 1
+        },
+        {
+          "argv": [
+            "/Volumes/Data/Code/Loom/target/release/examples/l001_storage_lab",
+            "witness-read",
+            "/Volumes/Data/Code/Loom/target/l001-local-docker/20261019T160015Z/quorum/witness-1.sqlite",
+            "21",
+            "78405426b8fc83002aa5dd9279e7d962de57155979e33f636f28ae6c8581b98d"
+          ],
+          "exit_code": 0
+        },
+        {
+          "argv": [
+            "/Volumes/Data/Code/Loom/target/release/examples/l001_storage_lab",
+            "witness-read",
+            "/Volumes/Data/Code/Loom/target/l001-local-docker/20261019T160015Z/quorum/witness-2.sqlite",
+            "22",
+            "78405426b8fc83002aa5dd9279e7d962de57155979e33f636f28ae6c8581b98d"
+          ],
+          "exit_code": 0
+        },
+        {
+          "argv": [
+            "/Volumes/Data/Code/Loom/target/release/examples/l001_storage_lab",
+            "recover",
+            "/Volumes/Data/Code/Loom/target/l001-local-docker/20261019T160015Z/quorum/peer.sqlite",
+            "78405426b8fc83002aa5dd9279e7d962de57155979e33f636f28ae6c8581b98d",
+            "0b8851fea263aa1cd685a908167b0d93e7efecaf2d81537577203c8613ad113378405426b8fc83002aa5dd9279e7d962de57155979e33f636f28ae6c8581b98d00000000000000080000000000000008fc3101ed2a259bb533313b4aae0a25c241f49e2caeba5dc4a9ec587ff227fe087d8ca0c00c1290e83870d6118b2c7868561b24c05c76a1045ead75002c4a6103fbb3b18aab7252ed264ada78b2ca31ef9f99a88c51aba6de9b942211f5f49e3147dd899f06178dc6c580d0435fcd50ff75eb1f00993d3662a352cefbd8979704",
+            "edd6d631a5833fb3a90153e8f286eeb2a4c86b09571583ade138e845b48214eb78405426b8fc83002aa5dd9279e7d962de57155979e33f636f28ae6c8581b98d00000000000000080000000000000008fc3101ed2a259bb533313b4aae0a25c241f49e2caeba5dc4a9ec587ff227fe087d8ca0c00c1290e83870d6118b2c7868561b24c05c76a1045ead75002c4a61035bc2d32fbdad34c0b478af64581f3ac6e7364fba11cfa17624195505372c3f5a1632fe0510108eeb59f0735400ad9c964daf3f553d7555e24ca8cfa3fd264f05"
+          ],
+          "exit_code": 0
+        },
+        {
+          "argv": [
+            "/Volumes/Data/Code/Loom/target/release/examples/l001_storage_lab",
+            "witness-read",
+            "/Volumes/Data/Code/Loom/target/l001-local-docker/20261019T160015Z/quorum/witness-1.sqlite",
+            "21",
+            "28546da0b76e8f45ad13670be85fa65d10cd5ff11162f9759c63731a9aec8382"
+          ],
+          "exit_code": 0
+        },
+        {
+          "argv": [
+            "/Volumes/Data/Code/Loom/target/release/examples/l001_storage_lab",
+            "witness-read",
+            "/Volumes/Data/Code/Loom/target/l001-local-docker/20261019T160015Z/quorum/witness-2.sqlite",
+            "22",
+            "28546da0b76e8f45ad13670be85fa65d10cd5ff11162f9759c63731a9aec8382"
+          ],
+          "exit_code": 0
+        },
+        {
+          "argv": [
+            "/Volumes/Data/Code/Loom/target/release/examples/l001_storage_lab",
+            "recover",
+            "/Volumes/Data/Code/Loom/target/l001-local-docker/20261019T160015Z/quorum/peer.sqlite",
+            "28546da0b76e8f45ad13670be85fa65d10cd5ff11162f9759c63731a9aec8382",
+            "0b8851fea263aa1cd685a908167b0d93e7efecaf2d81537577203c8613ad113328546da0b76e8f45ad13670be85fa65d10cd5ff11162f9759c63731a9aec83820000000000000005000000000000000571dc3774a17ed2292fc045e7b68105ff9334dc73a18aae1e4e397bf905bb7ff130ebe575a49c83ed742bc5a0d910bdbb8d2273d4345d1e1b498150ebebdbfdb09ebdc771975008b1b0a5fc5fd6a716cc72aa46597cdbaadcc2103dec2b8a3251c5908d80ebc316d2add93350e66cc7fffe3a5a6e827529aaf13161655bf95f01",
+            "edd6d631a5833fb3a90153e8f286eeb2a4c86b09571583ade138e845b48214eb28546da0b76e8f45ad13670be85fa65d10cd5ff11162f9759c63731a9aec83820000000000000005000000000000000571dc3774a17ed2292fc045e7b68105ff9334dc73a18aae1e4e397bf905bb7ff130ebe575a49c83ed742bc5a0d910bdbb8d2273d4345d1e1b498150ebebdbfdb01066a7b9e90061dda04e00366bc7b60b96501d9ca59229c7dd94fd551038a03f5e4eff6f4640340283f4eca4969afbfff4bbaf7557380490b5566fc973a14804"
+          ],
+          "exit_code": 0
+        }
+      ],
+      "all_same_host_stores_rollback_counterexample": {
+        "sequence": 5,
+        "admission_paused": true,
+        "fresh_quorum_checked": true,
+        "diagnostic_only": true
+      },
+      "independent_storage_certified": false,
+      "production_admission_enabled": false,
+      "fixture_keys_only": true
+    },
+    "linux-quorum-recovery": {
+      "status": "passed",
+      "checks": {
+        "current_signed_history": {
+          "sequence": 8,
+          "admission_paused": true,
+          "fresh_quorum_checked": true,
+          "diagnostic_only": true
+        },
+        "valid_old_local_backup": {
+          "rejected": true,
+          "reason": "LocalRollbackOrFork",
+          "exit_code": 1
+        },
+        "old_signed_response_new_nonce": {
+          "rejected": true,
+          "reason": "WrongChallenge",
+          "exit_code": 1
+        },
+        "one_witness_offline": {
+          "rejected": true,
+          "reason": "MissingOrDuplicateWitness",
+          "exit_code": 1
+        },
+        "forged_signature": {
+          "rejected": true,
+          "reason": "InvalidSignature",
+          "exit_code": 1
+        },
+        "split_witness_histories": {
+          "rejected": true,
+          "reason": "SplitWitnesses",
+          "exit_code": 1
+        },
+        "local_signed_evidence_tamper": {
+          "rejected": true,
+          "reason": "inspect: Conflict",
+          "exit_code": 1
+        },
+        "local_missing_outbox": {
+          "rejected": true,
+          "reason": "inspect: Conflict",
+          "exit_code": 1
+        },
+        "corrupt_witness_refuses_to_sign": {
+          "rejected": true,
+          "reason": "inspect: Conflict",
+          "exit_code": 1
+        },
+        "fresh_recheck_after_repair": {
+          "sequence": 8,
+          "admission_paused": true,
+          "fresh_quorum_checked": true,
+          "diagnostic_only": true
+        }
+      },
+      "commands": [
+        {
+          "argv": [
+            "/build/release/examples/l001_storage_lab",
+            "fill",
+            "/build/l001-lab/20261019T160015Z/quorum/peer.sqlite",
+            "5"
+          ],
+          "exit_code": 0
+        },
+        {
+          "argv": [
+            "/build/release/examples/l001_storage_lab",
+            "witness-read",
+            "/build/l001-lab/20261019T160015Z/quorum/witness-1.sqlite",
+            "21",
+            "0287cd48bf8bec7aab448e323e2d2ca6cc9c427c6b9efd04f0553bd3e71ac084"
+          ],
+          "exit_code": 0
+        },
+        {
+          "argv": [
+            "/build/release/examples/l001_storage_lab",
+            "witness-read",
+            "/build/l001-lab/20261019T160015Z/quorum/witness-2.sqlite",
+            "22",
+            "0287cd48bf8bec7aab448e323e2d2ca6cc9c427c6b9efd04f0553bd3e71ac084"
+          ],
+          "exit_code": 0
+        },
+        {
+          "argv": [
+            "/build/release/examples/l001_storage_lab",
+            "fill",
+            "/build/l001-lab/20261019T160015Z/quorum/peer.sqlite",
+            "3"
+          ],
+          "exit_code": 0
+        },
+        {
+          "argv": [
+            "/build/release/examples/l001_storage_lab",
+            "fill",
+            "/build/l001-lab/20261019T160015Z/quorum/witness-1.sqlite",
+            "3"
+          ],
+          "exit_code": 0
+        },
+        {
+          "argv": [
+            "/build/release/examples/l001_storage_lab",
+            "fill",
+            "/build/l001-lab/20261019T160015Z/quorum/witness-2.sqlite",
+            "3"
+          ],
+          "exit_code": 0
+        },
+        {
+          "argv": [
+            "/build/release/examples/l001_storage_lab",
+            "witness-read",
+            "/build/l001-lab/20261019T160015Z/quorum/witness-1.sqlite",
+            "21",
+            "0e902ab853c54a6f1c6bb49264983755cecfc97065f42cadf9e4ee0d93d73f25"
+          ],
+          "exit_code": 0
+        },
+        {
+          "argv": [
+            "/build/release/examples/l001_storage_lab",
+            "witness-read",
+            "/build/l001-lab/20261019T160015Z/quorum/witness-2.sqlite",
+            "22",
+            "0e902ab853c54a6f1c6bb49264983755cecfc97065f42cadf9e4ee0d93d73f25"
+          ],
+          "exit_code": 0
+        },
+        {
+          "argv": [
+            "/build/release/examples/l001_storage_lab",
+            "recover",
+            "/build/l001-lab/20261019T160015Z/quorum/peer.sqlite",
+            "0e902ab853c54a6f1c6bb49264983755cecfc97065f42cadf9e4ee0d93d73f25",
+            "0b8851fea263aa1cd685a908167b0d93e7efecaf2d81537577203c8613ad11330e902ab853c54a6f1c6bb49264983755cecfc97065f42cadf9e4ee0d93d73f2500000000000000080000000000000008fc3101ed2a259bb533313b4aae0a25c241f49e2caeba5dc4a9ec587ff227fe087d8ca0c00c1290e83870d6118b2c7868561b24c05c76a1045ead75002c4a6103f9f6f01e6c6703eb46eb4c0888a92a93390391ee183c4ea2eb94adb0886ee8993440f0ac5c50ac8693fdf4c9988e19a52860a9e14d5c842b377d2026e9e1ee04",
+            "edd6d631a5833fb3a90153e8f286eeb2a4c86b09571583ade138e845b48214eb0e902ab853c54a6f1c6bb49264983755cecfc97065f42cadf9e4ee0d93d73f2500000000000000080000000000000008fc3101ed2a259bb533313b4aae0a25c241f49e2caeba5dc4a9ec587ff227fe087d8ca0c00c1290e83870d6118b2c7868561b24c05c76a1045ead75002c4a61038335e32a2dcf17c93fda186dffb82078c128482d1b6bbd4c6141036fed6aaab84144d6abe5dadc9aadc013eb0e0a9eef29eb0d28d9ed9c058f74a33e9e983b08"
+          ],
+          "exit_code": 0
+        },
+        {
+          "argv": [
+            "/build/release/examples/l001_storage_lab",
+            "inspect",
+            "/build/l001-lab/20261019T160015Z/quorum/peer.sqlite"
+          ],
+          "exit_code": 0
+        },
+        {
+          "argv": [
+            "/build/release/examples/l001_storage_lab",
+            "witness-read",
+            "/build/l001-lab/20261019T160015Z/quorum/witness-1.sqlite",
+            "21",
+            "b4d692577811b4f00da842488514a1a35aad3a46c5bf55c28ba2da2921fa865b"
+          ],
+          "exit_code": 0
+        },
+        {
+          "argv": [
+            "/build/release/examples/l001_storage_lab",
+            "witness-read",
+            "/build/l001-lab/20261019T160015Z/quorum/witness-2.sqlite",
+            "22",
+            "b4d692577811b4f00da842488514a1a35aad3a46c5bf55c28ba2da2921fa865b"
+          ],
+          "exit_code": 0
+        },
+        {
+          "argv": [
+            "/build/release/examples/l001_storage_lab",
+            "recover",
+            "/build/l001-lab/20261019T160015Z/quorum/peer.sqlite",
+            "b4d692577811b4f00da842488514a1a35aad3a46c5bf55c28ba2da2921fa865b",
+            "0b8851fea263aa1cd685a908167b0d93e7efecaf2d81537577203c8613ad1133b4d692577811b4f00da842488514a1a35aad3a46c5bf55c28ba2da2921fa865b00000000000000080000000000000008fc3101ed2a259bb533313b4aae0a25c241f49e2caeba5dc4a9ec587ff227fe087d8ca0c00c1290e83870d6118b2c7868561b24c05c76a1045ead75002c4a6103deabfc930eecdda38e89f70d4cbdc49ef94aef4ab9f218a4db0b46dc87bd2f073be9ae6fb40d6fcdd6c2dd2f3fcfe9162dbf6eb98042ecbd0f07ae0c553cab0c",
+            "edd6d631a5833fb3a90153e8f286eeb2a4c86b09571583ade138e845b48214ebb4d692577811b4f00da842488514a1a35aad3a46c5bf55c28ba2da2921fa865b00000000000000080000000000000008fc3101ed2a259bb533313b4aae0a25c241f49e2caeba5dc4a9ec587ff227fe087d8ca0c00c1290e83870d6118b2c7868561b24c05c76a1045ead75002c4a6103831d347ae421214d59491cfdc98d46a5aaa4e4b14dce6cef2aa96aa6dc4e2c7ea2458408981cc4d570fd6681b6525b9aa629a92b6bcf2cbb8249567049c3e50d"
+          ],
+          "exit_code": 1
+        },
+        {
+          "argv": [
+            "/build/release/examples/l001_storage_lab",
+            "recover",
+            "/build/l001-lab/20261019T160015Z/quorum/peer.sqlite",
+            "b4d692577811b4f00da842488514a1a35aad3a46c5bf55c28ba2da2921fa865b",
+            "0b8851fea263aa1cd685a908167b0d93e7efecaf2d81537577203c8613ad11330287cd48bf8bec7aab448e323e2d2ca6cc9c427c6b9efd04f0553bd3e71ac0840000000000000005000000000000000571dc3774a17ed2292fc045e7b68105ff9334dc73a18aae1e4e397bf905bb7ff130ebe575a49c83ed742bc5a0d910bdbb8d2273d4345d1e1b498150ebebdbfdb0cb699a656ae377f4fb8699a4c7cb6f95db1bdf7a36de58e1bc8aeb27bc9d8a8f80e9bb2f9b00c41c8815e869e93a3708d057417d0331c6a7d9404ec78cb0dd00",
+            "edd6d631a5833fb3a90153e8f286eeb2a4c86b09571583ade138e845b48214eb0287cd48bf8bec7aab448e323e2d2ca6cc9c427c6b9efd04f0553bd3e71ac0840000000000000005000000000000000571dc3774a17ed2292fc045e7b68105ff9334dc73a18aae1e4e397bf905bb7ff130ebe575a49c83ed742bc5a0d910bdbb8d2273d4345d1e1b498150ebebdbfdb02473149094ee0d88a4c04d9bf87647cc936f992872cabf6018045d1c17b57e578e42819109e526dd921ebeafd56c7b012643e458ce7d8f43773560b9f532410f"
+          ],
+          "exit_code": 1
+        },
+        {
+          "argv": [
+            "/build/release/examples/l001_storage_lab",
+            "recover",
+            "/build/l001-lab/20261019T160015Z/quorum/peer.sqlite",
+            "b4d692577811b4f00da842488514a1a35aad3a46c5bf55c28ba2da2921fa865b",
+            "0b8851fea263aa1cd685a908167b0d93e7efecaf2d81537577203c8613ad1133b4d692577811b4f00da842488514a1a35aad3a46c5bf55c28ba2da2921fa865b00000000000000080000000000000008fc3101ed2a259bb533313b4aae0a25c241f49e2caeba5dc4a9ec587ff227fe087d8ca0c00c1290e83870d6118b2c7868561b24c05c76a1045ead75002c4a6103deabfc930eecdda38e89f70d4cbdc49ef94aef4ab9f218a4db0b46dc87bd2f073be9ae6fb40d6fcdd6c2dd2f3fcfe9162dbf6eb98042ecbd0f07ae0c553cab0c"
+          ],
+          "exit_code": 1
+        },
+        {
+          "argv": [
+            "/build/release/examples/l001_storage_lab",
+            "recover",
+            "/build/l001-lab/20261019T160015Z/quorum/peer.sqlite",
+            "b4d692577811b4f00da842488514a1a35aad3a46c5bf55c28ba2da2921fa865b",
+            "0b8851fea263aa1cd685a908167b0d93e7efecaf2d81537577203c8613ad1133b4d692577811b4f00da842488514a1a35aad3a46c5bf55c28ba2da2921fa865b00000000000000080000000000000008fc3101ed2a259bb533313b4aae0a25c241f49e2caeba5dc4a9ec587ff227fe087d8ca0c00c1290e83870d6118b2c7868561b24c05c76a1045ead75002c4a6103deabfc930eecdda38e89f70d4cbdc49ef94aef4ab9f218a4db0b46dc87bd2f073be9ae6fb40d6fcdd6c2dd2f3fcfe9162dbf6eb98042ecbd0f07ae0c553cab0d",
+            "edd6d631a5833fb3a90153e8f286eeb2a4c86b09571583ade138e845b48214ebb4d692577811b4f00da842488514a1a35aad3a46c5bf55c28ba2da2921fa865b00000000000000080000000000000008fc3101ed2a259bb533313b4aae0a25c241f49e2caeba5dc4a9ec587ff227fe087d8ca0c00c1290e83870d6118b2c7868561b24c05c76a1045ead75002c4a6103831d347ae421214d59491cfdc98d46a5aaa4e4b14dce6cef2aa96aa6dc4e2c7ea2458408981cc4d570fd6681b6525b9aa629a92b6bcf2cbb8249567049c3e50d"
+          ],
+          "exit_code": 1
+        },
+        {
+          "argv": [
+            "/build/release/examples/l001_storage_lab",
+            "witness-read",
+            "/build/l001-lab/20261019T160015Z/quorum/witness-1.sqlite",
+            "21",
+            "86458f882d82780af99158087b0af8bb6fee6be1b0170ae2f19392e569d972f4"
+          ],
+          "exit_code": 0
+        },
+        {
+          "argv": [
+            "/build/release/examples/l001_storage_lab",
+            "witness-read",
+            "/build/l001-lab/20261019T160015Z/quorum/witness-2.sqlite",
+            "22",
+            "86458f882d82780af99158087b0af8bb6fee6be1b0170ae2f19392e569d972f4"
+          ],
+          "exit_code": 0
+        },
+        {
+          "argv": [
+            "/build/release/examples/l001_storage_lab",
+            "recover",
+            "/build/l001-lab/20261019T160015Z/quorum/peer.sqlite",
+            "86458f882d82780af99158087b0af8bb6fee6be1b0170ae2f19392e569d972f4",
+            "0b8851fea263aa1cd685a908167b0d93e7efecaf2d81537577203c8613ad113386458f882d82780af99158087b0af8bb6fee6be1b0170ae2f19392e569d972f400000000000000080000000000000008fc3101ed2a259bb533313b4aae0a25c241f49e2caeba5dc4a9ec587ff227fe087d8ca0c00c1290e83870d6118b2c7868561b24c05c76a1045ead75002c4a610350c4137b30afc5292a438b48c685bc04ed5ec7203da2bb2c3008d5506b712e25e3bf34cb1b7bdbdf31ec9bfc2e4329d008028b832fa411edc78e9be4c1035101",
+            "edd6d631a5833fb3a90153e8f286eeb2a4c86b09571583ade138e845b48214eb86458f882d82780af99158087b0af8bb6fee6be1b0170ae2f19392e569d972f40000000000000005000000000000000571dc3774a17ed2292fc045e7b68105ff9334dc73a18aae1e4e397bf905bb7ff130ebe575a49c83ed742bc5a0d910bdbb8d2273d4345d1e1b498150ebebdbfdb038b3a9cab3837ee199dbf6dc0370a751d0e46d610111043f85d914b43b6a9ac566052e63b051f4fbd3b5164a6733c66c6e50115f94a11d5c0aaf1dc7dd34b303"
+          ],
+          "exit_code": 1
+        },
+        {
+          "argv": [
+            "/build/release/examples/l001_storage_lab",
+            "recover",
+            "/build/l001-lab/20261019T160015Z/quorum/peer.sqlite",
+            "86458f882d82780af99158087b0af8bb6fee6be1b0170ae2f19392e569d972f4",
+            "0b8851fea263aa1cd685a908167b0d93e7efecaf2d81537577203c8613ad1133b4d692577811b4f00da842488514a1a35aad3a46c5bf55c28ba2da2921fa865b00000000000000080000000000000008fc3101ed2a259bb533313b4aae0a25c241f49e2caeba5dc4a9ec587ff227fe087d8ca0c00c1290e83870d6118b2c7868561b24c05c76a1045ead75002c4a6103deabfc930eecdda38e89f70d4cbdc49ef94aef4ab9f218a4db0b46dc87bd2f073be9ae6fb40d6fcdd6c2dd2f3fcfe9162dbf6eb98042ecbd0f07ae0c553cab0c",
+            "edd6d631a5833fb3a90153e8f286eeb2a4c86b09571583ade138e845b48214ebb4d692577811b4f00da842488514a1a35aad3a46c5bf55c28ba2da2921fa865b00000000000000080000000000000008fc3101ed2a259bb533313b4aae0a25c241f49e2caeba5dc4a9ec587ff227fe087d8ca0c00c1290e83870d6118b2c7868561b24c05c76a1045ead75002c4a6103831d347ae421214d59491cfdc98d46a5aaa4e4b14dce6cef2aa96aa6dc4e2c7ea2458408981cc4d570fd6681b6525b9aa629a92b6bcf2cbb8249567049c3e50d"
+          ],
+          "exit_code": 1
+        },
+        {
+          "argv": [
+            "/build/release/examples/l001_storage_lab",
+            "recover",
+            "/build/l001-lab/20261019T160015Z/quorum/peer.sqlite",
+            "86458f882d82780af99158087b0af8bb6fee6be1b0170ae2f19392e569d972f4",
+            "0b8851fea263aa1cd685a908167b0d93e7efecaf2d81537577203c8613ad1133b4d692577811b4f00da842488514a1a35aad3a46c5bf55c28ba2da2921fa865b00000000000000080000000000000008fc3101ed2a259bb533313b4aae0a25c241f49e2caeba5dc4a9ec587ff227fe087d8ca0c00c1290e83870d6118b2c7868561b24c05c76a1045ead75002c4a6103deabfc930eecdda38e89f70d4cbdc49ef94aef4ab9f218a4db0b46dc87bd2f073be9ae6fb40d6fcdd6c2dd2f3fcfe9162dbf6eb98042ecbd0f07ae0c553cab0c",
+            "edd6d631a5833fb3a90153e8f286eeb2a4c86b09571583ade138e845b48214ebb4d692577811b4f00da842488514a1a35aad3a46c5bf55c28ba2da2921fa865b00000000000000080000000000000008fc3101ed2a259bb533313b4aae0a25c241f49e2caeba5dc4a9ec587ff227fe087d8ca0c00c1290e83870d6118b2c7868561b24c05c76a1045ead75002c4a6103831d347ae421214d59491cfdc98d46a5aaa4e4b14dce6cef2aa96aa6dc4e2c7ea2458408981cc4d570fd6681b6525b9aa629a92b6bcf2cbb8249567049c3e50d"
+          ],
+          "exit_code": 1
+        },
+        {
+          "argv": [
+            "/build/release/examples/l001_storage_lab",
+            "witness-read",
+            "/build/l001-lab/20261019T160015Z/quorum/witness-1.sqlite",
+            "21",
+            "c8362b440fa72bffa1da02174b3d2ac3cbecda83d8e6829890a89cb6a94c7701"
+          ],
+          "exit_code": 1
+        },
+        {
+          "argv": [
+            "/build/release/examples/l001_storage_lab",
+            "witness-read",
+            "/build/l001-lab/20261019T160015Z/quorum/witness-1.sqlite",
+            "21",
+            "1ae9373d8b10fa3fd0ba1b3ca312546236169ab00d79fa465d712508f600cedd"
+          ],
+          "exit_code": 0
+        },
+        {
+          "argv": [
+            "/build/release/examples/l001_storage_lab",
+            "witness-read",
+            "/build/l001-lab/20261019T160015Z/quorum/witness-2.sqlite",
+            "22",
+            "1ae9373d8b10fa3fd0ba1b3ca312546236169ab00d79fa465d712508f600cedd"
+          ],
+          "exit_code": 0
+        },
+        {
+          "argv": [
+            "/build/release/examples/l001_storage_lab",
+            "recover",
+            "/build/l001-lab/20261019T160015Z/quorum/peer.sqlite",
+            "1ae9373d8b10fa3fd0ba1b3ca312546236169ab00d79fa465d712508f600cedd",
+            "0b8851fea263aa1cd685a908167b0d93e7efecaf2d81537577203c8613ad11331ae9373d8b10fa3fd0ba1b3ca312546236169ab00d79fa465d712508f600cedd00000000000000080000000000000008fc3101ed2a259bb533313b4aae0a25c241f49e2caeba5dc4a9ec587ff227fe087d8ca0c00c1290e83870d6118b2c7868561b24c05c76a1045ead75002c4a6103dc67dff261373c1abf07eb200ddc4388567317f7b3d777f02b90f338c09daff8ea011f8cbe46d1b8bbc10bf5faa41f8cae388c17cc7c1f262fbcefeb148ee40c",
+            "edd6d631a5833fb3a90153e8f286eeb2a4c86b09571583ade138e845b48214eb1ae9373d8b10fa3fd0ba1b3ca312546236169ab00d79fa465d712508f600cedd00000000000000080000000000000008fc3101ed2a259bb533313b4aae0a25c241f49e2caeba5dc4a9ec587ff227fe087d8ca0c00c1290e83870d6118b2c7868561b24c05c76a1045ead75002c4a61034a26967fe3d4e212a06d5bbb3f74cc291792e2a64243650cda27c91cffbe67734334d3ae9997865b2eb547515e2560a918128cc9b0fd164558b1547bb32bee0f"
+          ],
+          "exit_code": 0
+        },
+        {
+          "argv": [
+            "/build/release/examples/l001_storage_lab",
+            "witness-read",
+            "/build/l001-lab/20261019T160015Z/quorum/witness-1.sqlite",
+            "21",
+            "3fc78261e1c6a3dd7618fb55f619cfd2d5f807c489cc374ebefe578011b89a9d"
+          ],
+          "exit_code": 0
+        },
+        {
+          "argv": [
+            "/build/release/examples/l001_storage_lab",
+            "witness-read",
+            "/build/l001-lab/20261019T160015Z/quorum/witness-2.sqlite",
+            "22",
+            "3fc78261e1c6a3dd7618fb55f619cfd2d5f807c489cc374ebefe578011b89a9d"
+          ],
+          "exit_code": 0
+        },
+        {
+          "argv": [
+            "/build/release/examples/l001_storage_lab",
+            "recover",
+            "/build/l001-lab/20261019T160015Z/quorum/peer.sqlite",
+            "3fc78261e1c6a3dd7618fb55f619cfd2d5f807c489cc374ebefe578011b89a9d",
+            "0b8851fea263aa1cd685a908167b0d93e7efecaf2d81537577203c8613ad11333fc78261e1c6a3dd7618fb55f619cfd2d5f807c489cc374ebefe578011b89a9d0000000000000005000000000000000571dc3774a17ed2292fc045e7b68105ff9334dc73a18aae1e4e397bf905bb7ff130ebe575a49c83ed742bc5a0d910bdbb8d2273d4345d1e1b498150ebebdbfdb0fd2be4a7ff9036df3d476864d11a135a6ab6bae286e1dc748a59064d0316ab144b0bad36b5d7a01ac7e5b96fad5924b66ad6016c62f58bd253325ad1686df409",
+            "edd6d631a5833fb3a90153e8f286eeb2a4c86b09571583ade138e845b48214eb3fc78261e1c6a3dd7618fb55f619cfd2d5f807c489cc374ebefe578011b89a9d0000000000000005000000000000000571dc3774a17ed2292fc045e7b68105ff9334dc73a18aae1e4e397bf905bb7ff130ebe575a49c83ed742bc5a0d910bdbb8d2273d4345d1e1b498150ebebdbfdb0b9d5d94de046274f3a40431ea5d0a44b483d4718a7ff492323df0404b8209047c7d8551bcf646fe9dd5558c44fc91e3a2a425b1697f1ccc441add2be9474cf07"
+          ],
+          "exit_code": 0
+        }
+      ],
+      "all_same_host_stores_rollback_counterexample": {
+        "sequence": 5,
+        "admission_paused": true,
+        "fresh_quorum_checked": true,
+        "diagnostic_only": true
+      },
+      "independent_storage_certified": false,
+      "production_admission_enabled": false,
+      "fixture_keys_only": true
+    },
+    "container-kill-restart": [
+      {
+        "acknowledged_floor": 10,
+        "recovered": {
+          "sequence": 19,
+          "admission_paused": true,
+          "pending": 19
+        },
+        "container_exit": 137,
+        "writer_argv": [
+          "docker",
+          "run",
+          "--rm",
+          "--name",
+          "loom-l001-kill-0-20261019t160015z",
+          "--label",
+          "loom.task=l001-local-docker",
+          "--cpus=2",
+          "--memory=512m",
+          "--pids-limit=128",
+          "--cap-drop=ALL",
+          "--security-opt=no-new-privileges",
+          "--read-only",
+          "--tmpfs",
+          "/tmp:rw,noexec,nosuid,size=64m",
+          "--network",
+          "none",
+          "-v",
+          "loom-l001-target:/build",
+          "rust:1.90.0-slim-bookworm@sha256:64232e656c058f4468e8d024e990acff04f0fd5a5c0a88a574dc37773d7325c9",
+          "/build/release/examples/l001_storage_lab",
+          "writer",
+          "/build/l001-lab/20261019T160015Z/container-kill-0.sqlite"
+        ]
+      },
+      {
+        "acknowledged_floor": 25,
+        "recovered": {
+          "sequence": 32,
+          "admission_paused": true,
+          "pending": 32
+        },
+        "container_exit": 137,
+        "writer_argv": [
+          "docker",
+          "run",
+          "--rm",
+          "--name",
+          "loom-l001-kill-1-20261019t160015z",
+          "--label",
+          "loom.task=l001-local-docker",
+          "--cpus=2",
+          "--memory=512m",
+          "--pids-limit=128",
+          "--cap-drop=ALL",
+          "--security-opt=no-new-privileges",
+          "--read-only",
+          "--tmpfs",
+          "/tmp:rw,noexec,nosuid,size=64m",
+          "--network",
+          "none",
+          "-v",
+          "loom-l001-target:/build",
+          "rust:1.90.0-slim-bookworm@sha256:64232e656c058f4468e8d024e990acff04f0fd5a5c0a88a574dc37773d7325c9",
+          "/build/release/examples/l001_storage_lab",
+          "writer",
+          "/build/l001-lab/20261019T160015Z/container-kill-1.sqlite"
+        ]
+      },
+      {
+        "acknowledged_floor": 50,
+        "recovered": {
+          "sequence": 53,
+          "admission_paused": true,
+          "pending": 53
+        },
+        "container_exit": 137,
+        "writer_argv": [
+          "docker",
+          "run",
+          "--rm",
+          "--name",
+          "loom-l001-kill-2-20261019t160015z",
+          "--label",
+          "loom.task=l001-local-docker",
+          "--cpus=2",
+          "--memory=512m",
+          "--pids-limit=128",
+          "--cap-drop=ALL",
+          "--security-opt=no-new-privileges",
+          "--read-only",
+          "--tmpfs",
+          "/tmp:rw,noexec,nosuid,size=64m",
+          "--network",
+          "none",
+          "-v",
+          "loom-l001-target:/build",
+          "rust:1.90.0-slim-bookworm@sha256:64232e656c058f4468e8d024e990acff04f0fd5a5c0a88a574dc37773d7325c9",
+          "/build/release/examples/l001_storage_lab",
+          "writer",
+          "/build/l001-lab/20261019T160015Z/container-kill-2.sqlite"
+        ]
+      }
+    ],
+    "host-host-negative": {
+      "negative_cases": [
+        {
+          "case": "wrong_server_pin",
+          "rejected": true,
+          "error": "HandshakeFailed"
+        },
+        {
+          "case": "untrusted_client",
+          "rejected": true,
+          "error": "HandshakeFailed"
+        },
+        {
+          "case": "wrong_space",
+          "rejected": true,
+          "error": "HandshakeFailed"
+        },
+        {
+          "case": "wrong_epoch",
+          "rejected": true,
+          "error": "HandshakeFailed"
+        },
+        {
+          "case": "membership_denied",
+          "rejected": true,
+          "error": "UntrustedMembership"
+        }
+      ]
+    },
+    "host-linux-negative": {
+      "negative_cases": [
+        {
+          "case": "wrong_server_pin",
+          "rejected": true,
+          "error": "HandshakeFailed"
+        },
+        {
+          "case": "untrusted_client",
+          "rejected": true,
+          "error": "HandshakeFailed"
+        },
+        {
+          "case": "wrong_space",
+          "rejected": true,
+          "error": "HandshakeFailed"
+        },
+        {
+          "case": "wrong_epoch",
+          "rejected": true,
+          "error": "HandshakeFailed"
+        },
+        {
+          "case": "membership_denied",
+          "rejected": true,
+          "error": "UntrustedMembership"
+        }
+      ]
+    },
+    "linux-linux-negative": {
+      "negative_cases": [
+        {
+          "case": "wrong_server_pin",
+          "rejected": true,
+          "error": "HandshakeFailed"
+        },
+        {
+          "case": "untrusted_client",
+          "rejected": true,
+          "error": "HandshakeFailed"
+        },
+        {
+          "case": "wrong_space",
+          "rejected": true,
+          "error": "HandshakeFailed"
+        },
+        {
+          "case": "wrong_epoch",
+          "rejected": true,
+          "error": "HandshakeFailed"
+        },
+        {
+          "case": "membership_denied",
+          "rejected": true,
+          "error": "UntrustedMembership"
+        }
+      ]
+    },
+    "linux-host-negative": {
+      "negative_cases": [
+        {
+          "case": "wrong_server_pin",
+          "rejected": true,
+          "error": "HandshakeFailed"
+        },
+        {
+          "case": "untrusted_client",
+          "rejected": true,
+          "error": "HandshakeFailed"
+        },
+        {
+          "case": "wrong_space",
+          "rejected": true,
+          "error": "HandshakeFailed"
+        },
+        {
+          "case": "wrong_epoch",
+          "rejected": true,
+          "error": "HandshakeFailed"
+        },
+        {
+          "case": "membership_denied",
+          "rejected": true,
+          "error": "UntrustedMembership"
+        }
+      ]
+    },
+    "relay-confidentiality": {
+      "captured_bytes": 3983,
+      "canary_found": false,
+      "scope": "smoke test, not cryptographic proof"
+    },
+    "relay-active-tamper": {
+      "mutated": true,
+      "authenticated_echo_refused": true
+    }
+  },
+  "release_state": "blocked",
+  "performance_thresholds": null,
+  "source_commit": "498870abff9b7fede983b9ef59b0aa7132520ca4",
+  "source_sha256": {
+    "Cargo.lock": "86c893d344638712f2222043042bfc5508b4e49bfe979fe4040bd5cbb23eec18",
+    "Cargo.toml": "fc85a70998409d898ef287b0360b38b0ff22be9a286b413c007b076324961ba2",
+    "apps/loomd/Cargo.toml": "30dd00fa6ea49d14e4078ecbe396f88914cafedc61b59fc5584383753531e17c",
+    "apps/loomd/src/main.rs": "8cf6b37b6ce86e43a18c2f34c130d02acf30914a18fdf93f5d8ca96ee8661f9e",
+    "crates/loom-core/Cargo.toml": "c3eed48c91fd838cb17841327dd6b4a56c88dde6a4a4c45e0d22cb75ff028379",
+    "crates/loom-core/src/lan_file_read_model.rs": "a75236be2cf46e14afa599b1a2801780f65d22dfe2a1be2ab6ebd69a744999b4",
+    "crates/loom-core/src/lib.rs": "ad30336650f1552644b6edae3130d31cf1f5a56c29b9ed5882b659b9e885e00a",
+    "crates/loom-crypto/Cargo.toml": "be1a6dc83ce27636fd5d536957212ba93a316239ca01b19f353b112641f41a39",
+    "crates/loom-crypto/src/lib.rs": "78e09f5cf02e1ab307089d8d4e8a20a9d4e4eaac4410435a77e4caccc2fa886a",
+    "crates/loom-crypto/src/owner_authority.rs": "17f7896321c5d7ec295be891319408abd30180a28ae07e2da2f3a9bd9be444a4",
+    "crates/loom-crypto/src/owner_lifecycle.rs": "ca6c7bb3bc385f13510fb938ece2aa0e05f09ecdf847d6c17820c7616ba8926e",
+    "crates/loom-crypto/src/root_rotation.rs": "d9dc95b8eb88ac12a493e8fba7bc911b366912374e72882443ede756c8c2b7f2",
+    "crates/loom-crypto/src/signed_revocation.rs": "71c59a0e8fa17b742cc84ff4810bea8266486480c030a84a494054f1a12f28e5",
+    "crates/loom-crypto/src/space_trust.rs": "20e8eece3bb3ff71c6a64c72e3152299cd311a78e8d1d2795215e06821053c44",
+    "crates/loom-crypto/src/witness_checkpoint.rs": "829eb059e79564137c2c84f5ffddcc7408dfe4c49b88711b9fbaaa89f03e7a1c",
+    "crates/loom-identity/Cargo.toml": "65fca579af33832a12a7b716d8a1eeade785a041b9a2c2b980469e5837832dc7",
+    "crates/loom-identity/src/lib.rs": "17cd030fc55ce7d305e6b5fce1b1abe6c9f7e76d069fbe966405d81dfd557f72",
+    "crates/loom-policy/Cargo.toml": "9d4f41b782bb5b15a93cd71a9bf157e0003eedf76fac14611f706c6e08e1e07d",
+    "crates/loom-policy/src/lib.rs": "1a0a2772b339e5069da0642195a3c749c7cc65e557d2b85dba0523a1546204d7",
+    "crates/loom-store/Cargo.toml": "9f43f00de5da3b0aa61d7406524e32ac171aa834389ceb0dff96ac8d4c4d2b3e",
+    "crates/loom-store/examples/l001_storage_lab.rs": "01de198a3f29e0d6b7d9074684179bf59186e607eb286281e35fa7916fb6dcb9",
+    "crates/loom-store/examples/probe_tpm2.rs": "b67933d133ec6618c2fb123827d78491124261f9a6b49a56f5e5ad5c9911ab9a",
+    "crates/loom-store/src/anchor_conformance.rs": "5342891620406311dd4f7f707f681b850e09d1012ce87fa7837a12eabfd48271",
+    "crates/loom-store/src/authenticated_intent_read_gate.rs": "d05eafd2c697add28905dfda94abc23061b3560721f164907238ba1e5a697eeb",
+    "crates/loom-store/src/authenticated_intent_record.rs": "d3537dcb5cc29f63233d9fa4e10fb583aaf1ef377f984b66a38fb2d534e30332",
+    "crates/loom-store/src/authenticated_intent_write_model.rs": "164520935a8f79498500ebd6bc803c571ac8db91b0dca6beb2fc3a03c994693e",
+    "crates/loom-store/src/challenge_witness_quorum.rs": "ada1158c845f385630f98d5765219d8251108513e9f2e4d1ead698217f7bf718",
+    "crates/loom-store/src/durable_intent_simulator.rs": "65b4913d55a0d25d79a0dc62852264f2cb31b398b21c6197d74d7ac8c735f737",
+    "crates/loom-store/src/independent_reservation_fence_model.rs": "fdd1757305396fd886f9066c45fa806a9d9772a23fd72d5fbcbad5934fb990e7",
+    "crates/loom-store/src/legacy_history_audit.rs": "00df7cd9e77c5d16dea071a4a1932617286a3beda2aa4bfa12dc2aae3b1bb4e3",
+    "crates/loom-store/src/legacy_migration.rs": "f7b4ff4bc22704ab5141e622334997a2673423f42ed04c3db42101b470f40e3b",
+    "crates/loom-store/src/lib.rs": "9fb0c079d0b979f4f7ec983b6f6d9b4e1eb4438b5eb9ad9d23617fa3d85d02d4",
+    "crates/loom-store/src/linux_tpm2_probe.rs": "50af849ca76954c4d45fdd751c234cdcd8c13b513745afbf22e796cfe0399cf7",
+    "crates/loom-store/src/policy_journal_codec.rs": "388a6df1409c6934004083eec82a738ff45cfc57f8460f788dffffc2c4d16426",
+    "crates/loom-store/src/rollback_anchor.rs": "36e2a43e9266d90a4d9c4e6814165cfc241351bbf5c07a25cec0251af68e0144",
+    "crates/loom-store/src/sqlite_revocation.rs": "663e5ac3205f8016c8890434549de1fc774f5274b1f86d35fecddf4582a4977d",
+    "crates/loom-store/src/tpm_counter_binding.rs": "b06b22c469fa13ee13b10aee95e1f5835fa84ef5788cc87425f3cddfb9540e2f",
+    "crates/loom-store/src/trusted_state_provider.rs": "eb0a4c37d27f3914146fd12c3479b74bf64a9dd976333f58ed4cf28417a20ed7",
+    "crates/loom-store/src/unified_policy_anchor.rs": "f2d2822401961d7ec6937378d0f117b34e10562178013947cd463d354e11d000",
+    "crates/loom-store/src/unified_policy_journal.rs": "8a5b7a9e5fd57cdb557a37cfd46826d34e02091ab9f75b482013da924eb63440",
+    "crates/loom-transport/Cargo.toml": "98ef8ac0bcf11d5abf012a45e06b318bbcb54d2e19b64e0fddf997dc6ef4f439",
+    "crates/loom-transport/examples/l001_channel_lab.rs": "a81ee34f452fb0b9965c4f53df45ad8a1f5268745846b48d4dbd4d1f151b5be6",
+    "crates/loom-transport/src/lib.rs": "a191c3d9da31cbf8624c93e6d168f26e04acf3c205308b7c38f56d7be1ac28ee",
+    "crates/loom-transport/src/secure_channel.rs": "8f0ec1f8fb0b565a7dff6acd2c3b94f4d5145e7a1b9585814287e40658beb14f",
+    "crates/loom-types/Cargo.toml": "173289a59a62e58240674810648941d36b22c2dc5dab4ee0d22e8141c8183999",
+    "crates/loom-types/src/lib.rs": "c88be845ee5a1f3299ff842be2e805d07ab6c972fd9665e9ff7dcc44ec0fefe5",
+    "crates/loom-wire/Cargo.toml": "024ab9e9f0c67fcb90391fb0fbb8b14f41e6676a7a7a760f77bf8c104a94955a",
+    "crates/loom-wire/src/lib.rs": "c2acd5497bb2223dc683158b4bc10ff436c8d34e284aeabdd25cdc7800e43583",
+    "crates/loom-wire/src/security_event.rs": "d89c7cefc3eb73913a8e493c3de326a4f490d9c06429e689eab1f029229b81c2",
+    "deny.toml": "94b25862286227665400f74dac4b008871ba1720e78dbc618c3055417b801d63",
+    "docs/acceptance/l001.json": "7be3781785a07d677c64c35c86bc00ecb660f09e87c09073dd128dfa5051b6e5",
+    "interop/wire01/go/main.go": "5271bcfa38bcabe699df7e4ddd9aefd40997e97aaf665dd513bd01964275acb3",
+    "interop/wire01/js/check.mjs": "b4330adff2149517e7884c9c51e589fa133af54332abf537ac9744630a333098",
+    "interop/wire01/kotlin/Main.kt": "65fb0588d731f22941da67cfec3c363b29a58a3b8fb7a06d5f2e8af2201ab6e8",
+    "rust-toolchain.toml": "c33d1f0b1b8fda448bea32d7dc867aa64947c87169fd9de7122ffccad1dd80f9",
+    "scripts/l001-lab.Dockerfile": "82e587d5f5dfe8185abe16885aa8ae0382df9b345b2ed29758f0f119b24db7c8",
+    "scripts/l001_gate.py": "23657e1ed87052cec5f325cbe2ed3e9d49e0b49684217d634879f8e41700937f",
+    "scripts/l001_local_docker.py": "1badadd997c1c092d8c7d1b66835bec0c040515c56802a5b660f9f6833199384",
+    "scripts/l001_local_gate.py": "ee655b1852495a4297bd710bb89e39af1cdfe519d35827aa6ae12c4978191f32",
+    "scripts/l001_quorum_faults.py": "c1cbdd1e9109cb1ed9b79eeb349005b399b7f424e36b2fa2a2afbaa29933c159",
+    "scripts/l001_storage_faults.py": "02077e8a572da3e2930aea89403a97fffdd24e315a834113e97fab07fc8af0ff",
+    "test-vectors/wire-v1/check.go": "a86a0fce1ca147706c9b66b1d0564d86ae5af15990def7d9ec5df0adc07f512b",
+    "test-vectors/wire-v1/check.mjs": "cfe98f3d1cfcb5189bf50d900f9542a53f3599fe4dc2ab061e3140506204d45f",
+    "test-vectors/wire-v1/event-01.cbor.hex": "ccdbbc1d5c5cba6f2afdd731b6591374603815f596ec144c695c6907a9c3c52c",
+    "test-vectors/wire-v1/event-01.event-id.hex": "b17e2451756e3fcd7b0334a1787a05a21369c6430e0597ad40f6b16d0d37c5b9",
+    "test-vectors/wire-v1/event-01.pubkey.hex": "ef5d759f7608f49322bcb47de61380c1e69890140bd298a3d594a569cd11d195",
+    "test-vectors/wire-v1/event-01.signature.hex": "cc03607642333b5c698529059a754a138fe4067b52272f0b602b03bdee9a53e5",
+    "test-vectors/wire-v1/event-01.signing.hex": "88bff258413643757378ef422e59f29316134e5d9a7e38296961bb753ab255ea",
+    "test-vectors/wire-v1/event-02.cbor.hex": "ec79919924d919e635228652b60b5e42606923c97a9a9a83f388010d77cdb688",
+    "test-vectors/wire-v1/event-02.signing.hex": "de775ddea755c7fabdb7d9d42bcb84579dee7910916bbd2263198638505270b2",
+    "test-vectors/wire-v1/event-03.cbor.hex": "c70be755c95900c0fccab605330214439e8dda4254d1dabd1f2aeae80d64f164",
+    "test-vectors/wire-v1/event-03.signing.hex": "cf18f56331cbfea1f78b34346c511d4ee05514712155a8f26f4d3499ced8ec14"
+  },
+  "environment": {
+    "uname": "Darwin MAC-8E71A2.lan 27.0.0 Darwin Kernel Version 27.0.0: Tue Aug 11 21:02:57 PDT 2026; root:xnu-13432.1.9~1/RELEASE_ARM64_T8132 arm64",
+    "macos": "ProductName:\t\tmacOS\nProductVersion:\t\t27.0\nBuildVersion:\t\t26A428",
+    "cpu_memory": "Mac16,10\n10\n17179869184",
+    "rust": "rustc 1.90.0 (1159e78c4 2025-09-14)\nbinary: rustc\ncommit-hash: 1159e78c4747b02ef996e55082b704c09b970588\ncommit-date: 2025-09-14\nhost: aarch64-apple-darwin\nrelease: 1.90.0\nLLVM version: 20.1.8",
+    "docker": {
+      "Client": {
+        "Version": "29.8.2",
+        "ApiVersion": "1.56",
+        "DefaultAPIVersion": "1.56",
+        "GitCommit": "7fc2dff",
+        "GoVersion": "go1.26.8",
+        "Os": "darwin",
+        "Arch": "arm64",
+        "BuildTime": "Sun Oct 11 12:42:20 2026",
+        "Context": "orbstack"
+      },
+      "Server": {
+        "Platform": {
+          "Name": "Docker Engine - Community"
+        },
+        "Version": "29.8.2",
+        "ApiVersion": "1.56",
+        "MinAPIVersion": "1.40",
+        "Os": "linux",
+        "Arch": "arm64",
+        "Components": [
+          {
+            "Name": "Engine",
+            "Version": "29.8.2",
+            "Details": {
+              "ApiVersion": "1.56",
+              "Arch": "arm64",
+              "BuildTime": "Wed Sep 30 19:32:49 2026",
+              "Experimental": "true",
+              "GitCommit": "8af9fe3",
+              "GoVersion": "go1.26.8",
+              "KernelVersion": "7.2.9-orbstack-00391-g2b298d05fbd4",
+              "MinAPIVersion": "1.40",
+              "Module": "github.com/moby/moby/v2",
+              "ModuleVersion": "v2.0.0+unknown",
+              "Os": "linux"
+            }
+          },
+          {
+            "Name": "containerd",
+            "Version": "v2.3.6",
+            "Details": {
+              "GitCommit": "ee2735368117d2eb259779949d5e75cdafec9761"
+            }
+          },
+          {
+            "Name": "runc",
+            "Version": "1.5.2",
+            "Details": {
+              "GitCommit": "29dd3dc2b13b4123162e5fe132504bb4b15569f1"
+            }
+          },
+          {
+            "Name": "docker-init",
+            "Version": "0.19.0",
+            "Details": {
+              "GitCommit": "de40ad0"
+            }
+          }
+        ],
+        "GitCommit": "8af9fe3",
+        "GoVersion": "go1.26.8",
+        "KernelVersion": "7.2.9-orbstack-00391-g2b298d05fbd4",
+        "Experimental": true,
+        "BuildTime": "2026-09-30T19:32:49.000000000+00:00"
+      }
+    },
+    "docker_resources": "cpus=10 memory=8392605696 kernel=7.2.9-orbstack-00391-g2b298d05fbd4 os=OrbStack\n",
+    "base_image": "rust:1.90.0-slim-bookworm@sha256:64232e656c058f4468e8d024e990acff04f0fd5a5c0a88a574dc37773d7325c9",
+    "builder_resources": {
+      "NanoCpus": 4000000000,
+      "Memory": 4294967296,
+      "PidsLimit": 512
+    }
+  },
+  "source_unchanged": true,
+  "run_status": "completed",
+  "local_acceptance": {
+    "profile": "L-001-local-docker-v1",
+    "state": "passed",
+    "checks": [
+      "SOURCE: source hashes unchanged; native/Linux rebuilt",
+      "BUILD: native/Linux tests, format, strict Clippy, Linux docs",
+      "WIRE: Rust/Go/JavaScript/Kotlin vectors",
+      "FAIL-CLOSED: bootstrap disabled; missing TPM and release refused",
+      "CHANNEL: four real TCP/mTLS paths, verified payloads, 20 refusals",
+      "RELAY: plaintext canary absent; active tamper refused",
+      "STORAGE: nine SIGKILL recoveries; evidence/mirror tampering refused",
+      "RECOVERY: 20 native/Linux cases; fresh quorum detects old local backup",
+      "BASELINE: finite measured performance samples; release gates unchanged"
+    ]
+  },
+  "finished_utc": "2026-10-19T16:00:54.326226+00:00"
+}

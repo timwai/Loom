@@ -1,0 +1,53 @@
+{
+  "utc": "2026-10-20T01:06:11.922787+00:00",
+  "business": {
+    "relay-agent": {
+      "id": "76f12e1d2543560f6cf963ad58b9c5a57b9b2e1a5f92df96c5f445481bccaf6d",
+      "started_at": "2026-10-18T13:18:42.636007045Z",
+      "restart_count": 0,
+      "running": true
+    },
+    "aigc_all": {
+      "id": "417404125e4d405e6fe1653642ebbe030b6b980d81bb6be71be050773f4c81d5",
+      "started_at": "2026-08-22T14:09:00.549039742Z",
+      "restart_count": 0,
+      "running": true
+    },
+    "aigc_milvus": {
+      "id": "51405f2cbf2fb3bbe36f4c485175f5726f2728fefdab63c718c5feb1540954d5",
+      "started_at": "2026-08-22T14:09:00.263667143Z",
+      "restart_count": 0,
+      "running": true
+    },
+    "nginx": {
+      "id": "27d17ac3deeda016074b220c9a623f14760550760710d54b6e1df7eee94d383c",
+      "started_at": "2026-08-20T08:02:49.350798894Z",
+      "restart_count": 0,
+      "running": true
+    }
+  },
+  "lab": {
+    "id": "a962f1268280f5913863ffb27adda4671aed7d2af917f662c8186359d02eea62",
+    "image": "sha256:0a611199ba2e0b5d60af39b3327a517f6407231f4352114ed3bd3cbfe2be69aa",
+    "running": true,
+    "started_at": "2026-10-20T00:53:41.527497505Z",
+    "restart_count": 0,
+    "oom_killed": false,
+    "resources": {
+      "NanoCpus": 2000000000,
+      "Memory": 3221225472,
+      "PidsLimit": 4096
+    }
+  },
+  "pressure": "some avg10=0.00 avg60=0.00 avg300=0.00 total=778524520\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=742714213",
+  "framework": {
+    "boot": "1",
+    "lmkd": "running",
+    "system_server_pid": "231",
+    "memory_events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0",
+    "pids_events": "max 0",
+    "interfaces": "1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN mode DEFAULT group default qlen 1000\\    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00\n2: eth0@if292: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP mode DEFAULT group default \\    link/ether e2:26:1f:1d:2e:1a brd ff:ff:ff:ff:ff:ff link-netnsid 0",
+    "app_pid": "",
+    "app_pid_exit": 1
+  }
+}

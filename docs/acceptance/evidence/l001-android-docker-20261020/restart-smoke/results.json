@@ -1,0 +1,500 @@
+{
+  "profile": "L-001-android-bionic-docker-v1",
+  "started_utc": "20261019T235051Z",
+  "state": "installed",
+  "release_state": "blocked",
+  "commands": [
+    {
+      "name": "inspect-container",
+      "argv": [
+        "docker",
+        "inspect",
+        "loom-l001-android"
+      ],
+      "exit_code": 0,
+      "expected": null,
+      "elapsed_s": 0.19746875000000003,
+      "log": "logs/000-inspect-container.log"
+    },
+    {
+      "name": "pinned-image",
+      "argv": [
+        "docker",
+        "image",
+        "inspect",
+        "redroid/redroid@sha256:0a611199ba2e0b5d60af39b3327a517f6407231f4352114ed3bd3cbfe2be69aa"
+      ],
+      "exit_code": 0,
+      "expected": 0,
+      "elapsed_s": 0.026926583000000004,
+      "log": "logs/001-pinned-image.log"
+    },
+    {
+      "name": "start-android",
+      "argv": [
+        "docker",
+        "start",
+        "loom-l001-android"
+      ],
+      "exit_code": 0,
+      "expected": 0,
+      "elapsed_s": 0.19126475000000004,
+      "log": "logs/002-start-android.log"
+    },
+    {
+      "name": "binder-permissions",
+      "argv": [
+        "docker",
+        "exec",
+        "-e",
+        "ANDROID_ROOT=/system",
+        "-e",
+        "ANDROID_DATA=/data",
+        "-e",
+        "ANDROID_ART_ROOT=/apex/com.android.art",
+        "-e",
+        "ANDROID_I18N_ROOT=/apex/com.android.i18n",
+        "-e",
+        "ANDROID_TZDATA_ROOT=/apex/com.android.tzdata",
+        "loom-l001-android",
+        "chmod",
+        "666",
+        "/dev/binder",
+        "/dev/hwbinder",
+        "/dev/vndbinder"
+      ],
+      "exit_code": 255,
+      "expected": null,
+      "elapsed_s": 0.04801008299999998,
+      "log": "logs/003-binder-permissions.log"
+    },
+    {
+      "name": "binder-permissions",
+      "argv": [
+        "docker",
+        "exec",
+        "-e",
+        "ANDROID_ROOT=/system",
+        "-e",
+        "ANDROID_DATA=/data",
+        "-e",
+        "ANDROID_ART_ROOT=/apex/com.android.art",
+        "-e",
+        "ANDROID_I18N_ROOT=/apex/com.android.i18n",
+        "-e",
+        "ANDROID_TZDATA_ROOT=/apex/com.android.tzdata",
+        "loom-l001-android",
+        "chmod",
+        "666",
+        "/dev/binder",
+        "/dev/hwbinder",
+        "/dev/vndbinder"
+      ],
+      "exit_code": 0,
+      "expected": null,
+      "elapsed_s": 0.08780587500000014,
+      "log": "logs/004-binder-permissions.log"
+    },
+    {
+      "name": "prepare-work",
+      "argv": [
+        "docker",
+        "exec",
+        "-e",
+        "ANDROID_ROOT=/system",
+        "-e",
+        "ANDROID_DATA=/data",
+        "-e",
+        "ANDROID_ART_ROOT=/apex/com.android.art",
+        "-e",
+        "ANDROID_I18N_ROOT=/apex/com.android.i18n",
+        "-e",
+        "ANDROID_TZDATA_ROOT=/apex/com.android.tzdata",
+        "loom-l001-android",
+        "mkdir",
+        "-p",
+        "/data/local/tmp/loom-l001/20261019T235051Z/tmp"
+      ],
+      "exit_code": 0,
+      "expected": 0,
+      "elapsed_s": 0.06767983300000013,
+      "log": "logs/005-prepare-work.log"
+    },
+    {
+      "name": "work-owner",
+      "argv": [
+        "docker",
+        "exec",
+        "-e",
+        "ANDROID_ROOT=/system",
+        "-e",
+        "ANDROID_DATA=/data",
+        "-e",
+        "ANDROID_ART_ROOT=/apex/com.android.art",
+        "-e",
+        "ANDROID_I18N_ROOT=/apex/com.android.i18n",
+        "-e",
+        "ANDROID_TZDATA_ROOT=/apex/com.android.tzdata",
+        "loom-l001-android",
+        "chown",
+        "-R",
+        "2000:2000",
+        "/data/local/tmp/loom-l001/20261019T235051Z"
+      ],
+      "exit_code": 0,
+      "expected": 0,
+      "elapsed_s": 0.04604629200000021,
+      "log": "logs/006-work-owner.log"
+    },
+    {
+      "name": "source-commit",
+      "argv": [
+        "git",
+        "rev-parse",
+        "HEAD"
+      ],
+      "exit_code": 0,
+      "expected": 0,
+      "elapsed_s": 0.012805165999999923,
+      "log": "logs/007-source-commit.log"
+    },
+    {
+      "name": "container-environment",
+      "argv": [
+        "docker",
+        "inspect",
+        "loom-l001-android"
+      ],
+      "exit_code": 0,
+      "expected": 0,
+      "elapsed_s": 0.026324374999999955,
+      "log": "logs/008-container-environment.log"
+    },
+    {
+      "name": "docker-version",
+      "argv": [
+        "docker",
+        "version",
+        "--format",
+        "{{json .}}"
+      ],
+      "exit_code": 0,
+      "expected": 0,
+      "elapsed_s": 0.03353320900000001,
+      "log": "logs/009-docker-version.log"
+    },
+    {
+      "name": "host",
+      "argv": [
+        "uname",
+        "-a"
+      ],
+      "exit_code": 0,
+      "expected": 0,
+      "elapsed_s": 0.0031761669999998965,
+      "log": "logs/010-host.log"
+    },
+    {
+      "name": "rust",
+      "argv": [
+        "rustc",
+        "--version",
+        "--verbose"
+      ],
+      "exit_code": 0,
+      "expected": 0,
+      "elapsed_s": 0.14655720900000002,
+      "log": "logs/011-rust.log"
+    },
+    {
+      "name": "android-environment",
+      "argv": [
+        "docker",
+        "exec",
+        "-e",
+        "ANDROID_ROOT=/system",
+        "-e",
+        "ANDROID_DATA=/data",
+        "-e",
+        "ANDROID_ART_ROOT=/apex/com.android.art",
+        "-e",
+        "ANDROID_I18N_ROOT=/apex/com.android.i18n",
+        "-e",
+        "ANDROID_TZDATA_ROOT=/apex/com.android.tzdata",
+        "--user",
+        "2000:2000",
+        "-e",
+        "TMPDIR=/data/local/tmp/loom-l001/20261019T235051Z/tmp",
+        "loom-l001-android",
+        "sh",
+        "-c",
+        "id; uname -a; getprop ro.build.version.release; getprop ro.build.version.sdk; getprop ro.product.cpu.abi; getprop ro.build.fingerprint; getenforce; ls -l /dev/binder /dev/hwbinder /dev/vndbinder /dev/net/tun; ip -4 route show table all; ip -4 rule; test -e /proc/pressure/memory && echo PSI_PRESENT || echo PSI_MISSING"
+      ],
+      "exit_code": 0,
+      "expected": 0,
+      "elapsed_s": 0.07596316700000005,
+      "log": "logs/012-android-environment.log"
+    },
+    {
+      "name": "prop-sys-boot_completed",
+      "argv": [
+        "docker",
+        "exec",
+        "-e",
+        "ANDROID_ROOT=/system",
+        "-e",
+        "ANDROID_DATA=/data",
+        "-e",
+        "ANDROID_ART_ROOT=/apex/com.android.art",
+        "-e",
+        "ANDROID_I18N_ROOT=/apex/com.android.i18n",
+        "-e",
+        "ANDROID_TZDATA_ROOT=/apex/com.android.tzdata",
+        "--user",
+        "2000:2000",
+        "-e",
+        "TMPDIR=/data/local/tmp/loom-l001/20261019T235051Z/tmp",
+        "loom-l001-android",
+        "getprop",
+        "sys.boot_completed"
+      ],
+      "exit_code": 0,
+      "expected": 0,
+      "elapsed_s": 0.034336082999999906,
+      "log": "logs/013-prop-sys-boot_completed.log"
+    },
+    {
+      "name": "prop-init-svc-lmkd",
+      "argv": [
+        "docker",
+        "exec",
+        "-e",
+        "ANDROID_ROOT=/system",
+        "-e",
+        "ANDROID_DATA=/data",
+        "-e",
+        "ANDROID_ART_ROOT=/apex/com.android.art",
+        "-e",
+        "ANDROID_I18N_ROOT=/apex/com.android.i18n",
+        "-e",
+        "ANDROID_TZDATA_ROOT=/apex/com.android.tzdata",
+        "--user",
+        "2000:2000",
+        "-e",
+        "TMPDIR=/data/local/tmp/loom-l001/20261019T235051Z/tmp",
+        "loom-l001-android",
+        "getprop",
+        "init.svc.lmkd"
+      ],
+      "exit_code": 0,
+      "expected": 0,
+      "elapsed_s": 0.03191249999999979,
+      "log": "logs/014-prop-init-svc-lmkd.log"
+    },
+    {
+      "name": "prop-ro-build-version-sdk",
+      "argv": [
+        "docker",
+        "exec",
+        "-e",
+        "ANDROID_ROOT=/system",
+        "-e",
+        "ANDROID_DATA=/data",
+        "-e",
+        "ANDROID_ART_ROOT=/apex/com.android.art",
+        "-e",
+        "ANDROID_I18N_ROOT=/apex/com.android.i18n",
+        "-e",
+        "ANDROID_TZDATA_ROOT=/apex/com.android.tzdata",
+        "--user",
+        "2000:2000",
+        "-e",
+        "TMPDIR=/data/local/tmp/loom-l001/20261019T235051Z/tmp",
+        "loom-l001-android",
+        "getprop",
+        "ro.build.version.sdk"
+      ],
+      "exit_code": 0,
+      "expected": 0,
+      "elapsed_s": 0.03416333299999996,
+      "log": "logs/015-prop-ro-build-version-sdk.log"
+    },
+    {
+      "name": "prop-ro-product-cpu-abi",
+      "argv": [
+        "docker",
+        "exec",
+        "-e",
+        "ANDROID_ROOT=/system",
+        "-e",
+        "ANDROID_DATA=/data",
+        "-e",
+        "ANDROID_ART_ROOT=/apex/com.android.art",
+        "-e",
+        "ANDROID_I18N_ROOT=/apex/com.android.i18n",
+        "-e",
+        "ANDROID_TZDATA_ROOT=/apex/com.android.tzdata",
+        "--user",
+        "2000:2000",
+        "-e",
+        "TMPDIR=/data/local/tmp/loom-l001/20261019T235051Z/tmp",
+        "loom-l001-android",
+        "getprop",
+        "ro.product.cpu.abi"
+      ],
+      "exit_code": 0,
+      "expected": 0,
+      "elapsed_s": 0.03342904099999977,
+      "log": "logs/016-prop-ro-product-cpu-abi.log"
+    },
+    {
+      "name": "adb-connect",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "connect",
+        "127.0.0.1:15555"
+      ],
+      "exit_code": 0,
+      "expected": null,
+      "elapsed_s": 0.018948084000000254,
+      "log": "logs/017-adb-connect.log"
+    },
+    {
+      "name": "adb-shell",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15555",
+        "shell",
+        "-T",
+        "id"
+      ],
+      "exit_code": 1,
+      "expected": null,
+      "elapsed_s": 0.015133624999999817,
+      "log": "logs/018-adb-shell.log"
+    },
+    {
+      "name": "lmkd-diagnostic",
+      "argv": [
+        "docker",
+        "exec",
+        "-e",
+        "ANDROID_ROOT=/system",
+        "-e",
+        "ANDROID_DATA=/data",
+        "-e",
+        "ANDROID_ART_ROOT=/apex/com.android.art",
+        "-e",
+        "ANDROID_I18N_ROOT=/apex/com.android.i18n",
+        "-e",
+        "ANDROID_TZDATA_ROOT=/apex/com.android.tzdata",
+        "loom-l001-android",
+        "sh",
+        "-c",
+        "logcat -d -b all -s lowmemorykiller:V | tail -45"
+      ],
+      "exit_code": 0,
+      "expected": 0,
+      "elapsed_s": 0.05078104200000011,
+      "log": "logs/019-lmkd-diagnostic.log"
+    }
+  ],
+  "benchmarks": {},
+  "performance_thresholds": null,
+  "platform_android_acceptance": "blocked",
+  "production_admission_enabled": false,
+  "source_commit": "498870abff9b7fede983b9ef59b0aa7132520ca4",
+  "source_sha256": {
+    "Cargo.lock": "86c893d344638712f2222043042bfc5508b4e49bfe979fe4040bd5cbb23eec18",
+    "Cargo.toml": "fc85a70998409d898ef287b0360b38b0ff22be9a286b413c007b076324961ba2",
+    "scripts/l001_android_docker.py": "5db402165063f6b37a9671ec4b56a621e49fa19b1a761507207e806e4afd24df",
+    "crates/loom-core/src/lan_file_read_model.rs": "a75236be2cf46e14afa599b1a2801780f65d22dfe2a1be2ab6ebd69a744999b4",
+    "crates/loom-core/src/lib.rs": "ad30336650f1552644b6edae3130d31cf1f5a56c29b9ed5882b659b9e885e00a",
+    "crates/loom-crypto/src/lib.rs": "78e09f5cf02e1ab307089d8d4e8a20a9d4e4eaac4410435a77e4caccc2fa886a",
+    "crates/loom-crypto/src/owner_authority.rs": "17f7896321c5d7ec295be891319408abd30180a28ae07e2da2f3a9bd9be444a4",
+    "crates/loom-crypto/src/owner_lifecycle.rs": "ca6c7bb3bc385f13510fb938ece2aa0e05f09ecdf847d6c17820c7616ba8926e",
+    "crates/loom-crypto/src/root_rotation.rs": "d9dc95b8eb88ac12a493e8fba7bc911b366912374e72882443ede756c8c2b7f2",
+    "crates/loom-crypto/src/signed_revocation.rs": "71c59a0e8fa17b742cc84ff4810bea8266486480c030a84a494054f1a12f28e5",
+    "crates/loom-crypto/src/space_trust.rs": "20e8eece3bb3ff71c6a64c72e3152299cd311a78e8d1d2795215e06821053c44",
+    "crates/loom-crypto/src/witness_checkpoint.rs": "829eb059e79564137c2c84f5ffddcc7408dfe4c49b88711b9fbaaa89f03e7a1c",
+    "crates/loom-identity/src/lib.rs": "17cd030fc55ce7d305e6b5fce1b1abe6c9f7e76d069fbe966405d81dfd557f72",
+    "crates/loom-policy/src/lib.rs": "1a0a2772b339e5069da0642195a3c749c7cc65e557d2b85dba0523a1546204d7",
+    "crates/loom-store/examples/l001_storage_lab.rs": "01de198a3f29e0d6b7d9074684179bf59186e607eb286281e35fa7916fb6dcb9",
+    "crates/loom-store/examples/probe_tpm2.rs": "b67933d133ec6618c2fb123827d78491124261f9a6b49a56f5e5ad5c9911ab9a",
+    "crates/loom-store/src/anchor_conformance.rs": "5342891620406311dd4f7f707f681b850e09d1012ce87fa7837a12eabfd48271",
+    "crates/loom-store/src/authenticated_intent_read_gate.rs": "d05eafd2c697add28905dfda94abc23061b3560721f164907238ba1e5a697eeb",
+    "crates/loom-store/src/authenticated_intent_record.rs": "d3537dcb5cc29f63233d9fa4e10fb583aaf1ef377f984b66a38fb2d534e30332",
+    "crates/loom-store/src/authenticated_intent_write_model.rs": "164520935a8f79498500ebd6bc803c571ac8db91b0dca6beb2fc3a03c994693e",
+    "crates/loom-store/src/challenge_witness_quorum.rs": "ada1158c845f385630f98d5765219d8251108513e9f2e4d1ead698217f7bf718",
+    "crates/loom-store/src/durable_intent_simulator.rs": "65b4913d55a0d25d79a0dc62852264f2cb31b398b21c6197d74d7ac8c735f737",
+    "crates/loom-store/src/independent_reservation_fence_model.rs": "fdd1757305396fd886f9066c45fa806a9d9772a23fd72d5fbcbad5934fb990e7",
+    "crates/loom-store/src/legacy_history_audit.rs": "00df7cd9e77c5d16dea071a4a1932617286a3beda2aa4bfa12dc2aae3b1bb4e3",
+    "crates/loom-store/src/legacy_migration.rs": "f7b4ff4bc22704ab5141e622334997a2673423f42ed04c3db42101b470f40e3b",
+    "crates/loom-store/src/lib.rs": "9fb0c079d0b979f4f7ec983b6f6d9b4e1eb4438b5eb9ad9d23617fa3d85d02d4",
+    "crates/loom-store/src/linux_tpm2_probe.rs": "50af849ca76954c4d45fdd751c234cdcd8c13b513745afbf22e796cfe0399cf7",
+    "crates/loom-store/src/policy_journal_codec.rs": "388a6df1409c6934004083eec82a738ff45cfc57f8460f788dffffc2c4d16426",
+    "crates/loom-store/src/rollback_anchor.rs": "36e2a43e9266d90a4d9c4e6814165cfc241351bbf5c07a25cec0251af68e0144",
+    "crates/loom-store/src/sqlite_revocation.rs": "663e5ac3205f8016c8890434549de1fc774f5274b1f86d35fecddf4582a4977d",
+    "crates/loom-store/src/tpm_counter_binding.rs": "b06b22c469fa13ee13b10aee95e1f5835fa84ef5788cc87425f3cddfb9540e2f",
+    "crates/loom-store/src/trusted_state_provider.rs": "eb0a4c37d27f3914146fd12c3479b74bf64a9dd976333f58ed4cf28417a20ed7",
+    "crates/loom-store/src/unified_policy_anchor.rs": "f2d2822401961d7ec6937378d0f117b34e10562178013947cd463d354e11d000",
+    "crates/loom-store/src/unified_policy_journal.rs": "8a5b7a9e5fd57cdb557a37cfd46826d34e02091ab9f75b482013da924eb63440",
+    "crates/loom-transport/examples/l001_channel_lab.rs": "a81ee34f452fb0b9965c4f53df45ad8a1f5268745846b48d4dbd4d1f151b5be6",
+    "crates/loom-transport/src/lib.rs": "a191c3d9da31cbf8624c93e6d168f26e04acf3c205308b7c38f56d7be1ac28ee",
+    "crates/loom-transport/src/secure_channel.rs": "8f0ec1f8fb0b565a7dff6acd2c3b94f4d5145e7a1b9585814287e40658beb14f",
+    "crates/loom-types/src/lib.rs": "c88be845ee5a1f3299ff842be2e805d07ab6c972fd9665e9ff7dcc44ec0fefe5",
+    "crates/loom-wire/src/lib.rs": "c2acd5497bb2223dc683158b4bc10ff436c8d34e284aeabdd25cdc7800e43583",
+    "crates/loom-wire/src/security_event.rs": "d89c7cefc3eb73913a8e493c3de326a4f490d9c06429e689eab1f029229b81c2",
+    "crates/loom-core/Cargo.toml": "c3eed48c91fd838cb17841327dd6b4a56c88dde6a4a4c45e0d22cb75ff028379",
+    "crates/loom-crypto/Cargo.toml": "be1a6dc83ce27636fd5d536957212ba93a316239ca01b19f353b112641f41a39",
+    "crates/loom-identity/Cargo.toml": "65fca579af33832a12a7b716d8a1eeade785a041b9a2c2b980469e5837832dc7",
+    "crates/loom-policy/Cargo.toml": "9d4f41b782bb5b15a93cd71a9bf157e0003eedf76fac14611f706c6e08e1e07d",
+    "crates/loom-store/Cargo.toml": "9f43f00de5da3b0aa61d7406524e32ac171aa834389ceb0dff96ac8d4c4d2b3e",
+    "crates/loom-transport/Cargo.toml": "98ef8ac0bcf11d5abf012a45e06b318bbcb54d2e19b64e0fddf997dc6ef4f439",
+    "crates/loom-types/Cargo.toml": "173289a59a62e58240674810648941d36b22c2dc5dab4ee0d22e8141c8183999",
+    "crates/loom-wire/Cargo.toml": "024ab9e9f0c67fcb90391fb0fbb8b14f41e6676a7a7a760f77bf8c104a94955a"
+  },
+  "environment": {
+    "image": "redroid/redroid@sha256:0a611199ba2e0b5d60af39b3327a517f6407231f4352114ed3bd3cbfe2be69aa",
+    "image_id": "sha256:0595157f43bf3f0f20f3a1264220ced72fa5f1ed4385a1a6d3ebe059a5629700",
+    "container": "loom-l001-android",
+    "resources": {
+      "NanoCpus": 4000000000,
+      "Memory": 4294967296,
+      "PidsLimit": 1024,
+      "Privileged": true
+    },
+    "ports": {
+      "5555/tcp": [
+        {
+          "HostIp": "127.0.0.1",
+          "HostPort": "15555"
+        }
+      ]
+    },
+    "docker": "{\"Client\":{\"Version\":\"29.8.2\",\"ApiVersion\":\"1.56\",\"DefaultAPIVersion\":\"1.56\",\"GitCommit\":\"7fc2dff\",\"GoVersion\":\"go1.26.8\",\"Os\":\"darwin\",\"Arch\":\"arm64\",\"BuildTime\":\"Sun Oct 11 12:42:20 2026\",\"Context\":\"orbstack\"},\"Server\":{\"Platform\":{\"Name\":\"Docker Engine - Community\"},\"Version\":\"29.8.2\",\"ApiVersion\":\"1.56\",\"MinAPIVersion\":\"1.40\",\"Os\":\"linux\",\"Arch\":\"arm64\",\"Components\":[{\"Name\":\"Engine\",\"Version\":\"29.8.2\",\"Details\":{\"ApiVersion\":\"1.56\",\"Arch\":\"arm64\",\"BuildTime\":\"Wed Sep 30 19:32:49 2026\",\"Experimental\":\"true\",\"GitCommit\":\"8af9fe3\",\"GoVersion\":\"go1.26.8\",\"KernelVersion\":\"7.2.9-orbstack-00391-g2b298d05fbd4\",\"MinAPIVersion\":\"1.40\",\"Module\":\"github.com/moby/moby/v2\",\"ModuleVersion\":\"v2.0.0+unknown\",\"Os\":\"linux\"}},{\"Name\":\"containerd\",\"Version\":\"v2.3.6\",\"Details\":{\"GitCommit\":\"ee2735368117d2eb259779949d5e75cdafec9761\"}},{\"Name\":\"runc\",\"Version\":\"1.5.2\",\"Details\":{\"GitCommit\":\"29dd3dc2b13b4123162e5fe132504bb4b15569f1\"}},{\"Name\":\"docker-init\",\"Version\":\"0.19.0\",\"Details\":{\"GitCommit\":\"de40ad0\"}}],\"GitCommit\":\"8af9fe3\",\"GoVersion\":\"go1.26.8\",\"KernelVersion\":\"7.2.9-orbstack-00391-g2b298d05fbd4\",\"Experimental\":true,\"BuildTime\":\"2026-09-30T19:32:49.000000000+00:00\"}}",
+    "host": "Darwin MAC-8E71A2.lan 27.0.0 Darwin Kernel Version 27.0.0: Tue Aug 11 21:02:57 PDT 2026; root:xnu-13432.1.9~1/RELEASE_ARM64_T8132 arm64",
+    "rust": "rustc 1.90.0 (1159e78c4 2025-09-14)\nbinary: rustc\ncommit-hash: 1159e78c4747b02ef996e55082b704c09b970588\ncommit-date: 2025-09-14\nhost: aarch64-apple-darwin\nrelease: 1.90.0\nLLVM version: 20.1.8",
+    "android": "uid=2000(shell) gid=2000(shell) groups=2000(shell)\nLinux f1c2bd59bf3d 7.2.9-orbstack-00391-g2b298d05fbd4 #1 SMP PREEMPT Mon Oct 12 05:39:36 UTC 2026 aarch64 Toybox\n14\n34\narm64-v8a\nredroid/redroid_arm64_only/redroid_arm64_only:14/UD2A.240505.001.W1/eng.frank.20240527.152423:userdebug/test-keys\nDisabled\ncrw-rw-rw- 1 root root 10, 261 2026-10-19 23:50 /dev/binder\ncrw-rw-rw- 1 root root 10, 262 2026-10-19 23:50 /dev/hwbinder\ncrw-rw-rw- 1 root root 10, 200 2026-10-19 23:50 /dev/net/tun\ncrw-rw-rw- 1 root root 10, 263 2026-10-19 23:50 /dev/vndbinder\ndefault via 192.168.215.1 dev eth0 \n192.168.215.0/24 dev eth0 proto kernel scope link src 192.168.215.2 \nlocal 127.0.0.0/8 dev lo table local proto kernel scope host src 127.0.0.1 \nlocal 127.0.0.1 dev lo table local proto kernel scope host src 127.0.0.1 \nbroadcast 127.255.255.255 dev lo table local proto kernel scope link src 127.0.0.1 \nlocal 192.168.215.2 dev eth0 table local proto kernel scope host src 192.168.215.2 \nbroadcast 192.168.215.255 dev eth0 table local proto kernel scope link src 192.168.215.2 \n0:\tfrom all lookup local \n32766:\tfrom all lookup main \n32767:\tfrom all lookup default \nPSI_MISSING\n"
+  },
+  "framework": {
+    "properties": {
+      "sys.boot_completed": "",
+      "init.svc.lmkd": "restarting",
+      "ro.build.version.sdk": "34",
+      "ro.product.cpu.abi": "arm64-v8a"
+    },
+    "real_device": false,
+    "vpn_service_tested": false,
+    "app_sandbox_tested": false,
+    "note": "Native binaries run as shell UID 2000 via docker exec; no production Android APK/JNI exists.",
+    "psi_available": false,
+    "adb_shell_probe": {
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": "adb: device offline\n"
+    }
+  },
+  "finished_utc": "2026-10-19T23:50:53.507674+00:00"
+}

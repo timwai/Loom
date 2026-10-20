@@ -1,0 +1,84 @@
+
+STDERR:
+OpenJDK 64-Bit Server VM warning: Options -Xverify:none and -noverify were deprecated in JDK 13 and will likely be removed in a future release.
+interop/wire01/kotlin/Main.kt:14:27: warning: this declaration is experimental and its usage should be marked with '@kotlin.ExperimentalUnsignedTypes' or '@UseExperimental(kotlin.ExperimentalUnsignedTypes::class)'
+    fun head(major: Int): ULong {
+                          ^
+interop/wire01/kotlin/Main.kt:18:36: warning: this declaration is experimental and its usage should be marked with '@kotlin.ExperimentalUnsignedTypes' or '@UseExperimental(kotlin.ExperimentalUnsignedTypes::class)'
+        if (code < 24) return code.toULong()
+                                   ^
+interop/wire01/kotlin/Main.kt:21:19: warning: unsigned literals are experimental and their usages should be marked with '@kotlin.ExperimentalUnsignedTypes' or '@UseExperimental(kotlin.ExperimentalUnsignedTypes::class)'
+        var value=0uL
+                  ^
+interop/wire01/kotlin/Main.kt:22:41: warning: this declaration is experimental and its usage should be marked with '@kotlin.ExperimentalUnsignedTypes' or '@UseExperimental(kotlin.ExperimentalUnsignedTypes::class)'
+        for (v in take(n)) value=(value shl 8) or (v.toInt() and 255).toULong()
+                                        ^
+interop/wire01/kotlin/Main.kt:22:48: warning: this declaration is experimental and its usage should be marked with '@kotlin.ExperimentalUnsignedTypes' or '@UseExperimental(kotlin.ExperimentalUnsignedTypes::class)'
+        for (v in take(n)) value=(value shl 8) or (v.toInt() and 255).toULong()
+                                               ^
+interop/wire01/kotlin/Main.kt:22:71: warning: this declaration is experimental and its usage should be marked with '@kotlin.ExperimentalUnsignedTypes' or '@UseExperimental(kotlin.ExperimentalUnsignedTypes::class)'
+        for (v in take(n)) value=(value shl 8) or (v.toInt() and 255).toULong()
+                                                                      ^
+interop/wire01/kotlin/Main.kt:23:34: warning: unsigned literals are experimental and their usages should be marked with '@kotlin.ExperimentalUnsignedTypes' or '@UseExperimental(kotlin.ExperimentalUnsignedTypes::class)'
+        val floor=when(code){24->24uL;25->256uL;26->65536uL;else->4294967296uL}
+                                 ^
+interop/wire01/kotlin/Main.kt:23:43: warning: unsigned literals are experimental and their usages should be marked with '@kotlin.ExperimentalUnsignedTypes' or '@UseExperimental(kotlin.ExperimentalUnsignedTypes::class)'
+        val floor=when(code){24->24uL;25->256uL;26->65536uL;else->4294967296uL}
+                                          ^
+interop/wire01/kotlin/Main.kt:23:53: warning: unsigned literals are experimental and their usages should be marked with '@kotlin.ExperimentalUnsignedTypes' or '@UseExperimental(kotlin.ExperimentalUnsignedTypes::class)'
+        val floor=when(code){24->24uL;25->256uL;26->65536uL;else->4294967296uL}
+                                                    ^
+interop/wire01/kotlin/Main.kt:23:67: warning: unsigned literals are experimental and their usages should be marked with '@kotlin.ExperimentalUnsignedTypes' or '@UseExperimental(kotlin.ExperimentalUnsignedTypes::class)'
+        val floor=when(code){24->24uL;25->256uL;26->65536uL;else->4294967296uL}
+                                                                  ^
+interop/wire01/kotlin/Main.kt:24:22: warning: this declaration is experimental and its usage should be marked with '@kotlin.ExperimentalUnsignedTypes' or '@UseExperimental(kotlin.ExperimentalUnsignedTypes::class)'
+        require(value>=floor)
+                     ^
+interop/wire01/kotlin/Main.kt:30:18: warning: this declaration is experimental and its usage should be marked with '@kotlin.ExperimentalUnsignedTypes' or '@UseExperimental(kotlin.ExperimentalUnsignedTypes::class)'
+        require(n<=max.toULong())
+                 ^
+interop/wire01/kotlin/Main.kt:30:24: warning: this declaration is experimental and its usage should be marked with '@kotlin.ExperimentalUnsignedTypes' or '@UseExperimental(kotlin.ExperimentalUnsignedTypes::class)'
+        require(n<=max.toULong())
+                       ^
+interop/wire01/kotlin/Main.kt:31:23: warning: this declaration is experimental and its usage should be marked with '@kotlin.ExperimentalUnsignedTypes' or '@UseExperimental(kotlin.ExperimentalUnsignedTypes::class)'
+        return take(n.toInt())
+                      ^
+interop/wire01/kotlin/Main.kt:35:24: warning: this declaration is experimental and its usage should be marked with '@kotlin.ExperimentalUnsignedTypes' or '@UseExperimental(kotlin.ExperimentalUnsignedTypes::class)'
+        require(head(5)==9uL)
+                       ^
+interop/wire01/kotlin/Main.kt:35:26: warning: unsigned literals are experimental and their usages should be marked with '@kotlin.ExperimentalUnsignedTypes' or '@UseExperimental(kotlin.ExperimentalUnsignedTypes::class)'
+        require(head(5)==9uL)
+                         ^
+interop/wire01/kotlin/Main.kt:36:19: warning: unsigned literals are experimental and their usages should be marked with '@kotlin.ExperimentalUnsignedTypes' or '@UseExperimental(kotlin.ExperimentalUnsignedTypes::class)'
+        var start=0uL
+                  ^
+interop/wire01/kotlin/Main.kt:37:17: warning: unsigned literals are experimental and their usages should be marked with '@kotlin.ExperimentalUnsignedTypes' or '@UseExperimental(kotlin.ExperimentalUnsignedTypes::class)'
+        var end=0uL
+                ^
+interop/wire01/kotlin/Main.kt:39:29: warning: this declaration is experimental and its usage should be marked with '@kotlin.ExperimentalUnsignedTypes' or '@UseExperimental(kotlin.ExperimentalUnsignedTypes::class)'
+            require(number()==k.toULong())
+                            ^
+interop/wire01/kotlin/Main.kt:39:33: warning: this declaration is experimental and its usage should be marked with '@kotlin.ExperimentalUnsignedTypes' or '@UseExperimental(kotlin.ExperimentalUnsignedTypes::class)'
+            require(number()==k.toULong())
+                                ^
+interop/wire01/kotlin/Main.kt:41:36: warning: this declaration is experimental and its usage should be marked with '@kotlin.ExperimentalUnsignedTypes' or '@UseExperimental(kotlin.ExperimentalUnsignedTypes::class)'
+                0->require(number()==1uL)
+                                   ^
+interop/wire01/kotlin/Main.kt:41:38: warning: unsigned literals are experimental and their usages should be marked with '@kotlin.ExperimentalUnsignedTypes' or '@UseExperimental(kotlin.ExperimentalUnsignedTypes::class)'
+                0->require(number()==1uL)
+                                     ^
+interop/wire01/kotlin/Main.kt:42:37: warning: this declaration is experimental and its usage should be marked with '@kotlin.ExperimentalUnsignedTypes' or '@UseExperimental(kotlin.ExperimentalUnsignedTypes::class)'
+                1->require(number() in 1uL..5uL)
+                                    ^
+interop/wire01/kotlin/Main.kt:42:40: warning: unsigned literals are experimental and their usages should be marked with '@kotlin.ExperimentalUnsignedTypes' or '@UseExperimental(kotlin.ExperimentalUnsignedTypes::class)'
+                1->require(number() in 1uL..5uL)
+                                       ^
+interop/wire01/kotlin/Main.kt:42:43: warning: this declaration is experimental and its usage should be marked with '@kotlin.ExperimentalUnsignedTypes' or '@UseExperimental(kotlin.ExperimentalUnsignedTypes::class)'
+                1->require(number() in 1uL..5uL)
+                                          ^
+interop/wire01/kotlin/Main.kt:42:45: warning: unsigned literals are experimental and their usages should be marked with '@kotlin.ExperimentalUnsignedTypes' or '@UseExperimental(kotlin.ExperimentalUnsignedTypes::class)'
+                1->require(number() in 1uL..5uL)
+                                            ^
+interop/wire01/kotlin/Main.kt:52:22: warning: this declaration is experimental and its usage should be marked with '@kotlin.ExperimentalUnsignedTypes' or '@UseExperimental(kotlin.ExperimentalUnsignedTypes::class)'
+        require(start<end)
+                     ^

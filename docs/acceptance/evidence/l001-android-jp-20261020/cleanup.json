@@ -1,0 +1,10 @@
+{
+  "state": "passed",
+  "android_container_stopped": true,
+  "container_exit_code": 137,
+  "finished_at": "2026-10-20T00:20:57.600990532Z",
+  "private_udp_helper_stopped": true,
+  "image_and_data_volume_retained": true,
+  "server_payload_retained": "/opt/loom-l001-lab/run20261020",
+  "public_adb_port_created": false
+}

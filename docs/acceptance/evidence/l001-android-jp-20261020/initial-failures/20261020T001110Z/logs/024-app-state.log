@@ -1,0 +1,2 @@
+{"lab_only":true,"uid":10088,"mode":"probe","prepare_requires_consent":true,"consent_result_ok":true,"foreground_started":true,"prepared_after_consent":true,"protect_before_connect":true,"tun_established":true,"vpn_network_active":true,"protected_socket_bypasses_tun":true,"error":"java.lang.IllegalStateException: unexpected IPv4\/UDP packet","state":"failed","tun_fd_closed":true,"protected_socket_closed":true,"on_destroy":true}
+STDERR:

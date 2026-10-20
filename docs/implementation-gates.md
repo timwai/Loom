@@ -5,7 +5,7 @@
 ## Fixed provenance and scope
 
 - RelayProxy comparison baseline: `timwai/RelayProxy main@e4254c81ed678198c948272c22981fd16c19be9a`. Loom is a new Rust-first project, not a drop-in Go wire-compatible agent.
-- Existing Rust security work includes eight library crates and disabled `loomd`, signed Owner/Root/dual-Witness journal models, independent rollback and crash simulations, and isolated Peer mTLS experiments. These are **not** a usable Mesh service.
+- Existing Rust security work includes library crates and disabled `loomd`, signed Owner/Root/dual-Witness journal models, independent rollback and crash simulations, and isolated Peer mTLS experiments. These are **not** a usable Mesh service.
 - Never assume a signed frame, persistent SQLite record, volatile CAS mutex, numeric NV value or unverified Witness pair is sufficient for production authorization.
 - **Hardware neutrality:** TPM 2.0 is OPTIONAL. Windows TPM/fTPM, macOS Secure Enclave, Android Keystore/StrongBox and verified remote/quorum anchors have different security semantics and must not be treated as interchangeable. Portable software state must remain usable for ordinary, non-security-critical settings without any specific chip. Any operation requiring nonrollbackable authority instead needs independently verified, scoped high-water and crash recovery, provided by a supported backend or trusted remote protocol. Missing or stale evidence fails closed; no silent downgrade.
 
@@ -19,7 +19,7 @@
 | **L-001C / AUTHZ-RACE-01** | No stale policy/Owner or two-Peer revoke bypass; real admission-to-session atomicity and cross-process writer coherence | **PARTIAL:** signed journal/recovery and in-memory reservation models; no production ServiceOpen |
 | **L-001C / AUTHZ-CRASH-02** | Verified real power-loss/restart around durable Prepared, independently trustworthy replay fence and backend-specific monotonic state (hardware or authenticated independent quorum), signed recovery/repair | **PARTIAL:** deterministic crash simulators only; real provider failure semantics unverified |
 | **L-001C / ROLLBACK-01** | Independently enrolled nonrollbackable or equivalently trustworthy antirollback anchor, proven signer/fence provenance, backup/clone/reset or remote quorum fault acceptance across processes and hosts; **no mandatory TPM chip** | **PARTIAL:** no vetted hardware or independent quorum adapter; model only |
-| **L-001D / PLATFORM-ANDROID-01** | Android VpnService lifecycle/permissions on real target, traffic/no-leak, driver/device failure and reboot | **BLOCKED:** no Android device or app integration |
+| **L-001D / PLATFORM-ANDROID-01** | Android VpnService lifecycle/permissions on real target, traffic/no-leak, driver/device failure and reboot | **BLOCKED:** Android/Bionic and separate VPN API APK passed on JP Docker with PSI; production Rust/JNI VPN, full leak tests and real-device integration remain unverified |
 | **L-001D / PLATFORM-WIN-01** | Windows filter/driver/socket real-host path, privileges, signed deployment, crash/reboot, fail-closed traffic behavior | **BLOCKED:** Windows-hosted Rust tests do not test drivers |
 | **L-001D / PLATFORM-MAC-01** | macOS Network/System Extension real-host entitlement, user consent, traffic, crash/reboot and signed deployment | **BLOCKED:** macOS-hosted Rust tests do not test extensions |
 
@@ -27,6 +27,8 @@
 
 ## Current evidence, not release approval
 
+- **2026-10-20 JP Android Docker:** 248 native tests, TLS/storage recovery and a standalone debug VPN API APK passed before and after container restart. Actual system consent, TUN/protect routing, Settings disconnect and app-SIGKILL cleanup were exercised. [Report](acceptance/evidence/l001-android-jp-20261020/REPORT.md). The APK contains no Loom Rust/JNI forwarding or production authorization; it does not satisfy physical-device acceptance.
+- **2026-10-19 macOS / Docker lab:** 244 Rust tests per OS, strict Clippy, four real TCP/mTLS paths, 20 fixture-identity/scope refusals and nine process/container SIGKILL recoveries. [Report, raw samples and logs](acceptance/evidence/l001-local-docker-20261019/REPORT.md). This adds concrete PoC evidence; signed production membership/Owner admission, independent rollback storage, physical power loss and platform-driver gates remain unpassed.
 - L-001A / Draft #7 and reintegration #36: isolated mTLS Peer channel, malicious bearer and identity-bound tests.
 - L-001B / Draft #35: independent strict Rust, Go, JavaScript, Kotlin golden CBOR/signing-input test runners executed in GitHub Actions.
 - L-001C / Draft #8–#34: signed journal replay, outbox/Audit, Root/Owner/Witness, counter/intent, signed record and recovery state models. No proven independently durable, rollback-resistant CAS or authenticated remote quorum.
@@ -41,3 +43,5 @@ Engineering can advance the original L-001A/B/C/D code, but **the selected trust
 **No-Go:** public WAN relay, traffic interception without OS approval, auto-ban of self-reported RDP IP, automatic trust restoration from legacy databases, unverifiable signer/witness credentials, claimed Rust performance superiority without measurement, or any production ServiceOpen before nine-gate and human release sign-off.
 
 **L-002A has started:** twelve test-only Rust model cases for two-Peer LAN file reads with simulated Owner ACL, exact Space/Peer/Resource/Epoch binding and revoke-on-next-chunk behavior. **L-002B adds** a cross-platform `TrustedStateProvider` capability gate: volatile software settings by default, optional hardware/independent quorum assurances, no self-attested promotion. This is not a real LAN transfer and cannot relax any L-001 release gate; see [L-002A test plan](spikes/l-002a-lan-file-read-model.md).
+
+2026-10-20: [Integrated existing-environment lab](acceptance/evidence/l001-integrated-20261020/REPORT.md) passes 268 tests on macOS, Linux and Android, including signed-member/Owner candidate verification and actual Rust JNI membership/TUN/protected-socket checks after container restart. This does not establish production VPN forwarding, revocation/session barriers, atomic ServiceOpen, trusted enrollment or antirollback. Windows is currently unavailable and macOS signing unavailable; no independent signoff is inferred.

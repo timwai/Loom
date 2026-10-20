@@ -1,0 +1,4 @@
+
+STDERR:
+Loom Linux TPM2 read-only probe denied: UnsupportedPlatform
+No fallback to local files, SQLite, TPM1.2 or untrusted NV state.

@@ -1,0 +1,6 @@
+
+STDERR:
+    Checking loom-store v0.1.0 (/workspace/crates/loom-store)
+    Checking loom-core v0.1.0 (/workspace/crates/loom-core)
+    Checking loomd v0.1.0 (/workspace/apps/loomd)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.86s

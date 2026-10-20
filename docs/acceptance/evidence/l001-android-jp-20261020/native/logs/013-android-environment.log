@@ -1,0 +1,24 @@
+uid=2000(shell) gid=2000(shell) groups=2000(shell)
+redroid/redroid_arm64_only/redroid_arm64_only:14/UD2A.240505.001.W1/eng.frank.20240527.152423:userdebug/test-keys
+Disabled
+some avg10=0.00 avg60=0.00 avg300=0.00 total=778524519
+full avg10=0.00 avg60=0.00 avg300=0.00 total=742714212
+max 0
+low 0
+high 0
+max 0
+oom 0
+oom_kill 0
+oom_group_kill 0
+172.17.0.0/16 dev eth0 table eth0_local proto static scope link 
+224.0.0.0/24 dev eth0 table eth0_local proto static scope link 
+default via 172.17.0.1 dev eth0 table eth0 proto static 
+172.17.0.0/16 dev eth0 table eth0 proto static scope link 
+172.17.0.0/16 dev eth0 proto kernel scope link src 172.17.0.4 
+local 127.0.0.0/8 dev lo table local proto kernel scope host src 127.0.0.1 
+local 127.0.0.1 dev lo table local proto kernel scope host src 127.0.0.1 
+broadcast 127.255.255.255 dev lo table local proto kernel scope link src 127.0.0.1 
+local 172.17.0.4 dev eth0 table local proto kernel scope host src 172.17.0.4 
+broadcast 172.17.255.255 dev eth0 table local proto kernel scope link src 172.17.0.4 
+
+STDERR:

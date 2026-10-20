@@ -1,0 +1,38 @@
+
+STDERR:
+#0 building with "orbstack" instance using docker driver
+
+#1 [internal] load build definition from l001-lab.Dockerfile
+#1 transferring dockerfile: 571B done
+#1 DONE 0.0s
+
+#2 [internal] load metadata for docker.io/library/rust:1.90.0-slim-bookworm@sha256:64232e656c058f4468e8d024e990acff04f0fd5a5c0a88a574dc37773d7325c9
+#2 DONE 0.0s
+
+#3 [internal] load metadata for docker.io/library/golang:1.23-bookworm@sha256:167053a2bb901972bf2c1611f8f52c44d5fe7e762e5cab213708d82c421614db
+#3 DONE 0.0s
+
+#4 [internal] load .dockerignore
+#4 transferring context: 99B done
+#4 DONE 0.0s
+
+#5 [stage-1 1/4] FROM docker.io/library/rust:1.90.0-slim-bookworm@sha256:64232e656c058f4468e8d024e990acff04f0fd5a5c0a88a574dc37773d7325c9
+#5 DONE 0.0s
+
+#6 [go 1/1] FROM docker.io/library/golang:1.23-bookworm@sha256:167053a2bb901972bf2c1611f8f52c44d5fe7e762e5cab213708d82c421614db
+#6 DONE 0.0s
+
+#7 [stage-1 3/4] COPY --from=go /usr/local/go /usr/local/go
+#7 CACHED
+
+#8 [stage-1 2/4] RUN apt-get update -qq && apt-get install -y --no-install-recommends     make cmake python3 nodejs default-jdk-headless kotlin iproute2 ca-certificates     && rm -rf /var/lib/apt/lists/*
+#8 CACHED
+
+#9 [stage-1 4/4] WORKDIR /workspace
+#9 CACHED
+
+#10 exporting to image
+#10 exporting layers done
+#10 writing image sha256:6d2c134734e33a398b3e6b7cb5e1ac781eb8f15e268da68813bd3f905692468e done
+#10 naming to docker.io/library/loom-l001-lab:local done
+#10 DONE 0.0s

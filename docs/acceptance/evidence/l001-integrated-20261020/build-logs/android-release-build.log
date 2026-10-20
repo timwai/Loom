@@ -1,0 +1,14 @@
+
+STDERR:
+   Compiling curve25519-dalek v4.1.3
+   Compiling jni-sys v0.4.1
+   Compiling thiserror v1.0.69
+   Compiling jni-sys v0.3.1
+   Compiling jni v0.21.1
+   Compiling ed25519-dalek v2.2.0
+   Compiling loom-crypto v0.1.0 (/Volumes/Data/Code/Loom/crates/loom-crypto)
+   Compiling loom-identity v0.1.0 (/Volumes/Data/Code/Loom/crates/loom-identity)
+   Compiling loom-store v0.1.0 (/Volumes/Data/Code/Loom/crates/loom-store)
+   Compiling loom-transport v0.1.0 (/Volumes/Data/Code/Loom/crates/loom-transport)
+   Compiling loom-android v0.1.0 (/Volumes/Data/Code/Loom/crates/loom-android)
+    Finished `release` profile [optimized] target(s) in 3.89s

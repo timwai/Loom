@@ -1,0 +1,6 @@
+--------- beginning of main
+10-19 23:50:51.870    21    21 I lowmemorykiller: No kernel memory.pressure_level support (errno=2)
+10-19 23:50:51.870    21    21 E lowmemorykiller: Kernel does not support memory pressure events or in-kernel low memory killer
+10-19 23:50:51.870    21    21 I lowmemorykiller: exiting
+
+STDERR:

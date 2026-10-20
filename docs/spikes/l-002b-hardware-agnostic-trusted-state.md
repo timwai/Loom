@@ -1,5 +1,7 @@
 # L-002B — Hardware-agnostic Trusted State Provider (optional TPM)
 
+> 2026-10-20 follow-up: [L-002D authenticated append](l-002d-authenticated-witness-append.md) and [L-002E isolated LAN read acceptance](l-002e-lan-file-read-acceptance.md) now implement and test the next candidate steps. The original model boundaries below are historical; independent Witness provisioning, production admission and release approval remain blocked.
+
 > Design + Rust capability model, 2026-10-18. **Security PoC only.** No real TPM NV writes, Secure Enclave calls, Android KeyStore operations, quorum network endpoints, service admission, or production antirollback attestation. L-001 engineering integrated but L-001 release remains BLOCKED.
 
 ## Design decision

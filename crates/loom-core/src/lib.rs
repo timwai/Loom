@@ -49,6 +49,11 @@ impl PeerCore {
 #[cfg(test)]
 mod lan_file_read_model;
 
+/// Explicitly opt-in L-002 laboratory. No daemon integration or production
+/// AdmissionPermit; independent provisioning/rollback assurance is required.
+#[cfg(feature = "experimental-lan")]
+pub mod lan_read;
+
 #[cfg(test)]
 mod tests {
     use super::*;

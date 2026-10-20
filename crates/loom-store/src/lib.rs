@@ -109,3 +109,7 @@ pub mod trusted_state_provider;
 /// L-002C TPM-free, two-pinned-Witness challenge/response high-water verifier.
 /// Signature and state checks are diagnostics only, not ServiceOpen authority.
 pub mod challenge_witness_quorum;
+
+/// L-002D authenticated Owner append/CAS and signed-history SQLite candidate.
+/// Partial quorum remains fail-closed; local files are not trusted antirollback.
+pub mod witness_append;

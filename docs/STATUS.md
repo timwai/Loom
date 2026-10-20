@@ -1,5 +1,7 @@
 # Loom — implementation status and security gates
 
+> **2026-10-20 L-002 isolated laboratory acceptance: PASSED.** Opt-in `experimental-lan` adds Root-bound Owner-signed read ACL transitions, crash-durable SQLite Witness CAS, persistent fork quarantine, fresh two-Witness checks and actual TLS file-snapshot reads/revocation. macOS and Linux each pass **282 tests** (14 new); each OS also passes six grant/revoke SIGKILL cases. Two separate containers transfer the file over an internal Docker LAN; the server refuses after revoke and after container restart. [Evidence and reproduction](acceptance/evidence/l002-isolated-lab-20261020/REPORT.md). Public fixture keys, same-host Witness logs and a single-credential membership verifier do not establish production admission or independent rollback protection. **L-002 release remains BLOCKED.**
+
 > **2026-10-20 integrated existing-environment acceptance: PASSED.** macOS, Linux Docker and JP Android each passed **268 tests**. Actual Android Rust JNI now verifies signed membership, validates TUN packet boundaries and creates UDP sockets protected before connect; consent/revoke/SIGKILL checks pass before and after container restart. Root-delegated member and Root-bound OwnerGrant candidates pass real TCP/mTLS tests, with distinct key/member epochs and post-association revalidation. [Evidence and remaining work](acceptance/evidence/l001-integrated-20261020/REPORT.md). Production encrypted VPN forwarding, atomic ServiceOpen, independent rollback protection, physical platform acceptance and independent signoffs remain **BLOCKED**.
 
 > **2026-10-20 JP Android Docker revalidation: PASSED (native + standalone VPN API lab).** The authorized `jp.tingjusting.fun` ARM64 Linux host provides PSI and Binder. Android 14 passed **248 Rust tests**, three TLS paths, 15 refusals, three SIGKILL recoveries and ten Witness cases, including a full rerun after container restart. A separate debug APK passed real system VPN consent/cancel, TUN/protect routing, Settings revocation and app-SIGKILL cleanup as an application UID. [Report and raw evidence](acceptance/evidence/l001-android-jp-20261020/REPORT.md). This resolves the local OrbStack kernel limitation for these lab tests; no production Rust/JNI VPN integration, full DNS/IPv6 leak coverage or physical Android acceptance exists. Release remains **BLOCKED**.
@@ -12,7 +14,7 @@
 
 ## Executive status
 
-**L-001_ENGINEERING_COMPLETE / L-001_RELEASE_BLOCKED / L-002A-C_POC_ONLY / TPM_OPTIONAL / NO_SERVICE_OPEN**
+**L-001_ENGINEERING_COMPLETE / L-001_RELEASE_BLOCKED / L-002_LAB_ACCEPTED / L-002_RELEASE_BLOCKED / TPM_OPTIONAL / NO_SERVICE_OPEN**
 
 - **L-001 engineering integration completed**: all stacked Rust PoCs plus separate L-001A/B/J histories are on `main`, merge `d50eae4` with full Ubuntu/Windows/macOS CI green. All obsolete branches and 32 obsolete Draft PRs are closed. This is not final acceptance: the nine L-001A/B/C/D security/platform release gates and four signoffs are **still incomplete**.
 - The integrated workspace has eight Rust library crates, a `loomd` binary that does not start a service, signed protocol/Owner-lifecycle verifiers, SQLite policy journals, witness/rollback models and a **read-only** Linux TPM2 probe.
@@ -49,6 +51,13 @@
 | L-001AD, PR #37 | Add Windows/macOS hosted Rust workspace matrix with locked TLS/crypto/journal tests in GitHub Actions | Host Rust portability smoke only; neither actual Windows filter/macos Network Extension nor Android VpnService `PLATFORM-*` pass |
 
 **Historical topology:** #6 (wire), #7 (channel) and #16 (mirror integrity) originally branched from earlier ancestors. L-001P/L-001AC and the main consolidation reconciled these histories; the earlier draft/branch arrangement is historical, not the current integration state.
+
+## L-002D/E — authenticated append and isolated LAN read laboratory
+
+- `loom-store::witness_append` authenticates every append and history replay against the Root-selected Owner and exact manifest, predecessor, generation, Peer/key/member epochs and lifetime. SQLite FULL transactions acknowledge after commit; exact retries are idempotent, conflicting signed alternatives persist as fork evidence and quarantine the log. Existing L-001 journals are not migrated.
+- `loom-core::lan_read` is available only with `experimental-lan`. It enrolls a bounded immutable snapshot from an Owner-supplied open file, accepts only resource IDs, and checks TLS-bound membership, a signed read ACL and fresh matching Witness responses on every open/chunk. A final SQLite read transaction fences other connections while the chunk is copied.
+- `scripts/l002_acceptance.py` measures real TLS reads, revocation/re-grant, restored databases, six SIGKILL boundaries per OS and a Docker server restart. `scripts/l002_gate.py --require-lab` validates archived logs, source inventory and hashes; `--require-release` still fails.
+- These are candidate APIs and a deliberately isolated laboratory, with public fixture keys and local Witness callbacks. Independent provisioning/storage, remote Witness service transport, compulsory production writer participation, synchronized membership revocation, platform approval and independent review remain open. No production `AdmissionPermit` or daemon listener is enabled.
 
 ## L-002C — challenge-bound external Witness high-water diagnostics
 

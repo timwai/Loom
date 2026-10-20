@@ -51,3 +51,5 @@
 2026-10-20 补充：[JP Android Docker 实验](acceptance/evidence/l001-android-jp-20261020/REPORT.md)在容器重启后通过 248 项原生测试及独立 VPN API 调试 APK 五项检查。生产 Rust/JNI VPN、完整泄漏测试与物理设备仍未验收，不据此填写平台或安全审查签字。
 
 2026-10-20 本轮：[现有环境集成验收](acceptance/evidence/l001-integrated-20261020/REPORT.md)中 macOS/Linux/Android 各 268 项通过；真实 Rust JNI 成员签名、TUN 边界及保护后连接的 socket 工厂在容器重启后复验通过。签名成员与 Owner 授权只是候选验证，生产 ServiceOpen、独立防回滚、完整 VPN 转发和真机仍缺失；Windows 暂无环境、macOS 暂无签名条件。本轮不填写四类独立审查签字。
+
+2026-10-20 L-002：[隔离 LAN 实验验收](acceptance/evidence/l002-isolated-lab-20261020/REPORT.md)通过。macOS/Linux 各 282 项测试、每 OS 六处授权/撤销 SIGKILL、容器间 TLS 只读文件及撤销后重启拒绝通过。新增持久分叉隔离、逐块新鲜 Witness 检查和 SQLite 跨连接读取屏障。Witness 仍是同机文件且使用公开实验密钥，未实现生产准入或独立防回滚；本轮不填写独立审查签字，正式 L-002 保持 BLOCKED。

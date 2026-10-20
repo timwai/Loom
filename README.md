@@ -2,7 +2,7 @@
 
 Rust-first, **peer-oriented** private networking and device services platform. Loom is the new independent project for the RelayProxy Rust rewrite and decentralized Peer Mesh design.
 
-**Status: L-001 engineering-integrated / L-001 release BLOCKED / L-002A–C models integrated.** The historical stacked development branches have been consolidated into the default branch. This is a source-code integration, **not** an L-001 release approval. `loomd` remains disabled: no network listener, ServiceOpen, resource admission, proxy modification, operating-system driver, or VPN is enabled. Real independent anti-rollback storage, hardware acceptance and reviewed authorization remain NO-GO.
+**Status: L-001 engineering-integrated / release BLOCKED / L-002 isolated LAN laboratory accepted.** The historical stacked development branches have been consolidated into the default branch. This is a source-code integration, **not** an L-001 release approval. `loomd` remains disabled: no network listener, ServiceOpen, resource admission, proxy modification, operating-system driver, or VPN is enabled. Real independent anti-rollback storage, hardware acceptance and reviewed authorization remain NO-GO.
 
 ## Architecture
 
@@ -37,7 +37,7 @@ The `loomd` bootstrap command only prints its disabled-runtime state. A passing 
 - [Latest existing-environment acceptance](docs/acceptance/evidence/l001-integrated-20261020/REPORT.md) — 268 tests each on macOS/Linux/Android; actual JNI membership/TUN/protected-socket checks and container restart passed. Production admission, platform and independent-review gates remain blocked.
 - [Android Docker laboratory](docs/acceptance/android-docker-lab.md) — Android 14 ARM64/Bionic: 248 tests, TLS, SQLite and recovery experiments; the JP Linux host also passed a standalone VPN API APK. Production JNI/VPN and real-device acceptance remain blocked.
 
-**Next development:** L-002D will address authenticated Witness append and durable crash recovery; L-002A file-read/revocation, L-002B provider gating and L-002C challenge-bound Witness diagnostics are integrated models. Engineering integration of the L-001 PoCs is complete; its separate hardware, cross-platform, signed-authorization and ServiceOpen release acceptance remains BLOCKED. See [implementation gates](docs/implementation-gates.md), [L-001 evidence](docs/acceptance/l001.json) and [L-002A test plan](docs/spikes/l-002a-lan-file-read-model.md).
+**L-002 laboratory acceptance:** opt-in authenticated Owner/Witness append, crash recovery and real two-Peer TLS file-snapshot reads/revocation now pass on macOS and an isolated Docker LAN. Run `python3 scripts/l002_acceptance.py`; verify archived evidence with `python3 scripts/l002_gate.py --require-lab`. The experiment uses public fixture keys and local Witness files, and is not production ServiceOpen. [Acceptance report](docs/acceptance/evidence/l002-isolated-lab-20261020/REPORT.md). **Next development:** independently provisioned Witness services, production admission and security review. L-002A file-read/revocation, L-002B provider gating and L-002C challenge-bound Witness diagnostics remain integrated models. Engineering integration of the L-001 PoCs is complete; its separate hardware, cross-platform, signed-authorization and ServiceOpen release acceptance remains BLOCKED. See [implementation gates](docs/implementation-gates.md), [L-001 evidence](docs/acceptance/l001.json) and [L-002A test plan](docs/spikes/l-002a-lan-file-read-model.md).
 
 ## Compatibility and licensing
 

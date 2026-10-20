@@ -1,0 +1,38 @@
+{
+  "schema": 1,
+  "milestone": "L-002",
+  "updated": "2026-10-20",
+  "owner": "Codex / Loom workspace",
+  "source_base_commit": "e9fe4a5f5704b9608ccbca85b8a7281b6e17596e",
+  "laboratory": {
+    "profile": "L-002-isolated-lab-v1",
+    "status": "passed",
+    "tests_per_os": 282,
+    "evidence": "docs/acceptance/evidence/l002-isolated-lab-20261020/summary.json",
+    "sha256": "83d97e82b3ce7c50d30d8328694dfcbf7fb6a0211b23526e81d2a1662c5f3aa7"
+  },
+  "modules": [
+    "loom-store::witness_append",
+    "loom-core::lan_read",
+    "loom-transport::secure_channel"
+  ],
+  "test_ids": [
+    "L002-OWNER-APPEND",
+    "L002-WITNESS-PARTIAL",
+    "L002-FORK-QUARANTINE",
+    "L002-TLS-FILE",
+    "L002-REVOKE-RESTART",
+    "L002-CRASH-GRANT-REVOKE"
+  ],
+  "rollback_strategy": "Disable experimental-lan; normal loomd stays BootstrapOnly. Preserve fork evidence and do not erase or recreate enrolled logs.",
+  "release": {
+    "status": "blocked",
+    "blockers": {
+      "independent-witnesses": "Local SQLite files and public fixture signers do not prove independent durable state, key custody or externally pinned freshness; remote authenticated Witness enrollment/transport/rotation is missing.",
+      "production-admission": "No production AdmissionPermit, compulsory cross-device writer participation, globally synchronized membership/policy barrier, or production runtime scheduling exists.",
+      "independent-review": "L-001 security/interop/trusted-state signoffs and review of the new append/pull formats are absent.",
+      "physical-platforms": "Physical platform and deployment acceptance remains incomplete; Docker namespaces are one host, not two physical devices."
+    },
+    "review_signoff": []
+  }
+}

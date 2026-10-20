@@ -21,8 +21,10 @@ jobs:
         run: cargo fmt --all -- --check
       - name: Unit tests
         run: cargo test --workspace --all-targets --locked
+      - name: L-002 opt-in authenticated LAN and Witness tests
+        run: cargo test --workspace --all-targets --features loom-core/experimental-lan --locked
       - name: Lint all targets
-        run: cargo clippy --workspace --all-targets --locked -- -D warnings
+        run: cargo clippy --workspace --all-targets --features loom-core/experimental-lan --locked -- -D warnings
       - name: API documentation
         run: cargo doc --workspace --no-deps --locked
   wire01-four-languages:
@@ -58,6 +60,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Reject unsupported L-001 completion claims
         run: python3 scripts/l001_gate.py
+      - name: Verify L-002 laboratory evidence and release boundaries
+        run: python3 scripts/l002_gate.py --require-lab
   rust-host-portability:
     name: Rust library host tests (${{ matrix.os }})
     strategy:
@@ -72,7 +76,7 @@ jobs:
           toolchain: "1.90.0"
       - uses: Swatinem/rust-cache@v2
       - name: Build and run locked Rust workspace tests
-        run: cargo test --workspace --all-targets --locked
+        run: cargo test --workspace --all-targets --features loom-core/experimental-lan --locked
   dependency-policy:
     runs-on: ubuntu-latest
     steps:

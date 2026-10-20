@@ -4,6 +4,8 @@
 
 ## Fixed provenance and scope
 
+- **2026-10-20 L-002 formal acceptance FAILED:** the local macOS / Docker campaign reproduces full file reads after restoring the policy and both Witness logs to pre-revoke state. [Formal report](acceptance/evidence/l002-formal-20261020/REPORT.md). The laboratory regression passes; `--require-formal` and `--require-release` must fail. Independent reviews and inherited release gates remain required.
+
 - RelayProxy comparison baseline: `timwai/RelayProxy main@e4254c81ed678198c948272c22981fd16c19be9a`. Loom is a new Rust-first project, not a drop-in Go wire-compatible agent.
 - Existing Rust security work includes library crates and disabled `loomd`, signed Owner/Root/dual-Witness journal models, independent rollback and crash simulations, and isolated Peer mTLS experiments. These are **not** a usable Mesh service.
 - Never assume a signed frame, persistent SQLite record, volatile CAS mutex, numeric NV value or unverified Witness pair is sufficient for production authorization.

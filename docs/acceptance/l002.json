@@ -8,8 +8,8 @@
     "profile": "L-002-isolated-lab-v1",
     "status": "passed",
     "tests_per_os": 282,
-    "evidence": "docs/acceptance/evidence/l002-isolated-lab-20261020/summary.json",
-    "sha256": "83d97e82b3ce7c50d30d8328694dfcbf7fb6a0211b23526e81d2a1662c5f3aa7"
+    "evidence": "docs/acceptance/evidence/l002-formal-20261020/lab/summary.json",
+    "sha256": "62596cbde624d417b56acdada5d022be1bf6b340c560e736d0cf3ac5ce1c5caf"
   },
   "modules": [
     "loom-store::witness_append",
@@ -28,7 +28,7 @@
   "release": {
     "status": "blocked",
     "blockers": {
-      "independent-witnesses": "Local SQLite files and public fixture signers do not prove independent durable state, key custody or externally pinned freshness; remote authenticated Witness enrollment/transport/rotation is missing.",
+      "independent-witnesses": "FORMAL-ROLLBACK-ALL fails on macOS and Linux Docker: restoring policy and both local Witness logs after committed revoke resurrects a 54-byte file read. Independent durable state, authenticated remote enrollment/transport/rotation and external freshness provenance remain missing.",
       "production-admission": "No production AdmissionPermit, compulsory cross-device writer participation, globally synchronized membership/policy barrier, or production runtime scheduling exists.",
       "independent-review": "L-001 security/interop/trusted-state signoffs and review of the new append/pull formats are absent.",
       "physical-platforms": "Physical platform and deployment acceptance remains incomplete; Docker namespaces are one host, not two physical devices."
@@ -37,5 +37,12 @@
   },
   "implementation_commit": "e5e757d0ac9e4c7d3272f94f01c4a0bb37544fd8",
   "pull_request": "https://github.com/timwai/Loom/pull/42",
-  "ci_run": "https://github.com/timwai/Loom/actions/runs/39390202644"
+  "ci_run": "https://github.com/timwai/Loom/actions/runs/39390202644",
+  "formal_acceptance": {
+    "profile": "L-002-formal-local-docker-v1",
+    "status": "failed",
+    "candidate_commit": "3c5455ae5c6e746b068c24990092b397cdb6e0ba",
+    "evidence": "docs/acceptance/evidence/l002-formal-20261020/summary.json",
+    "sha256": "0f861602e3043d07b93fd5cb8109958f689288906e94f0e57bcd43d8a8ea47e7"
+  }
 }

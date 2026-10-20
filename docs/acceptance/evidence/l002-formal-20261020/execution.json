@@ -1,0 +1,63 @@
+{
+  "scope": "User requested local machine and Docker only; no external hosts were used.",
+  "host_probe": {
+    "command": [
+      "python3",
+      "docs/acceptance/evidence/l002-formal-20261020/reproduce.py",
+      "--output",
+      "target/l002-formal-20261020T081703Z/rollback-host"
+    ],
+    "exit_code": 1
+  },
+  "linux_probe": {
+    "command": [
+      "docker",
+      "run",
+      "--rm",
+      "--name",
+      "loom-l002-formal-rollback-20261020",
+      "--network",
+      "none",
+      "--cpus=1",
+      "--memory=512m",
+      "--pids-limit=64",
+      "-v",
+      "/Volumes/Data/Code/Loom:/workspace:ro",
+      "-v",
+      "loom-l001-target:/build:ro",
+      "-v",
+      "/Volumes/Data/Code/Loom/target/l002-formal-20261020T081703Z:/probe",
+      "loom-l001-lab:local",
+      "python3",
+      "docs/acceptance/evidence/l002-formal-20261020/reproduce.py",
+      "--binary",
+      "/build/debug/examples/l002_lan_lab",
+      "--output",
+      "/probe/rollback-linux"
+    ],
+    "exit_code": 1
+  },
+  "full_regression": {
+    "command": [
+      "python3",
+      "scripts/l002_acceptance.py",
+      "--output",
+      "target/l002-formal-20261020T081703Z/lab-final-transcript-gate"
+    ],
+    "exit_code": 0
+  },
+  "docker_image": "sha256:6d2c134734e33a398b3e6b7cb5e1ac781eb8f15e268da68813bd3f905692468e",
+  "cleanup_containers": "postgres\tUp 7 days",
+  "private_probe_state_removed": true,
+  "codebase_memory": {
+    "command": [
+      "/Users/will/.local/bin/codebase-memory-mcp",
+      "cli",
+      "--json",
+      "list_projects"
+    ],
+    "exit_code": 1,
+    "error": "CBM daemon is active or starting but could not accept this client within 30000 ms",
+    "coverage": "unavailable; bounded source fallback used"
+  }
+}

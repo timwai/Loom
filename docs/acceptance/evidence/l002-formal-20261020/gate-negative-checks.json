@@ -1,0 +1,56 @@
+{
+  "state": "passed",
+  "scope": "Consistency/refusal tests, not independent security signoff.",
+  "checks": [
+    {
+      "name": "valid-failed-record-is-consistent",
+      "passed": true,
+      "exit_code": 0
+    },
+    {
+      "name": "valid-failed-record-refuses-formal-pass",
+      "passed": true,
+      "exit_code": 1
+    },
+    {
+      "name": "manifest-only-promotion",
+      "passed": true,
+      "rejection": "formal acceptance claim disagrees with requirement results"
+    },
+    {
+      "name": "log-tamper",
+      "passed": true,
+      "rejection": "formal artifact changed: preflight/default-daemon.log"
+    },
+    {
+      "name": "unrecorded-artifact",
+      "passed": true,
+      "rejection": "formal artifact inventory changed"
+    },
+    {
+      "name": "rehashed-all-green-claim-still-refuses-observed-allow",
+      "passed": true,
+      "rejection": "formal rollback requirement disagrees with probes"
+    },
+    {
+      "name": "rehashed-probe-success-still-refuses-observed-allow",
+      "passed": true,
+      "rejection": "rollback probe status disagrees with observed bytes"
+    },
+    {
+      "name": "rehashed-false-denial-still-refuses-successful-TLS-transcript",
+      "passed": true,
+      "rejection": "formal probe claim disagrees with TLS transcript"
+    },
+    {
+      "name": "wrong-profile",
+      "passed": true,
+      "rejection": "wrong formal acceptance profile or candidate"
+    },
+    {
+      "name": "missing-formal-record",
+      "passed": true,
+      "rejection": "formal acceptance has not been executed"
+    }
+  ]
+}

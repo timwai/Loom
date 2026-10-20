@@ -1,0 +1,111 @@
+{
+  "headRevision": "3c5455ae5c6e746b068c24990092b397cdb6e0ba",
+  "checks": [
+    {
+      "id": 118520834759,
+      "name": "Remove already integrated legacy branch refs",
+      "head_sha": "3c5455ae5c6e746b068c24990092b397cdb6e0ba",
+      "status": "completed",
+      "conclusion": "skipped",
+      "details_url": "https://github.com/timwai/Loom/actions/runs/39390380548/job/118520834759",
+      "output": {
+        "title": null,
+        "summary": null,
+        "text": null,
+        "annotations_count": 0
+      }
+    },
+    {
+      "id": 118520198012,
+      "name": "Rust library host tests (windows-latest)",
+      "head_sha": "3c5455ae5c6e746b068c24990092b397cdb6e0ba",
+      "status": "completed",
+      "conclusion": "success",
+      "details_url": "https://github.com/timwai/Loom/actions/runs/39390380548/job/118520198012",
+      "output": {
+        "title": null,
+        "summary": null,
+        "text": null,
+        "annotations_count": 1
+      }
+    },
+    {
+      "id": 118520197943,
+      "name": "Rust library host tests (macos-latest)",
+      "head_sha": "3c5455ae5c6e746b068c24990092b397cdb6e0ba",
+      "status": "completed",
+      "conclusion": "success",
+      "details_url": "https://github.com/timwai/Loom/actions/runs/39390380548/job/118520197943",
+      "output": {
+        "title": null,
+        "summary": null,
+        "text": null,
+        "annotations_count": 2
+      }
+    },
+    {
+      "id": 118520197920,
+      "name": "dependency-policy",
+      "head_sha": "3c5455ae5c6e746b068c24990092b397cdb6e0ba",
+      "status": "completed",
+      "conclusion": "success",
+      "details_url": "https://github.com/timwai/Loom/actions/runs/39390380548/job/118520197920",
+      "output": {
+        "title": null,
+        "summary": null,
+        "text": null,
+        "annotations_count": 2
+      }
+    },
+    {
+      "id": 118520197913,
+      "name": "wire01-four-languages",
+      "head_sha": "3c5455ae5c6e746b068c24990092b397cdb6e0ba",
+      "status": "completed",
+      "conclusion": "success",
+      "details_url": "https://github.com/timwai/Loom/actions/runs/39390380548/job/118520197913",
+      "output": {
+        "title": null,
+        "summary": null,
+        "text": null,
+        "annotations_count": 4
+      }
+    },
+    {
+      "id": 118520197699,
+      "name": "lint-and-test",
+      "head_sha": "3c5455ae5c6e746b068c24990092b397cdb6e0ba",
+      "status": "completed",
+      "conclusion": "success",
+      "details_url": "https://github.com/timwai/Loom/actions/runs/39390380548/job/118520197699",
+      "output": {
+        "title": null,
+        "summary": null,
+        "text": null,
+        "annotations_count": 2
+      }
+    },
+    {
+      "id": 118520197523,
+      "name": "l001-milestone-truth",
+      "head_sha": "3c5455ae5c6e746b068c24990092b397cdb6e0ba",
+      "status": "completed",
+      "conclusion": "success",
+      "details_url": "https://github.com/timwai/Loom/actions/runs/39390380548/job/118520197523",
+      "output": {
+        "title": null,
+        "summary": null,
+        "text": null,
+        "annotations_count": 2
+      }
+    }
+  ],
+  "statuses": [],
+  "annotations": [],
+  "hasMore": false,
+  "job": null,
+  "jobs": [],
+  "log": null,
+  "logTruncated": false,
+  "providerGuidance": "GitHub guidance for this response only: use checkRunId for output and annotations, runId from a GitHub Actions /runs/<id> link to list jobs, or jobId from a /jobs/<id> link for logs. page paginates checks, jobs or annotations. Keep the supplied account and returned headRevision on follow-up reads. Third-party CI exposes only the output reported to GitHub."
+}

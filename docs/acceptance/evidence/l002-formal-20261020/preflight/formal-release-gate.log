@@ -1,0 +1,7 @@
+L-001 COMPLETION: BLOCKED
+Unmet gates: E2EE-01, TLS-ID-01, WIRE-01, AUTHZ-RACE-01, AUTHZ-CRASH-02, ROLLBACK-01, PLATFORM-ANDROID-01, PLATFORM-WIN-01, PLATFORM-MAC-01, SIGNOFF:security, SIGNOFF:interop, SIGNOFF:platform, SIGNOFF:trusted_state
+L-002 LAB: PASSED (L-002-isolated-lab-v1)
+L-002 RELEASE: BLOCKED — independent-witnesses, production-admission, independent-review, physical-platforms
+
+STDERR:
+Refusing release: all L-001A/B/C/D reviews required

@@ -1,0 +1,553 @@
+{
+  "schema": 1,
+  "profile": "L-002-isolated-lab-v1",
+  "release_state": "blocked",
+  "checks": {
+    "host": {
+      "exit_code": 0,
+      "expected": 0,
+      "elapsed_s": 0.004,
+      "log": "logs/host.log",
+      "sha256": "19ce64e7d63b0ab07374cc7c724f1e845729e0d6131fdf62b7547b855767a26a"
+    },
+    "rust-version": {
+      "exit_code": 0,
+      "expected": 0,
+      "elapsed_s": 0.034,
+      "log": "logs/rust-version.log",
+      "sha256": "adf34221bb2e860b0b8cc1421706eb6bc6cffa707465fed7573aca0247f6d06c"
+    },
+    "host-1-init": {
+      "exit_code": 0,
+      "expected": 0,
+      "elapsed_s": 0.038,
+      "log": "logs/host-1-init.log",
+      "sha256": "c9054b0a949dfbb1444b510c1b29a2d2ac0e7d342d176c74ad3a58f2d6892d57"
+    },
+    "host-2-prepare": {
+      "exit_code": 0,
+      "expected": 0,
+      "elapsed_s": 0.006,
+      "log": "logs/host-2-prepare.log",
+      "sha256": "c86e824f01acdc55b6acdc8ceb6375fb7bbdc9c0c621cedd594166eb7bb77d2a"
+    },
+    "host-3-status": {
+      "exit_code": 0,
+      "expected": 0,
+      "elapsed_s": 0.008,
+      "log": "logs/host-3-status.log",
+      "sha256": "d5e49615a1c394eac9ac6f2aba8b23ea3155f6a9b41f182595e7de471060f221"
+    },
+    "host-4-append": {
+      "exit_code": 0,
+      "expected": 0,
+      "elapsed_s": 0.013,
+      "log": "logs/host-4-append.log",
+      "sha256": "30993d1e1065d29f19740d94e7b4841b7185c6cc5e7667e99d5c4dbab4974bfe"
+    },
+    "host-5-append": {
+      "exit_code": 0,
+      "expected": 0,
+      "elapsed_s": 0.01,
+      "log": "logs/host-5-append.log",
+      "sha256": "30993d1e1065d29f19740d94e7b4841b7185c6cc5e7667e99d5c4dbab4974bfe"
+    },
+    "host-6-append": {
+      "exit_code": 0,
+      "expected": 0,
+      "elapsed_s": 0.014,
+      "log": "logs/host-6-append.log",
+      "sha256": "30993d1e1065d29f19740d94e7b4841b7185c6cc5e7667e99d5c4dbab4974bfe"
+    },
+    "host-8-append": {
+      "exit_code": 0,
+      "expected": 0,
+      "elapsed_s": 0.01,
+      "log": "logs/host-8-append.log",
+      "sha256": "30993d1e1065d29f19740d94e7b4841b7185c6cc5e7667e99d5c4dbab4974bfe"
+    },
+    "host-9-status": {
+      "exit_code": 0,
+      "expected": 0,
+      "elapsed_s": 0.011,
+      "log": "logs/host-9-status.log",
+      "sha256": "f6f8fb808383cb7a39805a26c6ac957ec73d6b73179b4120890bffe8e1133e41"
+    },
+    "host-11-init": {
+      "exit_code": 0,
+      "expected": 0,
+      "elapsed_s": 0.041,
+      "log": "logs/host-11-init.log",
+      "sha256": "c9054b0a949dfbb1444b510c1b29a2d2ac0e7d342d176c74ad3a58f2d6892d57"
+    },
+    "host-12-prepare": {
+      "exit_code": 0,
+      "expected": 0,
+      "elapsed_s": 0.015,
+      "log": "logs/host-12-prepare.log",
+      "sha256": "c86e824f01acdc55b6acdc8ceb6375fb7bbdc9c0c621cedd594166eb7bb77d2a"
+    },
+    "host-13-status": {
+      "exit_code": 0,
+      "expected": 0,
+      "elapsed_s": 0.009,
+      "log": "logs/host-13-status.log",
+      "sha256": "d5e49615a1c394eac9ac6f2aba8b23ea3155f6a9b41f182595e7de471060f221"
+    },
+    "host-14-append": {
+      "exit_code": 0,
+      "expected": 0,
+      "elapsed_s": 0.017,
+      "log": "logs/host-14-append.log",
+      "sha256": "30993d1e1065d29f19740d94e7b4841b7185c6cc5e7667e99d5c4dbab4974bfe"
+    },
+    "host-15-append": {
+      "exit_code": 0,
+      "expected": 0,
+      "elapsed_s": 0.006,
+      "log": "logs/host-15-append.log",
+      "sha256": "30993d1e1065d29f19740d94e7b4841b7185c6cc5e7667e99d5c4dbab4974bfe"
+    },
+    "host-16-append": {
+      "exit_code": 0,
+      "expected": 0,
+      "elapsed_s": 0.011,
+      "log": "logs/host-16-append.log",
+      "sha256": "30993d1e1065d29f19740d94e7b4841b7185c6cc5e7667e99d5c4dbab4974bfe"
+    },
+    "host-18-append": {
+      "exit_code": 0,
+      "expected": 0,
+      "elapsed_s": 0.012,
+      "log": "logs/host-18-append.log",
+      "sha256": "30993d1e1065d29f19740d94e7b4841b7185c6cc5e7667e99d5c4dbab4974bfe"
+    },
+    "host-19-status": {
+      "exit_code": 0,
+      "expected": 0,
+      "elapsed_s": 0.011,
+      "log": "logs/host-19-status.log",
+      "sha256": "f6f8fb808383cb7a39805a26c6ac957ec73d6b73179b4120890bffe8e1133e41"
+    },
+    "host-21-init": {
+      "exit_code": 0,
+      "expected": 0,
+      "elapsed_s": 0.043,
+      "log": "logs/host-21-init.log",
+      "sha256": "c9054b0a949dfbb1444b510c1b29a2d2ac0e7d342d176c74ad3a58f2d6892d57"
+    },
+    "host-22-prepare": {
+      "exit_code": 0,
+      "expected": 0,
+      "elapsed_s": 0.012,
+      "log": "logs/host-22-prepare.log",
+      "sha256": "c86e824f01acdc55b6acdc8ceb6375fb7bbdc9c0c621cedd594166eb7bb77d2a"
+    },
+    "host-23-status": {
+      "exit_code": 0,
+      "expected": 0,
+      "elapsed_s": 0.01,
+      "log": "logs/host-23-status.log",
+      "sha256": "64e5ef14c794d1fc767b18ec10cd2f9f7640260264f88640c69a1c0d426f593e"
+    },
+    "host-24-append": {
+      "exit_code": 0,
+      "expected": 0,
+      "elapsed_s": 0.006,
+      "log": "logs/host-24-append.log",
+      "sha256": "30993d1e1065d29f19740d94e7b4841b7185c6cc5e7667e99d5c4dbab4974bfe"
+    },
+    "host-25-append": {
+      "exit_code": 0,
+      "expected": 0,
+      "elapsed_s": 0.007,
+      "log": "logs/host-25-append.log",
+      "sha256": "30993d1e1065d29f19740d94e7b4841b7185c6cc5e7667e99d5c4dbab4974bfe"
+    },
+    "host-26-append": {
+      "exit_code": 0,
+      "expected": 0,
+      "elapsed_s": 0.011,
+      "log": "logs/host-26-append.log",
+      "sha256": "30993d1e1065d29f19740d94e7b4841b7185c6cc5e7667e99d5c4dbab4974bfe"
+    },
+    "host-28-append": {
+      "exit_code": 0,
+      "expected": 0,
+      "elapsed_s": 0.012,
+      "log": "logs/host-28-append.log",
+      "sha256": "30993d1e1065d29f19740d94e7b4841b7185c6cc5e7667e99d5c4dbab4974bfe"
+    },
+    "host-29-status": {
+      "exit_code": 0,
+      "expected": 0,
+      "elapsed_s": 0.008,
+      "log": "logs/host-29-status.log",
+      "sha256": "f6f8fb808383cb7a39805a26c6ac957ec73d6b73179b4120890bffe8e1133e41"
+    },
+    "host-31-init": {
+      "exit_code": 0,
+      "expected": 0,
+      "elapsed_s": 0.035,
+      "log": "logs/host-31-init.log",
+      "sha256": "c9054b0a949dfbb1444b510c1b29a2d2ac0e7d342d176c74ad3a58f2d6892d57"
+    },
+    "host-32-grant": {
+      "exit_code": 0,
+      "expected": 0,
+      "elapsed_s": 0.027,
+      "log": "logs/host-32-grant.log",
+      "sha256": "871a2ac475cba42cf4e9080f8cabea0f88e6ebc656e6cd36fbc3086b8174348f"
+    },
+    "host-33-prepare": {
+      "exit_code": 0,
+      "expected": 0,
+      "elapsed_s": 0.01,
+      "log": "logs/host-33-prepare.log",
+      "sha256": "4950e6b9ab2d6fef22d9eb442bb790c8a4face252b9b7a0b5434eea56e6c7d7e"
+    },
+    "host-34-status": {
+      "exit_code": 0,
+      "expected": 0,
+      "elapsed_s": 0.008,
+      "log": "logs/host-34-status.log",
+      "sha256": "f6f8fb808383cb7a39805a26c6ac957ec73d6b73179b4120890bffe8e1133e41"
+    },
+    "host-35-append": {
+      "exit_code": 0,
+      "expected": 0,
+      "elapsed_s": 0.015,
+      "log": "logs/host-35-append.log",
+      "sha256": "198fc5849223a16e03dc74e3bd0e9e6807de228c47b433619b61919719f2eb76"
+    },
+    "host-36-append": {
+      "exit_code": 0,
+      "expected": 0,
+      "elapsed_s": 0.011,
+      "log": "logs/host-36-append.log",
+      "sha256": "198fc5849223a16e03dc74e3bd0e9e6807de228c47b433619b61919719f2eb76"
+    },
+    "host-37-append": {
+      "exit_code": 0,
+      "expected": 0,
+      "elapsed_s": 0.012,
+      "log": "logs/host-37-append.log",
+      "sha256": "198fc5849223a16e03dc74e3bd0e9e6807de228c47b433619b61919719f2eb76"
+    },
+    "host-39-append": {
+      "exit_code": 0,
+      "expected": 0,
+      "elapsed_s": 0.015,
+      "log": "logs/host-39-append.log",
+      "sha256": "198fc5849223a16e03dc74e3bd0e9e6807de228c47b433619b61919719f2eb76"
+    },
+    "host-40-status": {
+      "exit_code": 0,
+      "expected": 0,
+      "elapsed_s": 0.01,
+      "log": "logs/host-40-status.log",
+      "sha256": "2d374862d0c57291d378305cc27c464e7d2266f5de90466410d243947ee5243d"
+    },
+    "host-42-init": {
+      "exit_code": 0,
+      "expected": 0,
+      "elapsed_s": 0.026,
+      "log": "logs/host-42-init.log",
+      "sha256": "c9054b0a949dfbb1444b510c1b29a2d2ac0e7d342d176c74ad3a58f2d6892d57"
+    },
+    "host-43-grant": {
+      "exit_code": 0,
+      "expected": 0,
+      "elapsed_s": 0.023,
+      "log": "logs/host-43-grant.log",
+      "sha256": "871a2ac475cba42cf4e9080f8cabea0f88e6ebc656e6cd36fbc3086b8174348f"
+    },
+    "host-44-prepare": {
+      "exit_code": 0,
+      "expected": 0,
+      "elapsed_s": 0.007,
+      "log": "logs/host-44-prepare.log",
+      "sha256": "4950e6b9ab2d6fef22d9eb442bb790c8a4face252b9b7a0b5434eea56e6c7d7e"
+    },
+    "host-45-status": {
+      "exit_code": 0,
+      "expected": 0,
+      "elapsed_s": 0.009,
+      "log": "logs/host-45-status.log",
+      "sha256": "f6f8fb808383cb7a39805a26c6ac957ec73d6b73179b4120890bffe8e1133e41"
+    },
+    "host-46-append": {
+      "exit_code": 0,
+      "expected": 0,
+      "elapsed_s": 0.017,
+      "log": "logs/host-46-append.log",
+      "sha256": "198fc5849223a16e03dc74e3bd0e9e6807de228c47b433619b61919719f2eb76"
+    },
+    "host-47-append": {
+      "exit_code": 0,
+      "expected": 0,
+      "elapsed_s": 0.01,
+      "log": "logs/host-47-append.log",
+      "sha256": "198fc5849223a16e03dc74e3bd0e9e6807de228c47b433619b61919719f2eb76"
+    },
+    "host-48-append": {
+      "exit_code": 0,
+      "expected": 0,
+      "elapsed_s": 0.013,
+      "log": "logs/host-48-append.log",
+      "sha256": "198fc5849223a16e03dc74e3bd0e9e6807de228c47b433619b61919719f2eb76"
+    },
+    "host-50-append": {
+      "exit_code": 0,
+      "expected": 0,
+      "elapsed_s": 0.014,
+      "log": "logs/host-50-append.log",
+      "sha256": "198fc5849223a16e03dc74e3bd0e9e6807de228c47b433619b61919719f2eb76"
+    },
+    "host-51-status": {
+      "exit_code": 0,
+      "expected": 0,
+      "elapsed_s": 0.009,
+      "log": "logs/host-51-status.log",
+      "sha256": "2d374862d0c57291d378305cc27c464e7d2266f5de90466410d243947ee5243d"
+    },
+    "host-53-init": {
+      "exit_code": 0,
+      "expected": 0,
+      "elapsed_s": 0.025,
+      "log": "logs/host-53-init.log",
+      "sha256": "c9054b0a949dfbb1444b510c1b29a2d2ac0e7d342d176c74ad3a58f2d6892d57"
+    },
+    "host-54-grant": {
+      "exit_code": 0,
+      "expected": 0,
+      "elapsed_s": 0.024,
+      "log": "logs/host-54-grant.log",
+      "sha256": "871a2ac475cba42cf4e9080f8cabea0f88e6ebc656e6cd36fbc3086b8174348f"
+    },
+    "host-55-prepare": {
+      "exit_code": 0,
+      "expected": 0,
+      "elapsed_s": 0.01,
+      "log": "logs/host-55-prepare.log",
+      "sha256": "4950e6b9ab2d6fef22d9eb442bb790c8a4face252b9b7a0b5434eea56e6c7d7e"
+    },
+    "host-56-status": {
+      "exit_code": 0,
+      "expected": 0,
+      "elapsed_s": 0.011,
+      "log": "logs/host-56-status.log",
+      "sha256": "d77ec005d7e4ab97163d05a1753863e735c523485ccdae39c1439c8ba56a37aa"
+    },
+    "host-57-append": {
+      "exit_code": 0,
+      "expected": 0,
+      "elapsed_s": 0.01,
+      "log": "logs/host-57-append.log",
+      "sha256": "198fc5849223a16e03dc74e3bd0e9e6807de228c47b433619b61919719f2eb76"
+    },
+    "host-58-append": {
+      "exit_code": 0,
+      "expected": 0,
+      "elapsed_s": 0.01,
+      "log": "logs/host-58-append.log",
+      "sha256": "198fc5849223a16e03dc74e3bd0e9e6807de228c47b433619b61919719f2eb76"
+    },
+    "host-59-append": {
+      "exit_code": 0,
+      "expected": 0,
+      "elapsed_s": 0.014,
+      "log": "logs/host-59-append.log",
+      "sha256": "198fc5849223a16e03dc74e3bd0e9e6807de228c47b433619b61919719f2eb76"
+    },
+    "host-61-append": {
+      "exit_code": 0,
+      "expected": 0,
+      "elapsed_s": 0.01,
+      "log": "logs/host-61-append.log",
+      "sha256": "198fc5849223a16e03dc74e3bd0e9e6807de228c47b433619b61919719f2eb76"
+    },
+    "host-62-status": {
+      "exit_code": 0,
+      "expected": 0,
+      "elapsed_s": 0.013,
+      "log": "logs/host-62-status.log",
+      "sha256": "2d374862d0c57291d378305cc27c464e7d2266f5de90466410d243947ee5243d"
+    },
+    "host-64-init": {
+      "exit_code": 0,
+      "expected": 0,
+      "elapsed_s": 0.038,
+      "log": "logs/host-64-init.log",
+      "sha256": "c9054b0a949dfbb1444b510c1b29a2d2ac0e7d342d176c74ad3a58f2d6892d57"
+    },
+    "host-65-grant": {
+      "exit_code": 0,
+      "expected": 0,
+      "elapsed_s": 0.023,
+      "log": "logs/host-65-grant.log",
+      "sha256": "871a2ac475cba42cf4e9080f8cabea0f88e6ebc656e6cd36fbc3086b8174348f"
+    },
+    "host-68-revoke": {
+      "exit_code": 0,
+      "expected": 0,
+      "elapsed_s": 0.056,
+      "log": "logs/host-68-revoke.log",
+      "sha256": "1e828edf1be8a6d16287ffc881801dc3ae9b073be769755afff3f726ed4194f0"
+    },
+    "host-69-grant": {
+      "exit_code": 0,
+      "expected": 0,
+      "elapsed_s": 0.049,
+      "log": "logs/host-69-grant.log",
+      "sha256": "66faafcee4e0a41007d769688e5b427b57455696f1926a97b2a7b251830d16f9"
+    },
+    "host-70-revoke": {
+      "exit_code": 0,
+      "expected": 0,
+      "elapsed_s": 0.051,
+      "log": "logs/host-70-revoke.log",
+      "sha256": "96d44d7ff252ad6d772974c58f521011d4d97c4fe1ab4f8cab1147f9ad472fde"
+    }
+  },
+  "cases": {
+    "sigkill-before-insert": {
+      "passed": true,
+      "committed_on_restart": false,
+      "idempotent_retry": true,
+      "partial_quorum_refused": true
+    },
+    "sigkill-after-insert": {
+      "passed": true,
+      "committed_on_restart": false,
+      "idempotent_retry": true,
+      "partial_quorum_refused": true
+    },
+    "sigkill-after-commit": {
+      "passed": true,
+      "committed_on_restart": true,
+      "idempotent_retry": true,
+      "partial_quorum_refused": true
+    },
+    "sigkill-revoke-before-insert": {
+      "passed": true,
+      "committed_on_restart": false,
+      "idempotent_retry": true,
+      "partial_quorum_refused": true
+    },
+    "sigkill-revoke-after-insert": {
+      "passed": true,
+      "committed_on_restart": false,
+      "idempotent_retry": true,
+      "partial_quorum_refused": true
+    },
+    "sigkill-revoke-after-commit": {
+      "passed": true,
+      "committed_on_restart": true,
+      "idempotent_retry": true,
+      "partial_quorum_refused": true
+    },
+    "host-tcp-full-read-encrypted-bearer": {
+      "passed": true,
+      "ciphertext_bytes": 3389,
+      "plaintext_found": false
+    },
+    "host-tcp-exact-file-and-refusals": {
+      "passed": true,
+      "bytes": 54,
+      "refusals": 4
+    },
+    "host-tcp-revoke-regrant-restart": {
+      "passed": true,
+      "post_revoke_refusal_s": 0.1769
+    }
+  },
+  "started_utc": "2026-10-20T08:27:42.615879+00:00",
+  "base_commit": "3c5455ae5c6e746b068c24990092b397cdb6e0ba",
+  "host": "Linux c4705ec73c9c 7.2.9-orbstack-00391-g2b298d05fbd4 #1 SMP PREEMPT Mon Oct 12 05:39:36 UTC 2026 aarch64 GNU/Linux",
+  "rust": "rustc 1.90.0 (1159e78c4 2025-09-14)",
+  "source_sha256": {
+    "crates/loom-core/Cargo.toml": "7b948c6680010231610b7104baab1d62045a7a9147967eb252681aeb54a06af5",
+    "crates/loom-core/tests/l002_lan.rs": "b97ac7628a84263dd58024eb9856d3ec8b246d6d356b0257587d35cd1fdfa127",
+    "crates/loom-core/examples/l002_lan_lab.rs": "2c2d6ae414fde3a7f1af115b5832461bd4b8d0d699ce2664e11be04c307f29ec",
+    "crates/loom-core/examples/support/l002_fixture.rs": "4655ad593ca5408a3cbd095de52fc4b96fb8796317e2d9a6b26d5aa7c5468fc9",
+    "crates/loom-core/src/lan_file_read_model.rs": "a75236be2cf46e14afa599b1a2801780f65d22dfe2a1be2ab6ebd69a744999b4",
+    "crates/loom-core/src/lan_read.rs": "e1b60306da4f45ca05745b71a8ae0bf6145c524248122eb017c9a0d2ff8ebe38",
+    "crates/loom-core/src/lib.rs": "2131d05730883dbbf9c5e9d730ea4c41a3e04b574d3157dc1e8e113e3ae69ae8",
+    "crates/loom-android/Cargo.toml": "2764ad366f11048377d5b5d9a334b1b082bf198406e15cdd46a79a00cb63bce7",
+    "crates/loom-android/examples/membership_fixture.rs": "81e8d7d2d26a194adcd98b4d1cec6045409a163bfeb4f0e66787eb322e406ca9",
+    "crates/loom-android/src/lib.rs": "599ff446527945c1bb97a8afd2800a28dd16993bc91c39cab067e7905c3318de",
+    "crates/loom-types/Cargo.toml": "173289a59a62e58240674810648941d36b22c2dc5dab4ee0d22e8141c8183999",
+    "crates/loom-types/src/lib.rs": "c88be845ee5a1f3299ff842be2e805d07ab6c972fd9665e9ff7dcc44ec0fefe5",
+    "crates/loom-wire/Cargo.toml": "024ab9e9f0c67fcb90391fb0fbb8b14f41e6676a7a7a760f77bf8c104a94955a",
+    "crates/loom-wire/src/security_event.rs": "d89c7cefc3eb73913a8e493c3de326a4f490d9c06429e689eab1f029229b81c2",
+    "crates/loom-wire/src/lib.rs": "c2acd5497bb2223dc683158b4bc10ff436c8d34e284aeabdd25cdc7800e43583",
+    "crates/loom-identity/Cargo.toml": "65fca579af33832a12a7b716d8a1eeade785a041b9a2c2b980469e5837832dc7",
+    "crates/loom-identity/src/signed_membership.rs": "3d5181c0c3316076d6c8b01827296b2924ec7e1c7bb213abdb4871713bf6151d",
+    "crates/loom-identity/src/lib.rs": "d860be5e360f82626e2c2d9424123f360ac3a181df9ed0bd7855d9698f19a045",
+    "crates/loom-crypto/Cargo.toml": "be1a6dc83ce27636fd5d536957212ba93a316239ca01b19f353b112641f41a39",
+    "crates/loom-crypto/src/resource_grant.rs": "d8d90506683d21d5bc57361bc4a0b3607d487c4e1d07635076fd55309c7b3741",
+    "crates/loom-crypto/src/signed_revocation.rs": "71c59a0e8fa17b742cc84ff4810bea8266486480c030a84a494054f1a12f28e5",
+    "crates/loom-crypto/src/owner_lifecycle.rs": "ca6c7bb3bc385f13510fb938ece2aa0e05f09ecdf847d6c17820c7616ba8926e",
+    "crates/loom-crypto/src/lib.rs": "af7cb5e38d7a7e576028a2985b10610a0dbe62d1bd615af7fac78c2e7d9c37c8",
+    "crates/loom-crypto/src/owner_authority.rs": "17f7896321c5d7ec295be891319408abd30180a28ae07e2da2f3a9bd9be444a4",
+    "crates/loom-crypto/src/root_rotation.rs": "d9dc95b8eb88ac12a493e8fba7bc911b366912374e72882443ede756c8c2b7f2",
+    "crates/loom-crypto/src/witness_checkpoint.rs": "829eb059e79564137c2c84f5ffddcc7408dfe4c49b88711b9fbaaa89f03e7a1c",
+    "crates/loom-crypto/src/membership.rs": "cce51051df33cbde5cac83f52ff1971da43bbfc737a4c45c1612bb310dfe0d57",
+    "crates/loom-crypto/src/space_trust.rs": "1d4c515e8b4788b7f33e38e2fba0450b7f238fe7629da6b9956efcadceb5cc27",
+    "crates/loom-policy/Cargo.toml": "9d4f41b782bb5b15a93cd71a9bf157e0003eedf76fac14611f706c6e08e1e07d",
+    "crates/loom-policy/src/lib.rs": "1a0a2772b339e5069da0642195a3c749c7cc65e557d2b85dba0523a1546204d7",
+    "crates/loom-store/Cargo.toml": "3d79fe9a52e77269bd43e95f9088cc93b937950fd16053a9bef382deb5ad79cf",
+    "crates/loom-store/examples/probe_tpm2.rs": "b67933d133ec6618c2fb123827d78491124261f9a6b49a56f5e5ad5c9911ab9a",
+    "crates/loom-store/examples/l001_storage_lab.rs": "01de198a3f29e0d6b7d9074684179bf59186e607eb286281e35fa7916fb6dcb9",
+    "crates/loom-store/src/sqlite_revocation.rs": "663e5ac3205f8016c8890434549de1fc774f5274b1f86d35fecddf4582a4977d",
+    "crates/loom-store/src/witness_append.rs": "30a80953f9828e22a3466908681751def0a5a5afdcca2e46899899a18baa2484",
+    "crates/loom-store/src/policy_journal_codec.rs": "388a6df1409c6934004083eec82a738ff45cfc57f8460f788dffffc2c4d16426",
+    "crates/loom-store/src/unified_policy_anchor.rs": "f2d2822401961d7ec6937378d0f117b34e10562178013947cd463d354e11d000",
+    "crates/loom-store/src/legacy_migration.rs": "f7b4ff4bc22704ab5141e622334997a2673423f42ed04c3db42101b470f40e3b",
+    "crates/loom-store/src/unified_policy_journal.rs": "8a5b7a9e5fd57cdb557a37cfd46826d34e02091ab9f75b482013da924eb63440",
+    "crates/loom-store/src/authenticated_intent_read_gate.rs": "d05eafd2c697add28905dfda94abc23061b3560721f164907238ba1e5a697eeb",
+    "crates/loom-store/src/lib.rs": "65556515b9f73bd53668dfb2ed24ddb8faf0b6e9dad0e4898fdf0eae038fa727",
+    "crates/loom-store/src/rollback_anchor.rs": "36e2a43e9266d90a4d9c4e6814165cfc241351bbf5c07a25cec0251af68e0144",
+    "crates/loom-store/src/independent_reservation_fence_model.rs": "fdd1757305396fd886f9066c45fa806a9d9772a23fd72d5fbcbad5934fb990e7",
+    "crates/loom-store/src/legacy_history_audit.rs": "00df7cd9e77c5d16dea071a4a1932617286a3beda2aa4bfa12dc2aae3b1bb4e3",
+    "crates/loom-store/src/authenticated_intent_record.rs": "d3537dcb5cc29f63233d9fa4e10fb583aaf1ef377f984b66a38fb2d534e30332",
+    "crates/loom-store/src/linux_tpm2_probe.rs": "50af849ca76954c4d45fdd751c234cdcd8c13b513745afbf22e796cfe0399cf7",
+    "crates/loom-store/src/tpm_counter_binding.rs": "b06b22c469fa13ee13b10aee95e1f5835fa84ef5788cc87425f3cddfb9540e2f",
+    "crates/loom-store/src/challenge_witness_quorum.rs": "ada1158c845f385630f98d5765219d8251108513e9f2e4d1ead698217f7bf718",
+    "crates/loom-store/src/durable_intent_simulator.rs": "65b4913d55a0d25d79a0dc62852264f2cb31b398b21c6197d74d7ac8c735f737",
+    "crates/loom-store/src/trusted_state_provider.rs": "eb0a4c37d27f3914146fd12c3479b74bf64a9dd976333f58ed4cf28417a20ed7",
+    "crates/loom-store/src/authenticated_intent_write_model.rs": "164520935a8f79498500ebd6bc803c571ac8db91b0dca6beb2fc3a03c994693e",
+    "crates/loom-store/src/anchor_conformance.rs": "5342891620406311dd4f7f707f681b850e09d1012ce87fa7837a12eabfd48271",
+    "crates/loom-transport/Cargo.toml": "a510911875637f2a09ce2d95b13768c9ed20e15053f520009d5432e178046f10",
+    "crates/loom-transport/tests/signed_membership_channel.rs": "e7d72bea3eda2c661eeddca3131b09802c17d4d1f3d0e695b79c68c645e3e0c7",
+    "crates/loom-transport/examples/l001_channel_lab.rs": "a81ee34f452fb0b9965c4f53df45ad8a1f5268745846b48d4dbd4d1f151b5be6",
+    "crates/loom-transport/src/lib.rs": "a191c3d9da31cbf8624c93e6d168f26e04acf3c205308b7c38f56d7be1ac28ee",
+    "crates/loom-transport/src/secure_channel.rs": "92d0b5d2f0f3b252517fc6226017f2bac03c8b4bdd6798524a64f29cad2c6898",
+    "apps/loomd/Cargo.toml": "30dd00fa6ea49d14e4078ecbe396f88914cafedc61b59fc5584383753531e17c",
+    "apps/loomd/src/main.rs": "8cf6b37b6ce86e43a18c2f34c130d02acf30914a18fdf93f5d8ca96ee8661f9e",
+    "scripts/l001_storage_faults.py": "02077e8a572da3e2930aea89403a97fffdd24e315a834113e97fab07fc8af0ff",
+    "scripts/l001_android_server_setup.py": "7043922f636cbcd16047ad47886eb8222fe488fccaa863570eaec6dcb71c979d",
+    "scripts/l001_local_gate.py": "ee655b1852495a4297bd710bb89e39af1cdfe519d35827aa6ae12c4978191f32",
+    "scripts/l002_gate.py": "36be0c8e4ab5630c964b0d325b9ec582c6725ec164bbcc4698d8c6dbc58fbdc8",
+    "scripts/l001_stage_android_server.py": "0d69b3738041f139576056e3dd0ad7d4011e2beaed8e38b0030a6d0b50f53c57",
+    "scripts/l001-lab.Dockerfile": "82e587d5f5dfe8185abe16885aa8ae0382df9b345b2ed29758f0f119b24db7c8",
+    "scripts/l001_gate.py": "23657e1ed87052cec5f325cbe2ed3e9d49e0b49684217d634879f8e41700937f",
+    "scripts/l001_build_android_vpn_lab.py": "21af4651d3b92abfb16e43ea6011ab48f495b7822b7ab0ff0adcb0bc6497b060",
+    "scripts/l002_acceptance.py": "e080511820ba2958b5442e0cfc9edce474c847a9fa32bd45d64073e948b7fe0e",
+    "scripts/l001_android_docker.py": "5db402165063f6b37a9671ec4b56a621e49fa19b1a761507207e806e4afd24df",
+    "scripts/l001_quorum_faults.py": "c1cbdd1e9109cb1ed9b79eeb349005b399b7f424e36b2fa2a2afbaa29933c159",
+    "scripts/l001_local_docker.py": "1badadd997c1c092d8c7d1b66835bec0c040515c56802a5b660f9f6833199384",
+    "scripts/l001_android_vpn_test.py": "f0831437152902a0ed7a40933997eadec876b0373f53e3a14abbada049b1c7d7",
+    "scripts/l001_android_server.py": "34f1b9a8b557823bd32a10fd81db7aea420a5031c84e1dda760e2eac62b431b5",
+    "Cargo.toml": "c15ad3c511fcf89a31de754728f18fbdb60aa2eec556a90a34c9060044277968",
+    "Cargo.lock": "d1fb3e48cb2a968c0ddc3ee4fbbc2354f6dc2821989b23ae44de2d4daed244e1",
+    ".github/workflows/rust.yml": "13c296c69b48460b79d14e2517f876cfec72287b375845bb5109a655e7817b61"
+  },
+  "state": "host-only-passed",
+  "finished_utc": "2026-10-20T08:27:48.222938+00:00",
+  "events": {
+    "path": "events.json",
+    "sha256": "72300e5baf87da5445ace8e1b9b29f844dc5702fa246958ada1cfeef61e3a0b6"
+  }
+}

@@ -1,0 +1,35 @@
+[
+  {
+    "command": [
+      "python3",
+      "scripts/l002_gate.py",
+      "--require-lab"
+    ],
+    "exit_code": 0,
+    "expected": 0,
+    "stdout": "L-002 LAB: PASSED (L-002-isolated-lab-v1)\nL-002 RELEASE: BLOCKED \u2014 independent-witnesses, production-admission, independent-review, physical-platforms\nL-002 FORMAL: FAILED (L-002-formal-local-docker-v1)\n",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "python3",
+      "scripts/l002_gate.py",
+      "--require-formal"
+    ],
+    "exit_code": 1,
+    "expected": 1,
+    "stdout": "L-002 LAB: PASSED (L-002-isolated-lab-v1)\nL-002 RELEASE: BLOCKED \u2014 independent-witnesses, production-admission, independent-review, physical-platforms\nL-002 FORMAL: FAILED (L-002-formal-local-docker-v1)\n",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "python3",
+      "scripts/l002_gate.py",
+      "--require-release"
+    ],
+    "exit_code": 1,
+    "expected": 1,
+    "stdout": "L-001 COMPLETION: BLOCKED\nUnmet gates: E2EE-01, TLS-ID-01, WIRE-01, AUTHZ-RACE-01, AUTHZ-CRASH-02, ROLLBACK-01, PLATFORM-ANDROID-01, PLATFORM-WIN-01, PLATFORM-MAC-01, SIGNOFF:security, SIGNOFF:interop, SIGNOFF:platform, SIGNOFF:trusted_state\nL-002 LAB: PASSED (L-002-isolated-lab-v1)\nL-002 RELEASE: BLOCKED \u2014 independent-witnesses, production-admission, independent-review, physical-platforms\nL-002 FORMAL: FAILED (L-002-formal-local-docker-v1)\n",
+    "stderr": "Refusing release: all L-001A/B/C/D reviews required\n"
+  }
+]

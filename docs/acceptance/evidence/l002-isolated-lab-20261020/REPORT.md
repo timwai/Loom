@@ -4,7 +4,7 @@
 
 ## 实现与身份
 
-本轮将 L-002A–C 的模型推进为可执行候选：Root 绑定的 Owner 签名只读 ACL、Witness 认证追加/持久 CAS、分叉隔离，以及实际 TCP/TLS 文件快照读取和撤销。实现分支 `codex/l002-authenticated-lan-acceptance`；验收基线 `e9fe4a5` 加本轮工作树。
+本轮将 L-002A–C 的模型推进为可执行候选：Root 绑定的 Owner 签名只读 ACL、Witness 认证追加/持久 CAS、分叉隔离，以及实际 TCP/TLS 文件快照读取和撤销。实现提交 `e5e757d0ac9e4c7d3272f94f01c4a0bb37544fd8`，分支 `codex/l002-authenticated-lan-acceptance`，[草稿 PR #42](https://github.com/timwai/Loom/pull/42)。验收运行起点为 `e9fe4a5` 加本轮工作树，提交后的源码与摘要哈希一致。
 
 [summary.json](summary.json) 的 `source_sha256` 覆盖所有当前 Rust 源码、Cargo 清单/锁文件、脚本和 CI，含新增文件。验收门禁同时核对文件清单、源码哈希、摘要哈希和日志哈希。原始工作树差异在 [source-diff.log](logs/source-diff.log)。这些内容是本轮被测试代码的身份，不能把基线提交本身误当作已经包含新增实现。
 
@@ -46,7 +46,7 @@ python3 scripts/l002_gate.py --require-release
 
 完整运行需要 Docker 与 `loom-l001-lab:local` 镜像；构建方法及 `--host-only` 子集见 [L-002E](../../../spikes/l-002e-lan-file-read-acceptance.md)。最后一条命令应返回 **1**。更改受验收代码后旧证据必须失效；不能仅修改清单状态复用旧测试。
 
-本轮另通过默认功能的 268 项回归、带实验功能的 API 文档构建、L-001 真实性门禁和默认 `loomd` 无监听检查。CI 已加入实验功能测试、跨平台运行及 L-002 证据门禁；远端 CI 结果另行记录，不能把本地结果写成远端或独立审查结果。
+本轮另通过默认功能的 268 项回归、带实验功能的 API 文档构建、L-001 真实性门禁和默认 `loomd` 无监听检查。CI 已加入实验功能测试、跨平台运行及 L-002 证据门禁；远端 [CI 运行](https://github.com/timwai/Loom/actions/runs/39390202644)绑定上述实现提交，实际结论以该运行和 PR 检查为准；不能把本地结果写成远端或独立审查结果。
 
 ## 正式验收仍未通过的项目
 
@@ -55,4 +55,4 @@ python3 scripts/l002_gate.py --require-release
 3. **独立审查**：新追加/拉取格式未冻结，安全、互操作、可信状态等独立签字仍缺失。未因本轮测试而填写 L-001 的九项正式安全/平台门禁或四类签字。
 4. **物理平台与部署**：两个容器是一个主机上的不同网络命名空间，不是两台物理设备；Android/Windows/macOS 的生产安装和 OS 能力验收仍需独立证据。现有 Server 不得据此下线。
 
-任务卡：owner=`Codex / Loom workspace`；commit_sha=`e9fe4a5`（基线，新增实现以摘要中完整 source_sha256 为准）；module=`loom-store::witness_append / loom-core::lan_read / loom-transport::secure_channel`；test_id=`L002-OWNER-APPEND / L002-WITNESS-PARTIAL / L002-FORK-QUARANTINE / L002-TLS-FILE / L002-REVOKE-RESTART / L002-CRASH-GRANT-REVOKE`；evidence_url=`本报告及 summary.json`；rollback_strategy=`关闭 experimental-lan，保留日志和分叉证据，不删除/重建已登记日志`；blocker=`上述四组`；review_signoff=`未签署`。
+任务卡：owner=`Codex / Loom workspace`；commit_sha=`e5e757d0ac9e4c7d3272f94f01c4a0bb37544fd8`（新增实现仍由摘要完整 source_sha256 校验）；module=`loom-store::witness_append / loom-core::lan_read / loom-transport::secure_channel`；test_id=`L002-OWNER-APPEND / L002-WITNESS-PARTIAL / L002-FORK-QUARANTINE / L002-TLS-FILE / L002-REVOKE-RESTART / L002-CRASH-GRANT-REVOKE`；evidence_url=`本报告及 summary.json`；rollback_strategy=`关闭 experimental-lan，保留日志和分叉证据，不删除/重建已登记日志`；blocker=`上述四组`；review_signoff=`未签署`。

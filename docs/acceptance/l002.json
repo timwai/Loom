@@ -34,5 +34,8 @@
       "physical-platforms": "Physical platform and deployment acceptance remains incomplete; Docker namespaces are one host, not two physical devices."
     },
     "review_signoff": []
-  }
+  },
+  "implementation_commit": "e5e757d0ac9e4c7d3272f94f01c4a0bb37544fd8",
+  "pull_request": "https://github.com/timwai/Loom/pull/42",
+  "ci_run": "https://github.com/timwai/Loom/actions/runs/39390202644"
 }

@@ -1,0 +1,45 @@
+[
+    {
+        "Id": "sha256:0595157f43bf3f0f20f3a1264220ced72fa5f1ed4385a1a6d3ebe059a5629700",
+        "RepoTags": [
+            "redroid/redroid:14.0.0_64only-latest"
+        ],
+        "RepoDigests": [
+            "redroid/redroid@sha256:0a611199ba2e0b5d60af39b3327a517f6407231f4352114ed3bd3cbfe2be69aa"
+        ],
+        "Created": "2024-05-27T16:35:45.060714617Z",
+        "Author": "Ziyang Zhou <ziyang.zhou@outlook.com>",
+        "Config": {
+            "Entrypoint": [
+                "/init",
+                "qemu=1",
+                "androidboot.hardware=redroid"
+            ],
+            "Labels": {
+                "io.buildah.version": "1.33.1"
+            }
+        },
+        "Architecture": "arm64",
+        "Os": "linux",
+        "Size": 1589424012,
+        "GraphDriver": {
+            "Data": {
+                "MergedDir": "/var/lib/docker/overlay2/e8f14c2b5e6cee997971b78dbd30a939b85fa9ae5a0a5d55c4a3a4dc4449e6ee/merged",
+                "UpperDir": "/var/lib/docker/overlay2/e8f14c2b5e6cee997971b78dbd30a939b85fa9ae5a0a5d55c4a3a4dc4449e6ee/diff",
+                "WorkDir": "/var/lib/docker/overlay2/e8f14c2b5e6cee997971b78dbd30a939b85fa9ae5a0a5d55c4a3a4dc4449e6ee/work"
+            },
+            "Name": "overlay2"
+        },
+        "RootFS": {
+            "Type": "layers",
+            "Layers": [
+                "sha256:2cf13fc966edb94bf8776a3bcecba859dd53cd2cdbcffccb501d4bf80163fc80"
+            ]
+        },
+        "Metadata": {
+            "LastTagTime": "0001-01-01T00:00:00Z"
+        }
+    }
+]
+
+STDERR:

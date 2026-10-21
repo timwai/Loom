@@ -1,0 +1,26 @@
+{
+  "state": "failed",
+  "started_utc": "20261019T234654Z",
+  "command": {
+    "name": "integrity-check",
+    "argv": [
+      "docker",
+      "exec",
+      "--user",
+      "2000:2000",
+      "-e",
+      "TMPDIR=/data/local/tmp/loom-l001/20261019T234654Z/tmp",
+      "loom-l001-android",
+      "/system/bin/sqlite3",
+      "/data/local/tmp/loom-l001/20261019T234654Z/kill-10.sqlite",
+      "PRAGMA integrity_check"
+    ],
+    "exit_code": 134,
+    "expected": 0,
+    "elapsed_s": 0.05494629100000026,
+    "log": "logs/078-integrity-check.log"
+  },
+  "cause": "docker exec lacked Android init APEX environment; Android system sqlite3 aborted during ICU registration",
+  "fix": "export Android ART, I18N and TZDATA roots in all device commands",
+  "revalidated_by": "20261019T234819Z"
+}

@@ -1,0 +1,24 @@
+uid=2000(shell) gid=2000(shell) groups=2000(shell)
+Linux f1c2bd59bf3d 7.2.9-orbstack-00391-g2b298d05fbd4 #1 SMP PREEMPT Mon Oct 12 05:39:36 UTC 2026 aarch64 Toybox
+14
+34
+arm64-v8a
+redroid/redroid_arm64_only/redroid_arm64_only:14/UD2A.240505.001.W1/eng.frank.20240527.152423:userdebug/test-keys
+Disabled
+crw-rw-rw- 1 root root 10, 261 2026-10-19 23:50 /dev/binder
+crw-rw-rw- 1 root root 10, 262 2026-10-19 23:50 /dev/hwbinder
+crw-rw-rw- 1 root root 10, 200 2026-10-19 23:50 /dev/net/tun
+crw-rw-rw- 1 root root 10, 263 2026-10-19 23:50 /dev/vndbinder
+default via 192.168.215.1 dev eth0 
+192.168.215.0/24 dev eth0 proto kernel scope link src 192.168.215.2 
+local 127.0.0.0/8 dev lo table local proto kernel scope host src 127.0.0.1 
+local 127.0.0.1 dev lo table local proto kernel scope host src 127.0.0.1 
+broadcast 127.255.255.255 dev lo table local proto kernel scope link src 127.0.0.1 
+local 192.168.215.2 dev eth0 table local proto kernel scope host src 192.168.215.2 
+broadcast 192.168.215.255 dev eth0 table local proto kernel scope link src 192.168.215.2 
+0:	from all lookup local 
+32766:	from all lookup main 
+32767:	from all lookup default 
+PSI_MISSING
+
+STDERR:

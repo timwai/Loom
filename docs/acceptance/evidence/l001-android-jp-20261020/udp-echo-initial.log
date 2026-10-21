@@ -1,0 +1,6 @@
+{"ready": true, "bind": "172.17.0.1", "port": 19999}
+{"payload": "LOOM-PROTECTED-ECHO", "peer": ["172.17.0.4", 32978], "time": 1792455081.388526}
+{"payload": "LOOM-UNPROTECTED-TUN-CANARY", "peer": ["172.17.0.4", 56554], "time": 1792455081.5890834}
+{"payload": "LOOM-PROTECTED-ECHO", "peer": ["172.17.0.4", 46014], "time": 1792455319.3226147}
+{"payload": "LOOM-PROTECTED-ECHO", "peer": ["172.17.0.4", 52385], "time": 1792455320.8404305}
+{"payload": "LOOM-PROTECTED-ECHO", "peer": ["172.17.0.4", 36567], "time": 1792455329.9070575}

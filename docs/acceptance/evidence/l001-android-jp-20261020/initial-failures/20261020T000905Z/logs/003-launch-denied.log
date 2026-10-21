@@ -1,0 +1,10 @@
+Starting: Intent { cmp=fun.loom.lab/.ProbeActivity (has extras) }
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+Status: ok
+LaunchState: UNKNOWN (0)
+Activity: com.android.vpndialogs/.ConfirmDialog
+TotalTime: 0
+WaitTime: 3
+Complete
+
+STDERR:

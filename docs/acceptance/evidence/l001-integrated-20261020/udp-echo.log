@@ -1,0 +1,16 @@
+{"ready": true, "bind": "172.17.0.1", "port": 19999}
+{"payload": "LOOM-PROTECTED-ECHO", "peer": ["172.17.0.4", 47968], "time": 1792457818.980833}
+{"payload": "LOOM-PROTECTED-ECHO", "peer": ["172.17.0.4", 37869], "time": 1792457820.5126455}
+{"payload": "LOOM-PROTECTED-ECHO", "peer": ["172.17.0.4", 43796], "time": 1792457829.6024628}
+{"payload": "LOOM-PROTECTED-ECHO", "peer": ["172.17.0.4", 49644], "time": 1792458225.6212208}
+{"payload": "LOOM-PROTECTED-ECHO", "peer": ["172.17.0.4", 39016], "time": 1792458225.628001}
+{"payload": "LOOM-PROTECTED-ECHO", "peer": ["172.17.0.4", 53283], "time": 1792458227.543235}
+{"payload": "LOOM-PROTECTED-ECHO", "peer": ["172.17.0.4", 46393], "time": 1792458227.5506544}
+{"payload": "LOOM-PROTECTED-ECHO", "peer": ["172.17.0.4", 54254], "time": 1792458235.893544}
+{"payload": "LOOM-PROTECTED-ECHO", "peer": ["172.17.0.4", 42872], "time": 1792458235.8993597}
+{"payload": "LOOM-PROTECTED-ECHO", "peer": ["172.17.0.4", 33511], "time": 1792458523.6232724}
+{"payload": "LOOM-PROTECTED-ECHO", "peer": ["172.17.0.4", 35069], "time": 1792458523.6296775}
+{"payload": "LOOM-PROTECTED-ECHO", "peer": ["172.17.0.4", 56950], "time": 1792458525.198348}
+{"payload": "LOOM-PROTECTED-ECHO", "peer": ["172.17.0.4", 37783], "time": 1792458525.2057238}
+{"payload": "LOOM-PROTECTED-ECHO", "peer": ["172.17.0.4", 53143], "time": 1792458534.2260995}
+{"payload": "LOOM-PROTECTED-ECHO", "peer": ["172.17.0.4", 52767], "time": 1792458534.2315102}

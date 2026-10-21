@@ -1,0 +1,120 @@
+{
+  "milestone": "L-001",
+  "state": "blocked",
+  "updated": "2026-10-20",
+  "checks": [
+    {
+      "id": "E2EE-01",
+      "phase": "L-001A",
+      "state": "partial",
+      "reason": "Rebuilt macOS/Linux/Android lab channels and relay tamper checks pass; no live daemon resource forwarding or complete attack acceptance",
+      "evidence": [
+        "docs/acceptance/evidence/l001-local-docker-20261019/REPORT.md",
+        "docs/acceptance/evidence/l001-integrated-20261020/REPORT.md"
+      ]
+    },
+    {
+      "id": "TLS-ID-01",
+      "phase": "L-001A",
+      "state": "partial",
+      "reason": "Root-delegated signed membership, separate TLS/member epochs and OwnerGrant field verification pass on macOS/Linux/Android; live enrollment, revocation and atomic ServiceOpen remain unimplemented",
+      "evidence": [
+        "docs/acceptance/evidence/l001-local-docker-20261019/REPORT.md",
+        "docs/acceptance/evidence/l001-integrated-20261020/REPORT.md"
+      ]
+    },
+    {
+      "id": "WIRE-01",
+      "phase": "L-001B",
+      "state": "partial",
+      "reason": "Four-language corpus rerun locally in Docker; protocol freeze, typed payload and full interoperability signoff pending",
+      "evidence": [
+        "docs/acceptance/evidence/l001-local-docker-20261019/REPORT.md",
+        "docs/acceptance/evidence/l001-integrated-20261020/REPORT.md"
+      ]
+    },
+    {
+      "id": "AUTHZ-RACE-01",
+      "phase": "L-001C",
+      "state": "partial",
+      "reason": "Cross-process reservation versus real hardware CAS unverified",
+      "evidence": [
+        "docs/acceptance/evidence/l001-local-docker-20261019/REPORT.md",
+        "docs/acceptance/evidence/l001-integrated-20261020/REPORT.md"
+      ]
+    },
+    {
+      "id": "AUTHZ-CRASH-02",
+      "phase": "L-001C",
+      "state": "partial",
+      "reason": "Nine process/container SIGKILL recoveries passed; physical power loss and independently trusted durable Prepared/CAS remain unverified",
+      "evidence": [
+        "docs/acceptance/evidence/l001-local-docker-20261019/REPORT.md",
+        "docs/acceptance/evidence/l001-integrated-20261020/REPORT.md"
+      ]
+    },
+    {
+      "id": "ROLLBACK-01",
+      "phase": "L-001C",
+      "state": "partial",
+      "reason": "Valid old signed SQLite backup restored from sequence 8 to 5 without independent detection; admission stays paused, no vetted nonrollbackable anchor",
+      "evidence": [
+        "docs/acceptance/evidence/l001-local-docker-20261019/REPORT.md",
+        "docs/acceptance/evidence/l001-integrated-20261020/REPORT.md"
+      ]
+    },
+    {
+      "id": "PLATFORM-ANDROID-01",
+      "phase": "L-001D",
+      "state": "blocked",
+      "reason": "Android 14 Docker passes native regression plus actual Rust JNI membership/TUN validation/protected UDP factory and container restart; production encrypted forwarding, full DNS/IPv6 leaks and physical device acceptance remain unverified",
+      "evidence": [
+        "docs/acceptance/evidence/l001-android-docker-20261020/REPORT.md",
+        "docs/acceptance/evidence/l001-android-jp-20261020/REPORT.md",
+        "docs/acceptance/evidence/l001-integrated-20261020/REPORT.md"
+      ]
+    },
+    {
+      "id": "PLATFORM-WIN-01",
+      "phase": "L-001D",
+      "state": "blocked",
+      "reason": "User confirms no Windows environment is currently available; no real-host driver acceptance"
+    },
+    {
+      "id": "PLATFORM-MAC-01",
+      "phase": "L-001D",
+      "state": "blocked",
+      "reason": "Native Rust/TCP regression passes; macOS signing/entitlements unavailable, no signed Network/System Extension acceptance",
+      "evidence": [
+        "docs/acceptance/evidence/l001-local-docker-20261019/REPORT.md",
+        "docs/acceptance/evidence/l001-integrated-20261020/REPORT.md"
+      ]
+    }
+  ],
+  "signoffs": {
+    "security": null,
+    "interop": null,
+    "platform": null,
+    "trusted_state": null
+  },
+  "engineering": {
+    "status": "complete",
+    "completed_on": "2026-10-18",
+    "integrated_main_commit": "d50eae4ac1668fb596c829f9e09e93b85bd59dc8",
+    "scope": "Rust proof-of-concept engineering and consolidation completed; this is NOT L-001 security/platform release acceptance."
+  },
+  "provider_policy": {
+    "mode": "hardware_agnostic",
+    "tpm_required": false,
+    "software_baseline": "portable_local_only",
+    "high_assurance": "independently_verified_scoped_freshness_and_crash_recovery",
+    "no_silent_downgrade": true,
+    "provider_backends": [
+      "software",
+      "optional_tpm2",
+      "optional_secure_enclave",
+      "optional_android_keystore",
+      "optional_independent_quorum"
+    ]
+  }
+}

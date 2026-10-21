@@ -1,0 +1,53 @@
+{
+  "profile": "L-001-android-vpn-api-lab-v1",
+  "state": "failed",
+  "cases": {},
+  "commands": [
+    {
+      "name": "interfaces",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "-T",
+        "ip -o link show"
+      ],
+      "exit_code": 0,
+      "log": "logs/000-interfaces.log"
+    },
+    {
+      "name": "final-force-stop",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "-T",
+        "am force-stop fun.loom.lab"
+      ],
+      "exit_code": 0,
+      "log": "logs/001-final-force-stop.log"
+    },
+    {
+      "name": "app-log",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "-T",
+        "logcat -d -s LoomVpnLab:I"
+      ],
+      "exit_code": 0,
+      "log": "logs/002-app-log.log"
+    }
+  ],
+  "real_device": false,
+  "rust_jni_integrated": false,
+  "production_vpn": false,
+  "platform_android_acceptance": "blocked",
+  "runner_sha256": "e7c529b8ebb2eceead98aada93cd6e0bb8317c53c3816e9e620d2bc576e8a922",
+  "error": "another VPN exists in this Android test device",
+  "finished_utc": "2026-10-20T00:15:04.492705+00:00"
+}

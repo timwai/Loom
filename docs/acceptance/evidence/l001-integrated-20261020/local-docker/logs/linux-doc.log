@@ -1,0 +1,142 @@
+
+STDERR:
+    Checking loom-crypto v0.1.0 (/workspace/crates/loom-crypto)
+ Documenting loom-crypto v0.1.0 (/workspace/crates/loom-crypto)
+warning: unresolved link to `16`
+ --> crates/loom-wire/src/lib.rs:94:1
+  |
+9 | |     Incomplete,
+  | |________________^
+...
+94| / /// Candidate canonical security-event wire codec (protocol not frozen).
+  |
+  = note: the link appears in this line:
+          
+          0=major-version(1), 1=event-kind(1..=5), 2=space-id(bytes[16]),
+                                                                    ^^
+  = note: no item named `16` in scope
+  = help: to escape `[` and `]` characters, add '\' before them like `\[` or `\]`
+  = note: `#[warn(rustdoc::broken_intra_doc_links)]` on by default
+
+warning: unresolved link to `32`
+ --> crates/loom-wire/src/lib.rs:94:1
+  |
+9 | |     Incomplete,
+  | |________________^
+...
+94| / /// Candidate canonical security-event wire codec (protocol not frozen).
+  |
+  = note: the link appears in this line:
+          
+          3=signer-key-id(bytes[32]), 4=issuer-epoch(u64),
+                                ^^
+  = note: no item named `32` in scope
+  = help: to escape `[` and `]` characters, add '\' before them like `\[` or `\]`
+
+warning: `loom-wire` (lib doc) generated 2 warnings
+    Checking loom-identity v0.1.0 (/workspace/crates/loom-identity)
+    Checking loom-store v0.1.0 (/workspace/crates/loom-store)
+ Documenting loom-identity v0.1.0 (/workspace/crates/loom-identity)
+    Checking loom-policy v0.1.0 (/workspace/crates/loom-policy)
+    Checking loom-transport v0.1.0 (/workspace/crates/loom-transport)
+ Documenting loom-policy v0.1.0 (/workspace/crates/loom-policy)
+warning: unresolved link to `16`
+   --> crates/loom-crypto/src/signed_revocation.rs:113:50
+    |
+113 | /// Revocation payload V1 candidate: resource-id[16] || peer-id[32] || actions[1].
+    |                                                  ^^ no item named `16` in scope
+    |
+    = help: to escape `[` and `]` characters, add '\' before them like `\[` or `\]`
+    = note: `#[warn(rustdoc::broken_intra_doc_links)]` on by default
+
+warning: unresolved link to `32`
+   --> crates/loom-crypto/src/signed_revocation.rs:113:65
+    |
+113 | /// Revocation payload V1 candidate: resource-id[16] || peer-id[32] || actions[1].
+    |                                                                 ^^ no item named `32` in scope
+    |
+    = help: to escape `[` and `]` characters, add '\' before them like `\[` or `\]`
+
+warning: unresolved link to `1`
+   --> crates/loom-crypto/src/signed_revocation.rs:113:80
+    |
+113 | /// Revocation payload V1 candidate: resource-id[16] || peer-id[32] || actions[1].
+    |                                                                                ^ no item named `1` in scope
+    |
+    = help: to escape `[` and `]` characters, add '\' before them like `\[` or `\]`
+
+warning: unresolved link to `16`
+   --> crates/loom-crypto/src/owner_authority.rs:114:17
+    |
+114 | /// resource_id[16] | delegated Ed25519 pubkey[32] | derived key-id[32] |
+    |                 ^^ no item named `16` in scope
+    |
+    = help: to escape `[` and `]` characters, add '\' before them like `\[` or `\]`
+
+warning: unresolved link to `32`
+   --> crates/loom-crypto/src/owner_authority.rs:114:48
+    |
+114 | /// resource_id[16] | delegated Ed25519 pubkey[32] | derived key-id[32] |
+    |                                                ^^ no item named `32` in scope
+    |
+    = help: to escape `[` and `]` characters, add '\' before them like `\[` or `\]`
+
+warning: unresolved link to `32`
+   --> crates/loom-crypto/src/owner_authority.rs:114:69
+    |
+114 | /// resource_id[16] | delegated Ed25519 pubkey[32] | derived key-id[32] |
+    |                                                                     ^^ no item named `32` in scope
+    |
+    = help: to escape `[` and `]` characters, add '\' before them like `\[` or `\]`
+
+warning: unresolved link to `1`
+   --> crates/loom-crypto/src/owner_authority.rs:115:17
+    |
+115 | /// revoke_only[1] | delegated_key_epoch(u64BE).
+    |                 ^ no item named `1` in scope
+    |
+    = help: to escape `[` and `]` characters, add '\' before them like `\[` or `\]`
+
+warning: unresolved link to `32`
+   --> crates/loom-crypto/src/membership.rs:112:48
+    |
+112 | /// Typed MembershipGrant payload: Ed25519 key[32], key epoch u64 BE, member
+    |                                                ^^ no item named `32` in scope
+    |
+    = help: to escape `[` and `]` characters, add '\' before them like `\[` or `\]`
+
+warning: unresolved link to `16`
+  --> crates/loom-crypto/src/resource_grant.rs:73:14
+   |
+73 | /// resource[16] || subject peer[32] || key epoch u64 || member epoch u64 || actions u8.
+   |              ^^ no item named `16` in scope
+   |
+   = help: to escape `[` and `]` characters, add '\' before them like `\[` or `\]`
+
+warning: unresolved link to `32`
+  --> crates/loom-crypto/src/resource_grant.rs:73:34
+   |
+73 | /// resource[16] || subject peer[32] || key epoch u64 || member epoch u64 || actions u8.
+   |                                  ^^ no item named `32` in scope
+   |
+   = help: to escape `[` and `]` characters, add '\' before them like `\[` or `\]`
+
+    Checking loom-core v0.1.0 (/workspace/crates/loom-core)
+ Documenting loom-core v0.1.0 (/workspace/crates/loom-core)
+ Documenting loomd v0.1.0 (/workspace/apps/loomd)
+warning: `loom-crypto` (lib doc) generated 10 warnings
+ Documenting loom-transport v0.1.0 (/workspace/crates/loom-transport)
+ Documenting loom-store v0.1.0 (/workspace/crates/loom-store)
+ Documenting loom-android v0.1.0 (/workspace/crates/loom-android)
+warning: unresolved link to `0;32`
+  --> crates/loom-store/src/authenticated_intent_record.rs:62:10
+   |
+62 |     /// [0;32] is only valid with minimum_record_sequence = 0.
+   |          ^^^^ no item named `0;32` in scope
+   |
+   = help: to escape `[` and `]` characters, add '\' before them like `\[` or `\]`
+   = note: `#[warn(rustdoc::broken_intra_doc_links)]` on by default
+
+warning: `loom-store` (lib doc) generated 1 warning
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.25s
+   Generated /build/doc/loom_android/index.html and 9 other files

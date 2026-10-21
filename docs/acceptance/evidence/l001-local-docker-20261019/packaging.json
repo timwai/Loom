@@ -1,0 +1,7 @@
+{
+  "image": "loom-l001-lab:local",
+  "image_id": "sha256:6d2c134734e33a398b3e6b7cb5e1ac781eb8f15e268da68813bd3f905692468e",
+  "dockerfile": "scripts/l001-lab.Dockerfile",
+  "image_built": true,
+  "go_javascript_kotlin_and_strict_clippy_in_built_image": "passed"
+}

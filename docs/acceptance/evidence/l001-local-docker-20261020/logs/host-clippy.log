@@ -1,0 +1,5 @@
+
+STDERR:
+    Checking loom-core v0.1.0 (/Volumes/Data/Code/Loom/crates/loom-core)
+    Checking loomd v0.1.0 (/Volumes/Data/Code/Loom/apps/loomd)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.49s

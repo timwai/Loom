@@ -1,0 +1,235 @@
+[
+    {
+        "Id": "a962f1268280f5913863ffb27adda4671aed7d2af917f662c8186359d02eea62",
+        "Created": "2026-10-20T00:02:52.260616908Z",
+        "Path": "/init",
+        "Args": [
+            "qemu=1",
+            "androidboot.hardware=redroid",
+            "androidboot.use_memfd=1",
+            "androidboot.redroid_gpu_mode=guest",
+            "androidboot.redroid_width=720",
+            "androidboot.redroid_height=1280",
+            "androidboot.redroid_fps=15"
+        ],
+        "State": {
+            "Status": "running",
+            "Running": true,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 2130207,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2026-10-20T00:53:41.527497505Z",
+            "FinishedAt": "2026-10-20T00:20:57.600990532Z"
+        },
+        "Image": "sha256:0a611199ba2e0b5d60af39b3327a517f6407231f4352114ed3bd3cbfe2be69aa",
+        "ResolvConfPath": "/var/lib/docker/containers/a962f1268280f5913863ffb27adda4671aed7d2af917f662c8186359d02eea62/resolv.conf",
+        "HostnamePath": "/var/lib/docker/containers/a962f1268280f5913863ffb27adda4671aed7d2af917f662c8186359d02eea62/hostname",
+        "HostsPath": "/var/lib/docker/containers/a962f1268280f5913863ffb27adda4671aed7d2af917f662c8186359d02eea62/hosts",
+        "LogPath": "/var/lib/docker/containers/a962f1268280f5913863ffb27adda4671aed7d2af917f662c8186359d02eea62/a962f1268280f5913863ffb27adda4671aed7d2af917f662c8186359d02eea62-json.log",
+        "Name": "/loom-l001-android-jp",
+        "RestartCount": 0,
+        "Driver": "overlayfs",
+        "Platform": "linux",
+        "MountLabel": "",
+        "ProcessLabel": "",
+        "AppArmorProfile": "unconfined",
+        "ExecIDs": null,
+        "HostConfig": {
+            "Binds": [
+                "loom-l001-android-jp-data:/data"
+            ],
+            "ContainerIDFile": "",
+            "LogConfig": {
+                "Type": "json-file",
+                "Config": {}
+            },
+            "NetworkMode": "bridge",
+            "PortBindings": {
+                "18443/tcp": [
+                    {
+                        "HostIp": "127.0.0.1",
+                        "HostPort": "18443"
+                    }
+                ],
+                "5555/tcp": [
+                    {
+                        "HostIp": "127.0.0.1",
+                        "HostPort": "15555"
+                    }
+                ]
+            },
+            "RestartPolicy": {
+                "Name": "no",
+                "MaximumRetryCount": 0
+            },
+            "AutoRemove": false,
+            "VolumeDriver": "",
+            "VolumesFrom": null,
+            "ConsoleSize": [
+                0,
+                0
+            ],
+            "CapAdd": null,
+            "CapDrop": null,
+            "CgroupnsMode": "private",
+            "Dns": null,
+            "DnsOptions": [],
+            "DnsSearch": [],
+            "ExtraHosts": null,
+            "GroupAdd": null,
+            "IpcMode": "private",
+            "Cgroup": "",
+            "Links": null,
+            "OomScoreAdj": 0,
+            "PidMode": "",
+            "Privileged": true,
+            "PublishAllPorts": false,
+            "ReadonlyRootfs": false,
+            "SecurityOpt": [
+                "label=disable"
+            ],
+            "UTSMode": "",
+            "UsernsMode": "",
+            "ShmSize": 67108864,
+            "Runtime": "runc",
+            "Isolation": "",
+            "CpuShares": 0,
+            "Memory": 3221225472,
+            "NanoCpus": 2000000000,
+            "CgroupParent": "",
+            "BlkioWeight": 0,
+            "BlkioWeightDevice": [],
+            "BlkioDeviceReadBps": [],
+            "BlkioDeviceWriteBps": [],
+            "BlkioDeviceReadIOps": [],
+            "BlkioDeviceWriteIOps": [],
+            "CpuPeriod": 0,
+            "CpuQuota": 0,
+            "CpuRealtimePeriod": 0,
+            "CpuRealtimeRuntime": 0,
+            "CpusetCpus": "",
+            "CpusetMems": "",
+            "Devices": [],
+            "DeviceCgroupRules": null,
+            "DeviceRequests": null,
+            "MemoryReservation": 0,
+            "MemorySwap": 6442450944,
+            "MemorySwappiness": null,
+            "OomKillDisable": null,
+            "PidsLimit": 4096,
+            "Ulimits": [],
+            "CpuCount": 0,
+            "CpuPercent": 0,
+            "IOMaximumIOps": 0,
+            "IOMaximumBandwidth": 0,
+            "MaskedPaths": null,
+            "ReadonlyPaths": null
+        },
+        "Storage": {
+            "RootFS": {
+                "Snapshot": {
+                    "Name": "overlayfs"
+                }
+            }
+        },
+        "Mounts": [
+            {
+                "Type": "volume",
+                "Name": "loom-l001-android-jp-data",
+                "Source": "/var/lib/docker/volumes/loom-l001-android-jp-data/_data",
+                "Destination": "/data",
+                "Driver": "local",
+                "Mode": "z",
+                "RW": true,
+                "Propagation": ""
+            }
+        ],
+        "Config": {
+            "Hostname": "a962f1268280",
+            "Domainname": "",
+            "User": "",
+            "AttachStdin": false,
+            "AttachStdout": false,
+            "AttachStderr": false,
+            "ExposedPorts": {
+                "18443/tcp": {},
+                "5555/tcp": {}
+            },
+            "Tty": false,
+            "OpenStdin": false,
+            "StdinOnce": false,
+            "Env": null,
+            "Cmd": [
+                "androidboot.use_memfd=1",
+                "androidboot.redroid_gpu_mode=guest",
+                "androidboot.redroid_width=720",
+                "androidboot.redroid_height=1280",
+                "androidboot.redroid_fps=15"
+            ],
+            "Image": "redroid/redroid@sha256:0a611199ba2e0b5d60af39b3327a517f6407231f4352114ed3bd3cbfe2be69aa",
+            "Volumes": null,
+            "WorkingDir": "",
+            "Entrypoint": [
+                "/init",
+                "qemu=1",
+                "androidboot.hardware=redroid"
+            ],
+            "Labels": {
+                "io.buildah.version": "1.33.1",
+                "loom.task": "l001-android-remote"
+            }
+        },
+        "NetworkSettings": {
+            "SandboxID": "beb8c8de7cb1ba42265e6e20ae20798d275d45349d409ca7b4268f7000f3eacb",
+            "SandboxKey": "/var/run/docker/netns/beb8c8de7cb1",
+            "Ports": {
+                "18443/tcp": [
+                    {
+                        "HostIp": "127.0.0.1",
+                        "HostPort": "18443"
+                    }
+                ],
+                "5555/tcp": [
+                    {
+                        "HostIp": "127.0.0.1",
+                        "HostPort": "15555"
+                    }
+                ]
+            },
+            "Networks": {
+                "bridge": {
+                    "IPAMConfig": null,
+                    "Links": null,
+                    "Aliases": null,
+                    "DriverOpts": null,
+                    "GwPriority": 0,
+                    "NetworkID": "a3c49afe2a036291c259d468ed6160c9ddab502facfb53c25abe31e1f57235e4",
+                    "EndpointID": "36fe77482eaed06b0b42edc69df85a591d1ef210559af04463a554367af0222e",
+                    "Gateway": "172.17.0.1",
+                    "IPAddress": "172.17.0.4",
+                    "MacAddress": "e2:26:1f:1d:2e:1a",
+                    "IPPrefixLen": 16,
+                    "IPv6Gateway": "",
+                    "GlobalIPv6Address": "",
+                    "GlobalIPv6PrefixLen": 0,
+                    "DNSNames": null
+                }
+            }
+        },
+        "ImageManifestDescriptor": {
+            "mediaType": "application/vnd.oci.image.manifest.v1+json",
+            "digest": "sha256:46478a567194aed24cd0877d4434a9e58b534d4aad30931eb21999a52f2ce131",
+            "size": 505,
+            "platform": {
+                "architecture": "arm64",
+                "os": "linux"
+            }
+        }
+    }
+]
+
+STDERR:

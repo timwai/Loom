@@ -1,14 +1,22 @@
 # Loom — implementation status and security gates
 
-> Updated: **2026-10-18**. L-001 PoC engineering integration finished in [PR #38](https://github.com/timwai/Loom/pull/38) at `d50eae4`; all historical branches were safely pruned. L-001 formal security/platform **release acceptance remains BLOCKED**. L-002A development has begun on a new feature branch.
+> **2026-10-20 integrated existing-environment acceptance: PASSED.** macOS, Linux Docker and JP Android each passed **268 tests**. Actual Android Rust JNI now verifies signed membership, validates TUN packet boundaries and creates UDP sockets protected before connect; consent/revoke/SIGKILL checks pass before and after container restart. Root-delegated member and Root-bound OwnerGrant candidates pass real TCP/mTLS tests, with distinct key/member epochs and post-association revalidation. [Evidence and remaining work](acceptance/evidence/l001-integrated-20261020/REPORT.md). Production encrypted VPN forwarding, atomic ServiceOpen, independent rollback protection, physical platform acceptance and independent signoffs remain **BLOCKED**.
+
+> **2026-10-20 JP Android Docker revalidation: PASSED (native + standalone VPN API lab).** The authorized `jp.tingjusting.fun` ARM64 Linux host provides PSI and Binder. Android 14 passed **248 Rust tests**, three TLS paths, 15 refusals, three SIGKILL recoveries and ten Witness cases, including a full rerun after container restart. A separate debug APK passed real system VPN consent/cancel, TUN/protect routing, Settings revocation and app-SIGKILL cleanup as an application UID. [Report and raw evidence](acceptance/evidence/l001-android-jp-20261020/REPORT.md). This resolves the local OrbStack kernel limitation for these lab tests; no production Rust/JNI VPN integration, full DNS/IPv6 leak coverage or physical Android acceptance exists. Release remains **BLOCKED**.
+
+> **2026-10-20 Android Docker native runtime: PASSED (`L-001-android-bionic-docker-v1`).** ReDroid Android 14 / API 34 / ARM64 ran **248 Rust tests** as shell UID 2000, three real TLS paths, 15 refusals, three SIGKILL recoveries and ten fresh Witness recovery cases. [Report](acceptance/evidence/l001-android-docker-20261020/REPORT.md) and [reproduction](acceptance/android-docker-lab.md). OrbStack lacks memory pressure events and Android lmkd repeatedly exits; application/VpnService lifecycle, APK/JNI integration and real-device acceptance remain **BLOCKED**.
+
+> **2026-10-20 local revalidation: PASSED (`L-001-local-docker-v1`).** macOS and Docker Linux ARM64 each passed **248 Rust tests** and strict Clippy, four real TCP/mTLS paths, 20 membership-fixture refusals, nine SIGKILL recoveries and **20 fresh-quorum recovery cases**. The new journal recovery diagnostic derives Root-selected Witness pins and the full local signed state before comparison; a restored old local backup is refused while the Witness histories retain the latest state. [Fixes, measured results and boundaries](acceptance/evidence/l001-local-docker-20261020/REPORT.md); [initial baseline](acceptance/evidence/l001-local-docker-20261019/REPORT.md). L-001 release remains **BLOCKED**: same-host Witness files are not an independently trusted high-water, and fixture tests do not establish production Owner/ServiceOpen admission.
+
+> Updated: **2026-10-18**. L-001 PoC engineering integration finished in [PR #38](https://github.com/timwai/Loom/pull/38) at `d50eae4`; all historical branches were safely pruned. L-001 formal security/platform **release acceptance remains BLOCKED**. L-002A/B/C models are now integrated into main.
 
 ## Executive status
 
-**L-001_ENGINEERING_COMPLETE / L-001_RELEASE_BLOCKED / L-002A-B_POC_ONLY / TPM_OPTIONAL / NO_SERVICE_OPEN**
+**L-001_ENGINEERING_COMPLETE / L-001_RELEASE_BLOCKED / L-002A-C_POC_ONLY / TPM_OPTIONAL / NO_SERVICE_OPEN**
 
 - **L-001 engineering integration completed**: all stacked Rust PoCs plus separate L-001A/B/J histories are on `main`, merge `d50eae4` with full Ubuntu/Windows/macOS CI green. All obsolete branches and 32 obsolete Draft PRs are closed. This is not final acceptance: the nine L-001A/B/C/D security/platform release gates and four signoffs are **still incomplete**.
 - The integrated workspace has eight Rust library crates, a `loomd` binary that does not start a service, signed protocol/Owner-lifecycle verifiers, SQLite policy journals, witness/rollback models and a **read-only** Linux TPM2 probe.
-- Latest L-001O branch head `4683c432dd4b2530fcd4bd8db39c6bf03b5a3945` passed GitHub Actions (Rust fmt, workspace tests, Clippy with `-D warnings`, docs, dependency policy); see [run 39083991175](https://github.com/timwai/Loom/actions/runs/39083991175).
+- Historical L-001O branch head `4683c432dd4b2530fcd4bd8db39c6bf03b5a3945` passed GitHub Actions (Rust fmt, workspace tests, Clippy with `-D warnings`, docs, dependency policy); see [run 39083991175](https://github.com/timwai/Loom/actions/runs/39083991175).
 - **L-001P / PR #23** restored L-001J mirror-integrity checks; L-001Q / PR #24 tied SQLite signed journal replay to candidate counter steps; L-001R / PR #25 requires the prior committed policy to match the actual signed historical prefix. **L-001S** adds a deterministic simulated durable Prepared-intent medium with eight power-cut points, boot-bound handles and signed journal integration tests. **L-001T** adds fixed-width Ed25519 signed intent record parsing and independent signer, scope and replay-fence verification. **L-001U** introduces a read-only CandidateIntentStore adapter that authenticates every load before signed journal-bound recovery may inspect it; all writes are refused. **L-001V** separately models externally signed Prepared/Committed writes and record+replay-fence atomic CAS. **L-001W** models out-of-band-approved signer epoch rotation, two additional crash cuts, concurrent old-signer race refusal and device-reset fail-closed behavior. **L-001X** adds independent short journal preflight and signed revalidation around external work. **L-001Y** adds a process-local versioned single-use journal reservation sharing append's gate: signed append invalidates tickets, final replay and simulated CAS are serialized, and post-Prepared revocation marks the candidate stale. **L-001Z** detects signed journal/mirror changes made by a second actor or raw SQLite writer during model Prepared CAS through a final full replay, rejecting stale success and quarantining. **L-001AA** adds a separate restart-retained *logical in-memory* reservation fence, six simulated crash cuts and explicit tests of non-participating writers. No cross-process durable reservation or physical TPM writes exist.
 - A green test suite verifies isolated PoCs only. There is no production-admission authorization, usable Mesh service, production TPM anchor, deployment or hardware security certificate.
 
@@ -16,15 +24,15 @@
 
 | Area | Existing evidence / implementation | Actual status |
 |---|---|---|
-| L-000, PR #1 | Rust workspace, eight libraries, `loomd`, GitHub CI | Tested scaffolding, unmerged |
+| L-000, PR #1 | Rust workspace, eight libraries, `loomd`, GitHub CI | Integrated scaffolding; bootstrap runtime disabled |
 | L-001A, PR #7 | mTLS Peer channel over an untrusted bearer | Isolated transport spike, **not wired** into `loomd` |
 | L-001B, PR #6 | Canonical security-event wire codec and golden vectors | Candidate format; interop/review incomplete |
 | L-001C–H, PRs #8–#14 | SQLite revocations, Ed25519 Owner/Root/witness verification, delegation, transfers, signed replay, rollback interfaces | Security primitives and local model tests only |
 | L-001I, PR #15 | Unified Owner/delegate/revocation policy lifecycle SQLite journal | Authenticated event replay PoC; no production source of truth |
-| L-001J, PR #16 | Signed-event vs. Outbox/Audit parity, transaction-scoped pending queue | Separate branch, **not inherited by #22**; being integrated by L-001P |
+| L-001J, PR #16 | Signed-event vs. Outbox/Audit parity, transaction-scoped pending queue | Originally separate from #22; integrated by L-001P and consolidated into main |
 | L-001J–L, PRs #17–#19 | Dual-witness policy high-water, crash reconciliation, legacy signed-history preflight | Diagnostic PoCs; no automatic migration or live authority |
 | L-001M–O, PRs #20–#22 | Anchor behavioral conformance, read-only TPM2 capability probe, counter/intent crash-state model | Abstract or nonmutating models, **no trusted TPM NV writer** |
-| L-001P, PR #23 | Reintegrate missing journal mirror-integrity checks and adversarial tests | Final-head CI passed; unmerged Draft |
+| L-001P, PR #23 | Reintegrate missing journal mirror-integrity checks and adversarial tests | Integrated into main; PoC only |
 | L-001Q, PR #24 | Bind fully replayed SQLite policy, signed witness checkpoint and candidate counter stages under a single model transaction | Seven new adversarial tests; model only, no trusted NV writes |
 | L-001R, PR #25 | Verify prior committed policy root, revocation root and Owner manifest as an exact *signed journal prefix* before candidate counter mutation | Six new adversarial crash/forgery tests; no durable intent or TPM writer |
 | L-001S, PR #26 | Model independent Prepared-intent sync boundaries, irreversible NV count, reboot, stale handles and signed journal recovery | 4 model + 3 integration tests; purely volatile simulator; no TPM writer |
@@ -40,7 +48,7 @@
 | L-001AC, PR #36 | Reintegrate original L-001A TLS 1.3 pinned-Peer-channel PoC into the active security stack, retain malicious relay and identity tests | Isolated TLS/bearer tests only; no production signed membership/Owner admission, live daemon networking or platform acceptance |
 | L-001AD, PR #37 | Add Windows/macOS hosted Rust workspace matrix with locked TLS/crypto/journal tests in GitHub Actions | Host Rust portability smoke only; neither actual Windows filter/macos Network Extension nor Android VpnService `PLATFORM-*` pass |
 
-**Branch topology caveat:** PRs #6 (wire), #7 (channel) and #16 (mirror integrity) branch from earlier ancestors; they are not all ancestors of PR #22. Count of open Draft PRs is not a count of integrated features. Do not merge leaf PRs into `main` out of order. Review and reconcile branches explicitly.
+**Historical topology:** #6 (wire), #7 (channel) and #16 (mirror integrity) originally branched from earlier ancestors. L-001P/L-001AC and the main consolidation reconciled these histories; the earlier draft/branch arrangement is historical, not the current integration state.
 
 ## L-002C — challenge-bound external Witness high-water diagnostics
 
@@ -64,7 +72,7 @@
 
 ## Current P0 update after L-001AD
 
-- The L-001P integration (#23) succeeded in the final commit CI, and L-001Q (#24) now tests a journal-bound counter transition with matching dual witness receipts, full signed-history replay, mirror parity, current Owner manifest and a SQLite transaction barrier. Both remain **unmerged Draft PRs**.
+- The L-001P integration (#23) succeeded in the final commit CI, and L-001Q (#24) now tests a journal-bound counter transition with matching dual witness receipts, full signed-history replay, mirror parity, current Owner manifest and a SQLite transaction barrier. Both were consolidated into **main**; neither supplies production trusted storage or admission.
 - A matching counter/manifest pair is only a **diagnostic** result. No real independently protected TPM anchor, attested device binding, authenticated durable Prepared store or physical power-loss verification exists; ServiceOpen stays disabled.
 - L-001R checks that a counter's earlier high-water record matches a replayed **signed historical prefix** (sequence, head, revocation root and then-current Owner manifest) before any modeled increment. A matching latest witness alone is not enough. These proofs depend on trusted external enrollment and retained signed journal history; physical and global freshness are still not guaranteed.
 - L-001S explicitly models unacknowledged volatile writes vs. acknowledged simulated durable writes and all eight Prepare/Increment/Finalize cut points. A reboot preserves the simulated NV counter and acknowledged intent image but invalidates old handles. Those are *model semantics*, NOT physical persistence or anti-rollback protection.
@@ -92,8 +100,8 @@
 
 ## Next execution gates
 
-- **Current (L-001AD):** locked Windows/macOS host Rust test matrix plus Ubuntu, no deployment. Machine acceptance manifest remains blocked.
-- **Next:** full signed membership and Owner lifecycle → secure channel → revocation/session shutdown vertical integration, real independently authenticated cross-process rollback protection and Android/Windows/macOS driver/device acceptance. `L-001` remains **NOT COMPLETE**.
+- **Current:** L-002A/B/C models integrated; local macOS and Docker Linux TCP/performance/crash experiments completed. The machine-readable release acceptance remains blocked.
+- **Next:** full signed membership and Owner lifecycle → secure channel → revocation/session shutdown vertical integration, real independently authenticated cross-process rollback protection and Android/Windows/macOS driver/device acceptance. `L-001` release acceptance remains **BLOCKED**.
 - **Platform validation:** independently evaluate hardware enrollment, monotonic NV semantics, attestation, reset/wear/quotas, and legacy signed-history migration (sacrificial TPM target only after review). Unsupported targets remain explicit NO-GO.
 - **Vertical slice:** isolated two-Peer LAN read with Owner ACL and revoke-kills-session test **only after** production admission prerequisites pass.
 - **Release:** threat-model sign-off, coverage across all intended OS targets, security review, reproducible builds, migration/rollback drills, support and license gates.

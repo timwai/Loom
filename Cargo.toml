@@ -10,6 +10,7 @@ members = [
   "crates/loom-transport",
   "crates/loom-core",
   "apps/loomd",
+  "crates/loom-android",
 ]
 default-members = ["apps/loomd"]
 

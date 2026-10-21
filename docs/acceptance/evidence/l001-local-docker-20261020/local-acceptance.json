@@ -1,0 +1,15 @@
+{
+  "profile": "L-001-local-docker-v1",
+  "state": "passed",
+  "checks": [
+    "SOURCE: source hashes unchanged; native/Linux rebuilt",
+    "BUILD: native/Linux tests, format, strict Clippy, Linux docs",
+    "WIRE: Rust/Go/JavaScript/Kotlin vectors",
+    "FAIL-CLOSED: bootstrap disabled; missing TPM and release refused",
+    "CHANNEL: four real TCP/mTLS paths, verified payloads, 20 refusals",
+    "RELAY: plaintext canary absent; active tamper refused",
+    "STORAGE: nine SIGKILL recoveries; evidence/mirror tampering refused",
+    "RECOVERY: 20 native/Linux cases; fresh quorum detects old local backup",
+    "BASELINE: finite measured performance samples; release gates unchanged"
+  ]
+}

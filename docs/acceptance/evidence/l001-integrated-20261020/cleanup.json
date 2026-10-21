@@ -1,0 +1,42 @@
+{
+  "payload_files_verified": 75,
+  "udp_helper_stopped": true,
+  "stop_exit": 0,
+  "stop_stdout": "",
+  "stop_stderr": "",
+  "business": {
+    "relay-agent": {
+      "id": "76f12e1d2543560f6cf963ad58b9c5a57b9b2e1a5f92df96c5f445481bccaf6d",
+      "started_at": "2026-10-18T13:18:42.636007045Z",
+      "restart_count": 0,
+      "running": true
+    },
+    "aigc_all": {
+      "id": "417404125e4d405e6fe1653642ebbe030b6b980d81bb6be71be050773f4c81d5",
+      "started_at": "2026-08-22T14:09:00.549039742Z",
+      "restart_count": 0,
+      "running": true
+    },
+    "aigc_milvus": {
+      "id": "51405f2cbf2fb3bbe36f4c485175f5726f2728fefdab63c718c5feb1540954d5",
+      "started_at": "2026-08-22T14:09:00.263667143Z",
+      "restart_count": 0,
+      "running": true
+    },
+    "nginx": {
+      "id": "27d17ac3deeda016074b220c9a623f14760550760710d54b6e1df7eee94d383c",
+      "started_at": "2026-08-20T08:02:49.350798894Z",
+      "restart_count": 0,
+      "running": true
+    }
+  },
+  "lab": {
+    "id": "a962f1268280f5913863ffb27adda4671aed7d2af917f662c8186359d02eea62",
+    "started_at": "2026-10-20T01:07:20.332710389Z",
+    "restart_count": 0,
+    "running": false,
+    "exit_code": 137,
+    "oom_killed": false
+  },
+  "data_and_image_retained": true
+}

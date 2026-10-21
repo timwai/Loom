@@ -108,6 +108,10 @@ impl VerifiedResourceTrust {
     pub fn valid_at(&self, now_ms: u64) -> bool {
         self.manifest.issued_at_ms <= now_ms && now_ms < self.manifest.expires_at_ms
     }
+
+    pub fn validity_interval(&self) -> (u64, u64) {
+        (self.manifest.issued_at_ms, self.manifest.expires_at_ms)
+    }
 }
 
 /// Domain-separated fixed-width transcript, without ambiguous protobuf map

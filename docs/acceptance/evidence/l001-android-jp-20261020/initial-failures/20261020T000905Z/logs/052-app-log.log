@@ -1,0 +1,15 @@
+--------- beginning of main
+10-20 00:06:58.346  1576  1576 I LoomVpnLab: lab_only=true
+10-20 00:06:58.349  1576  1576 I LoomVpnLab: uid=10087
+10-20 00:06:58.353  1576  1576 I LoomVpnLab: mode=denied
+10-20 00:06:58.381  1576  1576 I LoomVpnLab: prepare_requires_consent=true
+10-20 00:06:58.407  1576  1576 I LoomVpnLab: foreground_started=true
+10-20 00:06:58.417  1576  1599 I LoomVpnLab: unprepared_establish_refused=true
+10-20 00:06:58.421  1576  1599 I LoomVpnLab: state=passed
+10-20 00:06:58.712  1576  1576 I LoomVpnLab: on_destroy=true
+10-20 00:07:47.631  2693  2693 I LoomVpnLab: lab_only=true
+10-20 00:07:47.636  2693  2693 I LoomVpnLab: uid=10087
+10-20 00:07:47.639  2693  2693 I LoomVpnLab: mode=probe
+10-20 00:07:47.668  2693  2693 I LoomVpnLab: prepare_requires_consent=true
+
+STDERR:

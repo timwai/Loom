@@ -1,0 +1,36 @@
+uid=2000(shell) gid=2000(shell) groups=2000(shell)
+Linux localhost 7.2.9-orbstack-00391-g2b298d05fbd4 #1 SMP PREEMPT Mon Oct 12 05:39:36 UTC 2026 aarch64 Toybox
+14
+34
+arm64-v8a
+redroid/redroid_arm64_only/redroid_arm64_only:14/UD2A.240505.001.W1/eng.frank.20240527.152423:userdebug/test-keys
+Disabled
+crw-rw-rw- 1 root root 10, 261 2026-10-19 23:39 /dev/binder
+crw-rw-rw- 1 root root 10, 262 2026-10-19 23:39 /dev/hwbinder
+crw-rw-rw- 1 root root 10, 200 2026-10-19 23:39 /dev/net/tun
+crw-rw-rw- 1 root root 10, 263 2026-10-19 23:39 /dev/vndbinder
+192.168.215.0/24 dev eth0 table eth0_local proto static scope link 
+224.0.0.0/24 dev eth0 table eth0_local proto static scope link 
+default via 192.168.215.1 dev eth0 table eth0 proto static 
+192.168.215.0/24 dev eth0 table eth0 proto static scope link 
+192.168.215.0/24 dev eth0 proto kernel scope link src 192.168.215.2 
+local 127.0.0.0/8 dev lo table local proto kernel scope host src 127.0.0.1 
+local 127.0.0.1 dev lo table local proto kernel scope host src 127.0.0.1 
+broadcast 127.255.255.255 dev lo table local proto kernel scope link src 127.0.0.1 
+local 192.168.215.2 dev eth0 table local proto kernel scope host src 192.168.215.2 
+broadcast 192.168.215.255 dev eth0 table local proto kernel scope link src 192.168.215.2 
+0:	from all lookup local 
+10000:	from all fwmark 0xc0000/0xd0000 lookup legacy_system 
+11000:	from all iif lo oif eth0 uidrange 0-0 lookup eth0 
+16000:	from all fwmark 0x10063/0x1ffff iif lo lookup local_network 
+16000:	from all fwmark 0x10064/0x1ffff iif lo lookup eth0 
+17000:	from all iif lo oif eth0 lookup eth0 
+18000:	from all fwmark 0x0/0x10000 lookup legacy_system 
+19000:	from all fwmark 0x0/0x10000 lookup legacy_network 
+20000:	from all fwmark 0x0/0x10000 lookup local_network 
+23000:	from all fwmark 0x64/0x1ffff iif lo lookup eth0 
+31000:	from all fwmark 0x0/0xffff iif lo lookup eth0 
+32000:	from all unreachable
+PSI_MISSING
+
+STDERR:

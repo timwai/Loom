@@ -1,0 +1,537 @@
+{
+  "schema": 2,
+  "source_commit": "498870abff9b7fede983b9ef59b0aa7132520ca4",
+  "source_sha256": {
+    "Cargo.toml": "c15ad3c511fcf89a31de754728f18fbdb60aa2eec556a90a34c9060044277968",
+    "Cargo.lock": "f04310015fdb5f955a6174886dcce51a0cc28b85d69938179a762a5263a04e29",
+    "crates/loom-android/examples/membership_fixture.rs": "81e8d7d2d26a194adcd98b4d1cec6045409a163bfeb4f0e66787eb322e406ca9",
+    "crates/loom-android/src/lib.rs": "599ff446527945c1bb97a8afd2800a28dd16993bc91c39cab067e7905c3318de",
+    "crates/loom-core/src/lan_file_read_model.rs": "a75236be2cf46e14afa599b1a2801780f65d22dfe2a1be2ab6ebd69a744999b4",
+    "crates/loom-core/src/lib.rs": "ad30336650f1552644b6edae3130d31cf1f5a56c29b9ed5882b659b9e885e00a",
+    "crates/loom-crypto/src/lib.rs": "af7cb5e38d7a7e576028a2985b10610a0dbe62d1bd615af7fac78c2e7d9c37c8",
+    "crates/loom-crypto/src/membership.rs": "cce51051df33cbde5cac83f52ff1971da43bbfc737a4c45c1612bb310dfe0d57",
+    "crates/loom-crypto/src/owner_authority.rs": "17f7896321c5d7ec295be891319408abd30180a28ae07e2da2f3a9bd9be444a4",
+    "crates/loom-crypto/src/owner_lifecycle.rs": "ca6c7bb3bc385f13510fb938ece2aa0e05f09ecdf847d6c17820c7616ba8926e",
+    "crates/loom-crypto/src/resource_grant.rs": "d8d90506683d21d5bc57361bc4a0b3607d487c4e1d07635076fd55309c7b3741",
+    "crates/loom-crypto/src/root_rotation.rs": "d9dc95b8eb88ac12a493e8fba7bc911b366912374e72882443ede756c8c2b7f2",
+    "crates/loom-crypto/src/signed_revocation.rs": "71c59a0e8fa17b742cc84ff4810bea8266486480c030a84a494054f1a12f28e5",
+    "crates/loom-crypto/src/space_trust.rs": "1d4c515e8b4788b7f33e38e2fba0450b7f238fe7629da6b9956efcadceb5cc27",
+    "crates/loom-crypto/src/witness_checkpoint.rs": "829eb059e79564137c2c84f5ffddcc7408dfe4c49b88711b9fbaaa89f03e7a1c",
+    "crates/loom-identity/src/lib.rs": "d860be5e360f82626e2c2d9424123f360ac3a181df9ed0bd7855d9698f19a045",
+    "crates/loom-identity/src/signed_membership.rs": "3d5181c0c3316076d6c8b01827296b2924ec7e1c7bb213abdb4871713bf6151d",
+    "crates/loom-policy/src/lib.rs": "1a0a2772b339e5069da0642195a3c749c7cc65e557d2b85dba0523a1546204d7",
+    "crates/loom-store/examples/l001_storage_lab.rs": "01de198a3f29e0d6b7d9074684179bf59186e607eb286281e35fa7916fb6dcb9",
+    "crates/loom-store/examples/probe_tpm2.rs": "b67933d133ec6618c2fb123827d78491124261f9a6b49a56f5e5ad5c9911ab9a",
+    "crates/loom-store/src/anchor_conformance.rs": "5342891620406311dd4f7f707f681b850e09d1012ce87fa7837a12eabfd48271",
+    "crates/loom-store/src/authenticated_intent_read_gate.rs": "d05eafd2c697add28905dfda94abc23061b3560721f164907238ba1e5a697eeb",
+    "crates/loom-store/src/authenticated_intent_record.rs": "d3537dcb5cc29f63233d9fa4e10fb583aaf1ef377f984b66a38fb2d534e30332",
+    "crates/loom-store/src/authenticated_intent_write_model.rs": "164520935a8f79498500ebd6bc803c571ac8db91b0dca6beb2fc3a03c994693e",
+    "crates/loom-store/src/challenge_witness_quorum.rs": "ada1158c845f385630f98d5765219d8251108513e9f2e4d1ead698217f7bf718",
+    "crates/loom-store/src/durable_intent_simulator.rs": "65b4913d55a0d25d79a0dc62852264f2cb31b398b21c6197d74d7ac8c735f737",
+    "crates/loom-store/src/independent_reservation_fence_model.rs": "fdd1757305396fd886f9066c45fa806a9d9772a23fd72d5fbcbad5934fb990e7",
+    "crates/loom-store/src/legacy_history_audit.rs": "00df7cd9e77c5d16dea071a4a1932617286a3beda2aa4bfa12dc2aae3b1bb4e3",
+    "crates/loom-store/src/legacy_migration.rs": "f7b4ff4bc22704ab5141e622334997a2673423f42ed04c3db42101b470f40e3b",
+    "crates/loom-store/src/lib.rs": "9fb0c079d0b979f4f7ec983b6f6d9b4e1eb4438b5eb9ad9d23617fa3d85d02d4",
+    "crates/loom-store/src/linux_tpm2_probe.rs": "50af849ca76954c4d45fdd751c234cdcd8c13b513745afbf22e796cfe0399cf7",
+    "crates/loom-store/src/policy_journal_codec.rs": "388a6df1409c6934004083eec82a738ff45cfc57f8460f788dffffc2c4d16426",
+    "crates/loom-store/src/rollback_anchor.rs": "36e2a43e9266d90a4d9c4e6814165cfc241351bbf5c07a25cec0251af68e0144",
+    "crates/loom-store/src/sqlite_revocation.rs": "663e5ac3205f8016c8890434549de1fc774f5274b1f86d35fecddf4582a4977d",
+    "crates/loom-store/src/tpm_counter_binding.rs": "b06b22c469fa13ee13b10aee95e1f5835fa84ef5788cc87425f3cddfb9540e2f",
+    "crates/loom-store/src/trusted_state_provider.rs": "eb0a4c37d27f3914146fd12c3479b74bf64a9dd976333f58ed4cf28417a20ed7",
+    "crates/loom-store/src/unified_policy_anchor.rs": "f2d2822401961d7ec6937378d0f117b34e10562178013947cd463d354e11d000",
+    "crates/loom-store/src/unified_policy_journal.rs": "8a5b7a9e5fd57cdb557a37cfd46826d34e02091ab9f75b482013da924eb63440",
+    "crates/loom-transport/examples/l001_channel_lab.rs": "a81ee34f452fb0b9965c4f53df45ad8a1f5268745846b48d4dbd4d1f151b5be6",
+    "crates/loom-transport/src/lib.rs": "a191c3d9da31cbf8624c93e6d168f26e04acf3c205308b7c38f56d7be1ac28ee",
+    "crates/loom-transport/src/secure_channel.rs": "6aa567e2322e808cd152ebd149633d17f240c14184f2ddece606f162c631ad40",
+    "crates/loom-transport/tests/signed_membership_channel.rs": "e7d72bea3eda2c661eeddca3131b09802c17d4d1f3d0e695b79c68c645e3e0c7",
+    "crates/loom-types/src/lib.rs": "c88be845ee5a1f3299ff842be2e805d07ab6c972fd9665e9ff7dcc44ec0fefe5",
+    "crates/loom-wire/src/lib.rs": "c2acd5497bb2223dc683158b4bc10ff436c8d34e284aeabdd25cdc7800e43583",
+    "crates/loom-wire/src/security_event.rs": "d89c7cefc3eb73913a8e493c3de326a4f490d9c06429e689eab1f029229b81c2",
+    "crates/loom-android/Cargo.toml": "2764ad366f11048377d5b5d9a334b1b082bf198406e15cdd46a79a00cb63bce7",
+    "crates/loom-core/Cargo.toml": "c3eed48c91fd838cb17841327dd6b4a56c88dde6a4a4c45e0d22cb75ff028379",
+    "crates/loom-crypto/Cargo.toml": "be1a6dc83ce27636fd5d536957212ba93a316239ca01b19f353b112641f41a39",
+    "crates/loom-identity/Cargo.toml": "65fca579af33832a12a7b716d8a1eeade785a041b9a2c2b980469e5837832dc7",
+    "crates/loom-policy/Cargo.toml": "9d4f41b782bb5b15a93cd71a9bf157e0003eedf76fac14611f706c6e08e1e07d",
+    "crates/loom-store/Cargo.toml": "9f43f00de5da3b0aa61d7406524e32ac171aa834389ceb0dff96ac8d4c4d2b3e",
+    "crates/loom-transport/Cargo.toml": "a510911875637f2a09ce2d95b13768c9ed20e15053f520009d5432e178046f10",
+    "crates/loom-types/Cargo.toml": "173289a59a62e58240674810648941d36b22c2dc5dab4ee0d22e8141c8183999",
+    "crates/loom-wire/Cargo.toml": "024ab9e9f0c67fcb90391fb0fbb8b14f41e6676a7a7a760f77bf8c104a94955a",
+    "scripts/l001_android_docker.py": "5db402165063f6b37a9671ec4b56a621e49fa19b1a761507207e806e4afd24df",
+    "scripts/l001_android_server.py": "34f1b9a8b557823bd32a10fd81db7aea420a5031c84e1dda760e2eac62b431b5",
+    "scripts/l001_stage_android_server.py": "0d69b3738041f139576056e3dd0ad7d4011e2beaed8e38b0030a6d0b50f53c57"
+  },
+  "binaries": [
+    {
+      "file": "loom_wire-a87839a5136da267",
+      "name": "loom_wire",
+      "kind": "test",
+      "expected_tests": 8,
+      "sha256": "1bc13fc1fefbb80c70b344e26601deb1c10143d089263b2acb7d387e8eeb4cae"
+    },
+    {
+      "file": "loom_types-2980fda90dd1f95c",
+      "name": "loom_types",
+      "kind": "test",
+      "expected_tests": 1,
+      "sha256": "9c43532032f5fe241041b944bc61c23dad3aff7185ea96b815e617bf45515903"
+    },
+    {
+      "file": "loom_policy-43cd2f003157c38b",
+      "name": "loom_policy",
+      "kind": "test",
+      "expected_tests": 1,
+      "sha256": "a41d99935b585e308fa757d83d7871df849847ef40484f561c85d096e19c02eb"
+    },
+    {
+      "file": "loom_identity-6f88a8865506d4be",
+      "name": "loom_identity",
+      "kind": "test",
+      "expected_tests": 1,
+      "sha256": "3913ee0a633c6bfd4844fb8d4bd832e405cf44d8d133d71322badd761295e656"
+    },
+    {
+      "file": "loom_crypto-47c0b2d3d5d8d3ee",
+      "name": "loom_crypto",
+      "kind": "test",
+      "expected_tests": 42,
+      "sha256": "5b83ed530daa59e1c18900149e922dbb10c483603c2919ecf74bc5592a754447"
+    },
+    {
+      "file": "l001_channel_lab-dfb3edf93af4c985",
+      "name": "l001_channel_lab",
+      "kind": "test",
+      "expected_tests": 0,
+      "sha256": "ac70c2376d9329d32df274dd7d2bbab9c0e57f73c9268e9b9a8d56c42d3be105"
+    },
+    {
+      "file": "loom_transport-21787c0727e8a627",
+      "name": "loom_transport",
+      "kind": "test",
+      "expected_tests": 7,
+      "sha256": "dc45c819932191759cdda7e01a1650f8f91d01af23dce03bff8ffd787402e98a"
+    },
+    {
+      "file": "signed_membership_channel-25ad63441d3a7c15",
+      "name": "signed_membership_channel",
+      "kind": "test",
+      "expected_tests": 8,
+      "sha256": "a2d6f9cdbfaedc67d4bf2d5902d51be45e74c29d0d8449882b1b03d7a1a7be1d"
+    },
+    {
+      "file": "loomd-3e321fceafc505e1",
+      "name": "loomd",
+      "kind": "test",
+      "expected_tests": 0,
+      "sha256": "5dd27e09ccae8376734d5326a6cf7fc538e6252d524af73452edd7810932dfb6"
+    },
+    {
+      "file": "probe_tpm2-9f03df80ea2ba971",
+      "name": "probe_tpm2",
+      "kind": "test",
+      "expected_tests": 0,
+      "sha256": "9dada1b13a5cfc28aed42712da891044b6713754133d123de180c467a33b5fcf"
+    },
+    {
+      "file": "l001_storage_lab-5196dd0c46ede0ea",
+      "name": "l001_storage_lab",
+      "kind": "test",
+      "expected_tests": 0,
+      "sha256": "ea0cecaccdfd3c567bded8f0ad091e36f3f33d0933aa1fef3424a6dd3697b692"
+    },
+    {
+      "file": "loom_core-789cd25a86b9b6c2",
+      "name": "loom_core",
+      "kind": "test",
+      "expected_tests": 13,
+      "sha256": "caa7141c7a5e2589184755d4e47e5b0828c4f967e2929f0f9da525a83eaeeb65"
+    },
+    {
+      "file": "loom_store-381cc2e493cfdfbf",
+      "name": "loom_store",
+      "kind": "test",
+      "expected_tests": 182,
+      "sha256": "7349dadf387766d2f62e54cf0506ddf7162cd53bc6157141b9e1da2d6ea637a1"
+    },
+    {
+      "file": "loom_android-38e18c72092fa31c",
+      "name": "loom_android",
+      "kind": "test",
+      "expected_tests": 5,
+      "sha256": "97d164e1227378e1308d6c868f7773db473927b6bf93ecccc54010ef1ac005ce"
+    },
+    {
+      "file": "membership_fixture-74eb937dda85463f",
+      "name": "membership_fixture",
+      "kind": "test",
+      "expected_tests": 0,
+      "sha256": "8bc169ec53020c56471c21d54b1b54d0ccae3f012cd82fa1e9982ac81cf50ea6"
+    },
+    {
+      "file": "l001_storage_lab",
+      "name": "l001_storage_lab",
+      "kind": "example",
+      "sha256": "88672ac92aebdc8e9953cbe6d9c99b3cd4d9e30c3ce6916673e3d44665a7f099"
+    },
+    {
+      "file": "l001_channel_lab",
+      "name": "l001_channel_lab",
+      "kind": "example",
+      "sha256": "c3a015c76303fc4cd11bfcf33f2a62228c3df5bc95defa8706b82f39c845fe70"
+    }
+  ],
+  "expected_test_count": 268,
+  "linux_channel_sha256": "b9e0e3bc5f329740aa07f5bb2545413161c0798dd6d25f64fee1aff387f8b5c9",
+  "commands": [
+    {
+      "name": "host-test-inventory-build",
+      "argv": [
+        "cargo",
+        "test",
+        "--workspace",
+        "--all-targets",
+        "--locked",
+        "--no-run",
+        "--message-format=json"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "host-list-0",
+      "argv": [
+        "/Volumes/Data/Code/Loom/target/debug/deps/loom_core-00edc365aed3fb9f",
+        "--list"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "host-list-1",
+      "argv": [
+        "/Volumes/Data/Code/Loom/target/debug/examples/probe_tpm2-dae8997c4ba5442e",
+        "--list"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "host-list-2",
+      "argv": [
+        "/Volumes/Data/Code/Loom/target/debug/examples/l001_storage_lab-086b60212dc8a659",
+        "--list"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "host-list-3",
+      "argv": [
+        "/Volumes/Data/Code/Loom/target/debug/deps/loom_store-657f6d8b3cb4a0c3",
+        "--list"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "host-list-4",
+      "argv": [
+        "/Volumes/Data/Code/Loom/target/debug/deps/loom_policy-7ae479c2951c6c28",
+        "--list"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "host-list-5",
+      "argv": [
+        "/Volumes/Data/Code/Loom/target/debug/deps/loom_identity-9d347785b60ee6a7",
+        "--list"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "host-list-6",
+      "argv": [
+        "/Volumes/Data/Code/Loom/target/debug/deps/loom_crypto-e88a2970f63a23c5",
+        "--list"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "host-list-7",
+      "argv": [
+        "/Volumes/Data/Code/Loom/target/debug/examples/l001_channel_lab-5e9e66940a543458",
+        "--list"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "host-list-8",
+      "argv": [
+        "/Volumes/Data/Code/Loom/target/debug/deps/signed_membership_channel-903971004fb2d099",
+        "--list"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "host-list-9",
+      "argv": [
+        "/Volumes/Data/Code/Loom/target/debug/deps/loom_transport-a49c937e4fdb8528",
+        "--list"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "host-list-10",
+      "argv": [
+        "/Volumes/Data/Code/Loom/target/debug/deps/loomd-0ce24826994f67e5",
+        "--list"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "host-list-11",
+      "argv": [
+        "/Volumes/Data/Code/Loom/target/debug/deps/loom_android-ae19be7f38111825",
+        "--list"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "host-list-12",
+      "argv": [
+        "/Volumes/Data/Code/Loom/target/debug/deps/loom_types-116ca04586fa27b5",
+        "--list"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "host-list-13",
+      "argv": [
+        "/Volumes/Data/Code/Loom/target/debug/deps/loom_wire-a39d3ab144a10c27",
+        "--list"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "host-list-14",
+      "argv": [
+        "/Volumes/Data/Code/Loom/target/debug/examples/membership_fixture-5e4a8c4217a8db4c",
+        "--list"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "android-test-build",
+      "argv": [
+        "cargo",
+        "test",
+        "--workspace",
+        "--all-targets",
+        "--locked",
+        "--no-run",
+        "--message-format=json",
+        "--target",
+        "aarch64-linux-android"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "strip-loom_wire-a87839a5136da267",
+      "argv": [
+        "/Users/will/Library/Android/sdk/ndk/27.2.12479018/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-strip",
+        "--strip-debug",
+        "/Volumes/Data/Code/Loom/target/l001-remote/integrated-20261020/bin/loom_wire-a87839a5136da267"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "strip-loom_types-2980fda90dd1f95c",
+      "argv": [
+        "/Users/will/Library/Android/sdk/ndk/27.2.12479018/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-strip",
+        "--strip-debug",
+        "/Volumes/Data/Code/Loom/target/l001-remote/integrated-20261020/bin/loom_types-2980fda90dd1f95c"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "strip-loom_policy-43cd2f003157c38b",
+      "argv": [
+        "/Users/will/Library/Android/sdk/ndk/27.2.12479018/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-strip",
+        "--strip-debug",
+        "/Volumes/Data/Code/Loom/target/l001-remote/integrated-20261020/bin/loom_policy-43cd2f003157c38b"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "strip-loom_identity-6f88a8865506d4be",
+      "argv": [
+        "/Users/will/Library/Android/sdk/ndk/27.2.12479018/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-strip",
+        "--strip-debug",
+        "/Volumes/Data/Code/Loom/target/l001-remote/integrated-20261020/bin/loom_identity-6f88a8865506d4be"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "strip-loom_crypto-47c0b2d3d5d8d3ee",
+      "argv": [
+        "/Users/will/Library/Android/sdk/ndk/27.2.12479018/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-strip",
+        "--strip-debug",
+        "/Volumes/Data/Code/Loom/target/l001-remote/integrated-20261020/bin/loom_crypto-47c0b2d3d5d8d3ee"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "strip-l001_channel_lab-dfb3edf93af4c985",
+      "argv": [
+        "/Users/will/Library/Android/sdk/ndk/27.2.12479018/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-strip",
+        "--strip-debug",
+        "/Volumes/Data/Code/Loom/target/l001-remote/integrated-20261020/bin/l001_channel_lab-dfb3edf93af4c985"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "strip-loom_transport-21787c0727e8a627",
+      "argv": [
+        "/Users/will/Library/Android/sdk/ndk/27.2.12479018/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-strip",
+        "--strip-debug",
+        "/Volumes/Data/Code/Loom/target/l001-remote/integrated-20261020/bin/loom_transport-21787c0727e8a627"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "strip-signed_membership_channel-25ad63441d3a7c15",
+      "argv": [
+        "/Users/will/Library/Android/sdk/ndk/27.2.12479018/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-strip",
+        "--strip-debug",
+        "/Volumes/Data/Code/Loom/target/l001-remote/integrated-20261020/bin/signed_membership_channel-25ad63441d3a7c15"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "strip-loomd-3e321fceafc505e1",
+      "argv": [
+        "/Users/will/Library/Android/sdk/ndk/27.2.12479018/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-strip",
+        "--strip-debug",
+        "/Volumes/Data/Code/Loom/target/l001-remote/integrated-20261020/bin/loomd-3e321fceafc505e1"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "strip-probe_tpm2-9f03df80ea2ba971",
+      "argv": [
+        "/Users/will/Library/Android/sdk/ndk/27.2.12479018/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-strip",
+        "--strip-debug",
+        "/Volumes/Data/Code/Loom/target/l001-remote/integrated-20261020/bin/probe_tpm2-9f03df80ea2ba971"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "strip-l001_storage_lab-5196dd0c46ede0ea",
+      "argv": [
+        "/Users/will/Library/Android/sdk/ndk/27.2.12479018/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-strip",
+        "--strip-debug",
+        "/Volumes/Data/Code/Loom/target/l001-remote/integrated-20261020/bin/l001_storage_lab-5196dd0c46ede0ea"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "strip-loom_core-789cd25a86b9b6c2",
+      "argv": [
+        "/Users/will/Library/Android/sdk/ndk/27.2.12479018/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-strip",
+        "--strip-debug",
+        "/Volumes/Data/Code/Loom/target/l001-remote/integrated-20261020/bin/loom_core-789cd25a86b9b6c2"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "strip-loom_store-381cc2e493cfdfbf",
+      "argv": [
+        "/Users/will/Library/Android/sdk/ndk/27.2.12479018/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-strip",
+        "--strip-debug",
+        "/Volumes/Data/Code/Loom/target/l001-remote/integrated-20261020/bin/loom_store-381cc2e493cfdfbf"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "strip-loom_android-38e18c72092fa31c",
+      "argv": [
+        "/Users/will/Library/Android/sdk/ndk/27.2.12479018/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-strip",
+        "--strip-debug",
+        "/Volumes/Data/Code/Loom/target/l001-remote/integrated-20261020/bin/loom_android-38e18c72092fa31c"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "strip-membership_fixture-74eb937dda85463f",
+      "argv": [
+        "/Users/will/Library/Android/sdk/ndk/27.2.12479018/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-strip",
+        "--strip-debug",
+        "/Volumes/Data/Code/Loom/target/l001-remote/integrated-20261020/bin/membership_fixture-74eb937dda85463f"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "android-release-build",
+      "argv": [
+        "cargo",
+        "build",
+        "--workspace",
+        "--examples",
+        "--release",
+        "--locked",
+        "--target",
+        "aarch64-linux-android"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "strip-l001_storage_lab",
+      "argv": [
+        "/Users/will/Library/Android/sdk/ndk/27.2.12479018/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-strip",
+        "--strip-debug",
+        "/Volumes/Data/Code/Loom/target/l001-remote/integrated-20261020/bin/l001_storage_lab"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "strip-l001_channel_lab",
+      "argv": [
+        "/Users/will/Library/Android/sdk/ndk/27.2.12479018/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-strip",
+        "--strip-debug",
+        "/Volumes/Data/Code/Loom/target/l001-remote/integrated-20261020/bin/l001_channel_lab"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "linux-channel-build",
+      "argv": [
+        "docker",
+        "exec",
+        "loom-l001-integrated-builder",
+        "cargo",
+        "build",
+        "--release",
+        "--locked",
+        "-p",
+        "loom-transport",
+        "--example",
+        "l001_channel_lab"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "linux-channel-copy",
+      "argv": [
+        "docker",
+        "cp",
+        "loom-l001-integrated-builder:/build/release/examples/l001_channel_lab",
+        "/Volumes/Data/Code/Loom/target/l001-remote/integrated-20261020/bin/linux_channel_lab"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "source-commit",
+      "argv": [
+        "git",
+        "rev-parse",
+        "HEAD"
+      ],
+      "exit_code": 0
+    }
+  ]
+}

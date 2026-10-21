@@ -1,0 +1,4075 @@
+{
+  "schema": 1,
+  "started_utc": "20261020T010337Z",
+  "commands": {
+    "source-commit": {
+      "argv": [
+        "git",
+        "rev-parse",
+        "HEAD"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.014812458,
+      "log": "logs/source-commit.log"
+    },
+    "source-diff": {
+      "argv": [
+        "git",
+        "diff",
+        "--binary",
+        "HEAD"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.021999833000000003,
+      "log": "logs/source-diff.log"
+    },
+    "source-inventory": {
+      "argv": [
+        "git",
+        "ls-files",
+        "--cached",
+        "--others",
+        "--exclude-standard"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.017534291000000007,
+      "log": "logs/source-inventory.log"
+    },
+    "host-uname": {
+      "argv": [
+        "uname",
+        "-a"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.0032785420000000093,
+      "log": "logs/host-uname.log"
+    },
+    "host-macos": {
+      "argv": [
+        "sw_vers"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.015169708000000004,
+      "log": "logs/host-macos.log"
+    },
+    "host-resources": {
+      "argv": [
+        "sysctl",
+        "-n",
+        "hw.model",
+        "hw.ncpu",
+        "hw.memsize"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.004992125,
+      "log": "logs/host-resources.log"
+    },
+    "host-rust": {
+      "argv": [
+        "rustc",
+        "--version",
+        "--verbose"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.193231667,
+      "log": "logs/host-rust.log"
+    },
+    "docker-version": {
+      "argv": [
+        "docker",
+        "version",
+        "--format",
+        "{{json .}}"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.04333570800000003,
+      "log": "logs/docker-version.log"
+    },
+    "docker-resources": {
+      "argv": [
+        "docker",
+        "info",
+        "--format",
+        "cpus={{.NCPU}} memory={{.MemTotal}} kernel={{.KernelVersion}} os={{.OperatingSystem}}"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.06486283399999998,
+      "log": "logs/docker-resources.log"
+    },
+    "builder-resources": {
+      "argv": [
+        "docker",
+        "inspect",
+        "loom-l001-integrated-builder",
+        "--format",
+        "{{json .HostConfig}}"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.022347208000000007,
+      "log": "logs/builder-resources.log"
+    },
+    "linux-toolchains": {
+      "argv": [
+        "docker",
+        "exec",
+        "loom-l001-integrated-builder",
+        "sh",
+        "-c",
+        "rustc --version; go version; node --version; java -version; kotlinc -version; dpkg-query -W make cmake python3 nodejs default-jdk-headless kotlin"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 4.465242999999999,
+      "log": "logs/linux-toolchains.log"
+    },
+    "host-release-build": {
+      "argv": [
+        "cargo",
+        "build",
+        "--release",
+        "--workspace",
+        "--examples",
+        "--locked"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 5.781698042,
+      "log": "logs/host-release-build.log"
+    },
+    "linux-release-build": {
+      "argv": [
+        "docker",
+        "exec",
+        "loom-l001-integrated-builder",
+        "cargo",
+        "build",
+        "--release",
+        "--workspace",
+        "--examples",
+        "--locked"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 7.966634333000002,
+      "log": "logs/linux-release-build.log"
+    },
+    "host-tests": {
+      "argv": [
+        "cargo",
+        "test",
+        "--workspace",
+        "--all-targets",
+        "--locked"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 6.995284750000003,
+      "log": "logs/host-tests.log"
+    },
+    "linux-tests": {
+      "argv": [
+        "docker",
+        "exec",
+        "loom-l001-integrated-builder",
+        "cargo",
+        "test",
+        "--workspace",
+        "--all-targets",
+        "--locked"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 6.653713084000003,
+      "log": "logs/linux-tests.log"
+    },
+    "host-format": {
+      "argv": [
+        "cargo",
+        "fmt",
+        "--all",
+        "--",
+        "--check"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.34758412500000446,
+      "log": "logs/host-format.log"
+    },
+    "host-clippy": {
+      "argv": [
+        "cargo",
+        "clippy",
+        "--workspace",
+        "--all-targets",
+        "--locked",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.364079916999998,
+      "log": "logs/host-clippy.log"
+    },
+    "linux-clippy": {
+      "argv": [
+        "docker",
+        "exec",
+        "loom-l001-integrated-builder",
+        "cargo",
+        "clippy",
+        "--workspace",
+        "--all-targets",
+        "--locked",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 2.5460643750000003,
+      "log": "logs/linux-clippy.log"
+    },
+    "linux-doc": {
+      "argv": [
+        "docker",
+        "exec",
+        "loom-l001-integrated-builder",
+        "cargo",
+        "doc",
+        "--workspace",
+        "--no-deps",
+        "--locked"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 1.3386843330000033,
+      "log": "logs/linux-doc.log"
+    },
+    "acceptance-manifest": {
+      "argv": [
+        "python3",
+        "scripts/l001_gate.py"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.0931117499999985,
+      "log": "logs/acceptance-manifest.log"
+    },
+    "release-still-refused": {
+      "argv": [
+        "python3",
+        "scripts/l001_gate.py",
+        "--require-complete"
+      ],
+      "exit_code": 1,
+      "expected_exit_code": 1,
+      "elapsed_s": 0.02602145800000244,
+      "log": "logs/release-still-refused.log"
+    },
+    "host-wire-go": {
+      "argv": [
+        "go",
+        "run",
+        "./interop/wire01/go/main.go",
+        "."
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.23814216600000293,
+      "log": "logs/host-wire-go.log"
+    },
+    "host-wire-js": {
+      "argv": [
+        "node",
+        "./interop/wire01/js/check.mjs",
+        "."
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.16512895900000046,
+      "log": "logs/host-wire-js.log"
+    },
+    "host-signature-go": {
+      "argv": [
+        "go",
+        "run",
+        "./test-vectors/wire-v1/check.go"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.10927991599999842,
+      "log": "logs/host-signature-go.log"
+    },
+    "host-signature-js": {
+      "argv": [
+        "node",
+        "./test-vectors/wire-v1/check.mjs"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.03135450000000617,
+      "log": "logs/host-signature-js.log"
+    },
+    "linux-wire-go": {
+      "argv": [
+        "docker",
+        "exec",
+        "loom-l001-integrated-builder",
+        "go",
+        "run",
+        "./interop/wire01/go/main.go",
+        "."
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 1.9314247920000014,
+      "log": "logs/linux-wire-go.log"
+    },
+    "linux-wire-js": {
+      "argv": [
+        "docker",
+        "exec",
+        "loom-l001-integrated-builder",
+        "node",
+        "./interop/wire01/js/check.mjs",
+        "."
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.2862423330000041,
+      "log": "logs/linux-wire-js.log"
+    },
+    "linux-signature-go": {
+      "argv": [
+        "docker",
+        "exec",
+        "loom-l001-integrated-builder",
+        "go",
+        "run",
+        "./test-vectors/wire-v1/check.go"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.3324440829999986,
+      "log": "logs/linux-signature-go.log"
+    },
+    "linux-signature-js": {
+      "argv": [
+        "docker",
+        "exec",
+        "loom-l001-integrated-builder",
+        "node",
+        "./test-vectors/wire-v1/check.mjs"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.11602375000000364,
+      "log": "logs/linux-signature-js.log"
+    },
+    "wire-kotlin-compile": {
+      "argv": [
+        "docker",
+        "exec",
+        "loom-l001-integrated-builder",
+        "kotlinc",
+        "interop/wire01/kotlin/Main.kt",
+        "-include-runtime",
+        "-d",
+        "/build/l001-wire.jar"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 2.719525333,
+      "log": "logs/wire-kotlin-compile.log"
+    },
+    "wire-kotlin": {
+      "argv": [
+        "docker",
+        "exec",
+        "loom-l001-integrated-builder",
+        "java",
+        "-jar",
+        "/build/l001-wire.jar",
+        "."
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.13995633300000065,
+      "log": "logs/wire-kotlin.log"
+    },
+    "host-bootstrap": {
+      "argv": [
+        "cargo",
+        "run",
+        "-p",
+        "loomd",
+        "--locked",
+        "--quiet"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 2.385521415999996,
+      "log": "logs/host-bootstrap.log"
+    },
+    "host-tpm-refused": {
+      "argv": [
+        "cargo",
+        "run",
+        "-p",
+        "loom-store",
+        "--example",
+        "probe_tpm2",
+        "--locked",
+        "--quiet"
+      ],
+      "exit_code": 2,
+      "expected_exit_code": 2,
+      "elapsed_s": 1.1797938750000014,
+      "log": "logs/host-tpm-refused.log"
+    },
+    "linux-bootstrap": {
+      "argv": [
+        "docker",
+        "exec",
+        "loom-l001-integrated-builder",
+        "cargo",
+        "run",
+        "-p",
+        "loomd",
+        "--locked",
+        "--quiet"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 1.065082750000002,
+      "log": "logs/linux-bootstrap.log"
+    },
+    "linux-tpm-refused": {
+      "argv": [
+        "docker",
+        "exec",
+        "loom-l001-integrated-builder",
+        "cargo",
+        "run",
+        "-p",
+        "loom-store",
+        "--example",
+        "probe_tpm2",
+        "--locked",
+        "--quiet"
+      ],
+      "exit_code": 2,
+      "expected_exit_code": 2,
+      "elapsed_s": 0.9410807080000012,
+      "log": "logs/linux-tpm-refused.log"
+    },
+    "host-codec": {
+      "argv": [
+        "/Volumes/Data/Code/Loom/target/release/examples/l001_storage_lab",
+        "codec"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.6637880420000002,
+      "log": "logs/host-codec.log"
+    },
+    "linux-codec": {
+      "argv": [
+        "docker",
+        "exec",
+        "loom-l001-integrated-builder",
+        "/build/release/examples/l001_storage_lab",
+        "codec"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.39197070899999886,
+      "log": "logs/linux-codec.log"
+    },
+    "host-storage": {
+      "argv": [
+        "/Volumes/Data/Code/Loom/target/release/examples/l001_storage_lab",
+        "bench",
+        "/Volumes/Data/Code/Loom/target/l001-local-docker/20261020T010337Z/bench.sqlite",
+        "100"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.7768855409999986,
+      "log": "logs/host-storage.log"
+    },
+    "linux-mkdir": {
+      "argv": [
+        "docker",
+        "exec",
+        "loom-l001-integrated-builder",
+        "mkdir",
+        "-p",
+        "/build/l001-lab/20261020T010337Z"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.07768966700000135,
+      "log": "logs/linux-mkdir.log"
+    },
+    "linux-storage": {
+      "argv": [
+        "docker",
+        "exec",
+        "loom-l001-integrated-builder",
+        "/build/release/examples/l001_storage_lab",
+        "bench",
+        "/build/l001-lab/20261020T010337Z/bench.sqlite",
+        "100"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 1.065500666999995,
+      "log": "logs/linux-storage.log"
+    },
+    "host-storage-faults": {
+      "argv": [
+        "python3",
+        "scripts/l001_storage_faults.py",
+        "/Volumes/Data/Code/Loom/target/release/examples/l001_storage_lab",
+        "/Volumes/Data/Code/Loom/target/l001-local-docker/20261020T010337Z/faults"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.36402837500000373,
+      "log": "logs/host-storage-faults.log"
+    },
+    "linux-storage-faults": {
+      "argv": [
+        "docker",
+        "exec",
+        "loom-l001-integrated-builder",
+        "python3",
+        "/workspace/scripts/l001_storage_faults.py",
+        "/build/release/examples/l001_storage_lab",
+        "/build/l001-lab/20261020T010337Z/faults"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.635611959000002,
+      "log": "logs/linux-storage-faults.log"
+    },
+    "host-quorum-recovery": {
+      "argv": [
+        "python3",
+        "scripts/l001_quorum_faults.py",
+        "/Volumes/Data/Code/Loom/target/release/examples/l001_storage_lab",
+        "/Volumes/Data/Code/Loom/target/l001-local-docker/20261020T010337Z/quorum"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.3363877079999966,
+      "log": "logs/host-quorum-recovery.log"
+    },
+    "linux-quorum-recovery": {
+      "argv": [
+        "docker",
+        "exec",
+        "loom-l001-integrated-builder",
+        "python3",
+        "/workspace/scripts/l001_quorum_faults.py",
+        "/build/release/examples/l001_storage_lab",
+        "/build/l001-lab/20261020T010337Z/quorum"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.49150812500000285,
+      "log": "logs/linux-quorum-recovery.log"
+    },
+    "container-kill-0": {
+      "argv": [
+        "docker",
+        "kill",
+        "--signal=KILL",
+        "loom-l001-kill-0-20261020t010337z"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.09355795799999811,
+      "log": "logs/container-kill-0.log"
+    },
+    "container-recovery-0": {
+      "argv": [
+        "docker",
+        "exec",
+        "loom-l001-integrated-builder",
+        "/build/release/examples/l001_storage_lab",
+        "inspect",
+        "/build/l001-lab/20261020T010337Z/container-kill-0.sqlite"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.04278241700000507,
+      "log": "logs/container-recovery-0.log"
+    },
+    "container-kill-1": {
+      "argv": [
+        "docker",
+        "kill",
+        "--signal=KILL",
+        "loom-l001-kill-1-20261020t010337z"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.06915179199999955,
+      "log": "logs/container-kill-1.log"
+    },
+    "container-recovery-1": {
+      "argv": [
+        "docker",
+        "exec",
+        "loom-l001-integrated-builder",
+        "/build/release/examples/l001_storage_lab",
+        "inspect",
+        "/build/l001-lab/20261020T010337Z/container-kill-1.sqlite"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.058185291000000916,
+      "log": "logs/container-recovery-1.log"
+    },
+    "container-kill-2": {
+      "argv": [
+        "docker",
+        "kill",
+        "--signal=KILL",
+        "loom-l001-kill-2-20261020t010337z"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.058540374999999756,
+      "log": "logs/container-kill-2.log"
+    },
+    "container-recovery-2": {
+      "argv": [
+        "docker",
+        "exec",
+        "loom-l001-integrated-builder",
+        "/build/release/examples/l001_storage_lab",
+        "inspect",
+        "/build/l001-lab/20261020T010337Z/container-kill-2.sqlite"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.05903645900000498,
+      "log": "logs/container-recovery-2.log"
+    },
+    "create-test-identities": {
+      "argv": [
+        "/Volumes/Data/Code/Loom/target/release/examples/l001_channel_lab",
+        "fixture",
+        "/Volumes/Data/Code/Loom/target/l001-local-docker/20261020T010337Z/fixtures"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.33631562499999745,
+      "log": "logs/create-test-identities.log"
+    },
+    "network-create": {
+      "argv": [
+        "docker",
+        "network",
+        "create",
+        "--label",
+        "loom.task=l001-local-docker",
+        "loom-l001-20261020t010337z"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.10126791700000126,
+      "log": "logs/network-create.log"
+    },
+    "linux-server-start": {
+      "argv": [
+        "docker",
+        "run",
+        "--rm",
+        "--name",
+        "loom-l001-server-20261020t010337z",
+        "--label",
+        "loom.task=l001-local-docker",
+        "--cpus=2",
+        "--memory=512m",
+        "--pids-limit=128",
+        "--cap-drop=ALL",
+        "--security-opt=no-new-privileges",
+        "--read-only",
+        "--tmpfs",
+        "/tmp:rw,noexec,nosuid,size=64m",
+        "-d",
+        "--network",
+        "loom-l001-20261020t010337z",
+        "-p",
+        "127.0.0.1::38443",
+        "-v",
+        "loom-l001-target:/build:ro",
+        "-v",
+        "/Volumes/Data/Code/Loom/target/l001-local-docker/20261020T010337Z/fixtures:/fixtures:ro",
+        "rust:1.90.0-slim-bookworm@sha256:64232e656c058f4468e8d024e990acff04f0fd5a5c0a88a574dc37773d7325c9",
+        "/build/release/examples/l001_channel_lab",
+        "server",
+        "0.0.0.0:38443",
+        "/fixtures"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.2100948750000029,
+      "log": "logs/linux-server-start.log"
+    },
+    "linux-server-port": {
+      "argv": [
+        "docker",
+        "port",
+        "loom-l001-server-20261020t010337z",
+        "38443/tcp"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.025598500000000968,
+      "log": "logs/linux-server-port.log"
+    },
+    "host-linux-ready": {
+      "argv": [
+        "/Volumes/Data/Code/Loom/target/release/examples/l001_channel_lab",
+        "probe",
+        "127.0.0.1:32770",
+        "/Volumes/Data/Code/Loom/target/l001-local-docker/20261020T010337Z/fixtures"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.053204708999999184,
+      "log": "logs/host-linux-ready.log"
+    },
+    "host-host": {
+      "argv": [
+        "/Volumes/Data/Code/Loom/target/release/examples/l001_channel_lab",
+        "bench",
+        "127.0.0.1:55117",
+        "/Volumes/Data/Code/Loom/target/l001-local-docker/20261020T010337Z/fixtures"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.3771801250000024,
+      "log": "logs/host-host.log"
+    },
+    "host-host-negative": {
+      "argv": [
+        "/Volumes/Data/Code/Loom/target/release/examples/l001_channel_lab",
+        "rejections",
+        "127.0.0.1:55117",
+        "/Volumes/Data/Code/Loom/target/l001-local-docker/20261020T010337Z/fixtures"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.03484854199999887,
+      "log": "logs/host-host-negative.log"
+    },
+    "host-linux": {
+      "argv": [
+        "/Volumes/Data/Code/Loom/target/release/examples/l001_channel_lab",
+        "bench",
+        "127.0.0.1:32770",
+        "/Volumes/Data/Code/Loom/target/l001-local-docker/20261020T010337Z/fixtures"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.7073577499999999,
+      "log": "logs/host-linux.log"
+    },
+    "host-linux-negative": {
+      "argv": [
+        "/Volumes/Data/Code/Loom/target/release/examples/l001_channel_lab",
+        "rejections",
+        "127.0.0.1:32770",
+        "/Volumes/Data/Code/Loom/target/l001-local-docker/20261020T010337Z/fixtures"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.037087667000001545,
+      "log": "logs/host-linux-negative.log"
+    },
+    "linux-linux": {
+      "argv": [
+        "docker",
+        "run",
+        "--rm",
+        "--name",
+        "loom-l001-client-ll-bench-20261020t010337z",
+        "--label",
+        "loom.task=l001-local-docker",
+        "--cpus=2",
+        "--memory=512m",
+        "--pids-limit=128",
+        "--cap-drop=ALL",
+        "--security-opt=no-new-privileges",
+        "--read-only",
+        "--tmpfs",
+        "/tmp:rw,noexec,nosuid,size=64m",
+        "--network",
+        "loom-l001-20261020t010337z",
+        "-v",
+        "loom-l001-target:/build:ro",
+        "-v",
+        "/Volumes/Data/Code/Loom/target/l001-local-docker/20261020T010337Z/fixtures:/fixtures:ro",
+        "rust:1.90.0-slim-bookworm@sha256:64232e656c058f4468e8d024e990acff04f0fd5a5c0a88a574dc37773d7325c9",
+        "/build/release/examples/l001_channel_lab",
+        "bench",
+        "loom-l001-server-20261020t010337z:38443",
+        "/fixtures"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.508335166000002,
+      "log": "logs/linux-linux.log"
+    },
+    "linux-linux-negative": {
+      "argv": [
+        "docker",
+        "run",
+        "--rm",
+        "--name",
+        "loom-l001-client-ll-negative-20261020t010337z",
+        "--label",
+        "loom.task=l001-local-docker",
+        "--cpus=2",
+        "--memory=512m",
+        "--pids-limit=128",
+        "--cap-drop=ALL",
+        "--security-opt=no-new-privileges",
+        "--read-only",
+        "--tmpfs",
+        "/tmp:rw,noexec,nosuid,size=64m",
+        "--network",
+        "loom-l001-20261020t010337z",
+        "-v",
+        "loom-l001-target:/build:ro",
+        "-v",
+        "/Volumes/Data/Code/Loom/target/l001-local-docker/20261020T010337Z/fixtures:/fixtures:ro",
+        "rust:1.90.0-slim-bookworm@sha256:64232e656c058f4468e8d024e990acff04f0fd5a5c0a88a574dc37773d7325c9",
+        "/build/release/examples/l001_channel_lab",
+        "rejections",
+        "loom-l001-server-20261020t010337z:38443",
+        "/fixtures"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.33726170799999977,
+      "log": "logs/linux-linux-negative.log"
+    },
+    "linux-host": {
+      "argv": [
+        "docker",
+        "run",
+        "--rm",
+        "--name",
+        "loom-l001-client-lh-bench-20261020t010337z",
+        "--label",
+        "loom.task=l001-local-docker",
+        "--cpus=2",
+        "--memory=512m",
+        "--pids-limit=128",
+        "--cap-drop=ALL",
+        "--security-opt=no-new-privileges",
+        "--read-only",
+        "--tmpfs",
+        "/tmp:rw,noexec,nosuid,size=64m",
+        "--network",
+        "loom-l001-20261020t010337z",
+        "-v",
+        "loom-l001-target:/build:ro",
+        "-v",
+        "/Volumes/Data/Code/Loom/target/l001-local-docker/20261020T010337Z/fixtures:/fixtures:ro",
+        "rust:1.90.0-slim-bookworm@sha256:64232e656c058f4468e8d024e990acff04f0fd5a5c0a88a574dc37773d7325c9",
+        "/build/release/examples/l001_channel_lab",
+        "bench",
+        "host.docker.internal:55117",
+        "/fixtures"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.8278400410000017,
+      "log": "logs/linux-host.log"
+    },
+    "linux-host-negative": {
+      "argv": [
+        "docker",
+        "run",
+        "--rm",
+        "--name",
+        "loom-l001-client-lh-negative-20261020t010337z",
+        "--label",
+        "loom.task=l001-local-docker",
+        "--cpus=2",
+        "--memory=512m",
+        "--pids-limit=128",
+        "--cap-drop=ALL",
+        "--security-opt=no-new-privileges",
+        "--read-only",
+        "--tmpfs",
+        "/tmp:rw,noexec,nosuid,size=64m",
+        "--network",
+        "loom-l001-20261020t010337z",
+        "-v",
+        "loom-l001-target:/build:ro",
+        "-v",
+        "/Volumes/Data/Code/Loom/target/l001-local-docker/20261020T010337Z/fixtures:/fixtures:ro",
+        "rust:1.90.0-slim-bookworm@sha256:64232e656c058f4468e8d024e990acff04f0fd5a5c0a88a574dc37773d7325c9",
+        "/build/release/examples/l001_channel_lab",
+        "rejections",
+        "host.docker.internal:55117",
+        "/fixtures"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.25351229199999636,
+      "log": "logs/linux-host-negative.log"
+    },
+    "relay-confidentiality": {
+      "argv": [
+        "/Volumes/Data/Code/Loom/target/release/examples/l001_channel_lab",
+        "probe",
+        "127.0.0.1:55326",
+        "/Volumes/Data/Code/Loom/target/l001-local-docker/20261020T010337Z/fixtures"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.04927362499999788,
+      "log": "logs/relay-confidentiality.log"
+    },
+    "relay-active-tamper": {
+      "argv": [
+        "/Volumes/Data/Code/Loom/target/release/examples/l001_channel_lab",
+        "probe",
+        "127.0.0.1:55330",
+        "/Volumes/Data/Code/Loom/target/l001-local-docker/20261020T010337Z/fixtures"
+      ],
+      "exit_code": 1,
+      "expected_exit_code": 1,
+      "elapsed_s": 0.037864708000000746,
+      "log": "logs/relay-active-tamper.log"
+    },
+    "linux-server-logs": {
+      "argv": [
+        "docker",
+        "logs",
+        "loom-l001-server-20261020t010337z"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_s": 0.058245499999998174,
+      "log": "logs/linux-server-logs.log"
+    }
+  },
+  "benchmarks": {
+    "host-codec": {
+      "metrics": [
+        {
+          "name": "codec_encode_payload_256",
+          "unit": "ms",
+          "n": 10,
+          "median": 5.684375e-05,
+          "p95": 6.708960000000001e-05,
+          "samples": [
+            6.708960000000001e-05,
+            6.657915e-05,
+            6.502085e-05,
+            6.224795e-05,
+            5.684375e-05,
+            5.658335e-05,
+            5.66646e-05,
+            5.676045000000001e-05,
+            5.5685399999999994e-05,
+            5.034375e-05
+          ]
+        },
+        {
+          "name": "codec_decode_payload_256",
+          "unit": "ms",
+          "n": 10,
+          "median": 0.00012968335,
+          "p95": 0.00014902710000000002,
+          "samples": [
+            0.00014902710000000002,
+            0.0001410625,
+            0.00013696455,
+            0.00013025414999999997,
+            0.00012968335,
+            0.00012289795,
+            0.0001233646,
+            0.00011576045,
+            0.00011658335,
+            0.00011443540000000001
+          ]
+        },
+        {
+          "name": "codec_encode_payload_4096",
+          "unit": "ms",
+          "n": 10,
+          "median": 7.99375e-05,
+          "p95": 8.41104e-05,
+          "samples": [
+            8.41104e-05,
+            8.335415e-05,
+            8.04875e-05,
+            8.164375e-05,
+            7.99375e-05,
+            7.921875e-05,
+            7.71604e-05,
+            7.725625e-05,
+            7.886460000000001e-05,
+            7.63875e-05
+          ]
+        },
+        {
+          "name": "codec_decode_payload_4096",
+          "unit": "ms",
+          "n": 10,
+          "median": 0.0002481521,
+          "p95": 0.00025469795,
+          "samples": [
+            0.00025469795,
+            0.0002481521,
+            0.00024932705,
+            0.0002494521,
+            0.000247375,
+            0.0002478125,
+            0.00025251875,
+            0.00024241875,
+            0.00024505414999999997,
+            0.00024713539999999997
+          ]
+        },
+        {
+          "name": "codec_encode_payload_61440",
+          "unit": "ms",
+          "n": 10,
+          "median": 0.001077708,
+          "p95": 0.001107375,
+          "samples": [
+            0.001107375,
+            0.0010857915,
+            0.0010759375,
+            0.0010811455,
+            0.001086979,
+            0.001077708,
+            0.0010364165,
+            0.0010253335,
+            0.001049042,
+            0.001031375
+          ]
+        },
+        {
+          "name": "codec_decode_payload_61440",
+          "unit": "ms",
+          "n": 10,
+          "median": 0.003645604,
+          "p95": 0.0037924585,
+          "samples": [
+            0.003644354,
+            0.003516,
+            0.003645604,
+            0.003494333,
+            0.003590083,
+            0.0036589375,
+            0.003651729,
+            0.003706479,
+            0.003637271,
+            0.0037924585
+          ]
+        },
+        {
+          "name": "sign_encode_verify_delegated_revocation",
+          "unit": "ms",
+          "n": 10,
+          "median": 0.11147292,
+          "p95": 0.11298417,
+          "samples": [
+            0.11172750000000001,
+            0.10921,
+            0.10951959,
+            0.10865167,
+            0.1086925,
+            0.11064249999999999,
+            0.11242749999999999,
+            0.11298417,
+            0.11198082999999999,
+            0.11147292
+          ]
+        }
+      ],
+      "codec_samples_are_batch_means": true
+    },
+    "linux-codec": {
+      "metrics": [
+        {
+          "name": "codec_encode_payload_256",
+          "unit": "ms",
+          "n": 10,
+          "median": 2.8123100000000002e-05,
+          "p95": 2.9021000000000002e-05,
+          "samples": [
+            2.4939749999999998e-05,
+            2.7700199999999996e-05,
+            2.8137700000000003e-05,
+            2.8123100000000002e-05,
+            2.7573050000000005e-05,
+            2.571265e-05,
+            2.7748099999999996e-05,
+            2.9021000000000002e-05,
+            2.8971049999999998e-05,
+            2.8987649999999997e-05
+          ]
+        },
+        {
+          "name": "codec_decode_payload_256",
+          "unit": "ms",
+          "n": 10,
+          "median": 8.23776e-05,
+          "p95": 9.147969999999999e-05,
+          "samples": [
+            9.147969999999999e-05,
+            8.5288e-05,
+            8.35109e-05,
+            8.23776e-05,
+            7.986925000000001e-05,
+            8.272345e-05,
+            8.019214999999999e-05,
+            8.008174999999999e-05,
+            8.225465000000001e-05,
+            7.876295000000001e-05
+          ]
+        },
+        {
+          "name": "codec_encode_payload_4096",
+          "unit": "ms",
+          "n": 10,
+          "median": 8.04942e-05,
+          "p95": 8.1638e-05,
+          "samples": [
+            7.970670000000001e-05,
+            8.099425e-05,
+            7.490045e-05,
+            7.755255e-05,
+            8.1638e-05,
+            8.093170000000001e-05,
+            7.809215000000001e-05,
+            8.04942e-05,
+            8.069839999999999e-05,
+            8.022545e-05
+          ]
+        },
+        {
+          "name": "codec_decode_payload_4096",
+          "unit": "ms",
+          "n": 10,
+          "median": 0.00022264089999999998,
+          "p95": 0.00022705965,
+          "samples": [
+            0.00022061379999999996,
+            0.00022528465,
+            0.00022226174999999998,
+            0.00022249925,
+            0.00022705965,
+            0.00022264089999999998,
+            0.00022237635,
+            0.00022323675000000001,
+            0.0002245847,
+            0.000221543
+          ]
+        },
+        {
+          "name": "codec_encode_payload_61440",
+          "unit": "ms",
+          "n": 10,
+          "median": 0.0011826945,
+          "p95": 0.0013727585,
+          "samples": [
+            0.0010292145,
+            0.0009689435,
+            0.001090944,
+            0.0011066525,
+            0.0011826945,
+            0.001171382,
+            0.0012388615,
+            0.0013727585,
+            0.0013301955,
+            0.001336758
+          ]
+        },
+        {
+          "name": "codec_decode_payload_61440",
+          "unit": "ms",
+          "n": 10,
+          "median": 0.004252546,
+          "p95": 0.00432588,
+          "samples": [
+            0.0040623575,
+            0.0040735245,
+            0.0041519,
+            0.0041359205,
+            0.00432588,
+            0.004297026,
+            0.004251338,
+            0.004252546,
+            0.0042775255,
+            0.004279963
+          ]
+        },
+        {
+          "name": "sign_encode_verify_delegated_revocation",
+          "unit": "ms",
+          "n": 10,
+          "median": 0.11702445,
+          "p95": 0.11767362,
+          "samples": [
+            0.11735153,
+            0.11722112,
+            0.11689695,
+            0.1167357,
+            0.11703820000000001,
+            0.11676236,
+            0.11683736,
+            0.11767362,
+            0.11702445,
+            0.11693319
+          ]
+        }
+      ],
+      "codec_samples_are_batch_means": true
+    },
+    "host-storage": {
+      "metrics": [
+        {
+          "name": "signed_journal_append_full_history_replay",
+          "unit": "ms",
+          "n": 100,
+          "median": 5.2405409999999994,
+          "p95": 9.753875,
+          "samples": [
+            1.140416,
+            1.225417,
+            1.393834,
+            1.327542,
+            1.525125,
+            1.0865,
+            0.893458,
+            1.102708,
+            1.4950409999999998,
+            1.7602920000000002,
+            1.7409590000000001,
+            2.365375,
+            2.470125,
+            2.170375,
+            2.587417,
+            2.522542,
+            2.7425409999999997,
+            2.631834,
+            2.711084,
+            2.730708,
+            2.789583,
+            2.9199170000000003,
+            2.9420409999999997,
+            2.932875,
+            3.01075,
+            3.160417,
+            3.115834,
+            3.129792,
+            3.219833,
+            3.2403340000000003,
+            3.262333,
+            3.363166,
+            3.503166,
+            3.505584,
+            3.6324170000000002,
+            3.766417,
+            3.851292,
+            3.8825000000000003,
+            3.9869579999999996,
+            4.115208,
+            4.284625,
+            4.234583,
+            4.40075,
+            4.527375,
+            4.745166,
+            4.685333,
+            4.863041,
+            4.984416,
+            4.930042,
+            5.094417,
+            5.2405409999999994,
+            5.365458,
+            5.450458,
+            5.612,
+            5.686791,
+            5.7805,
+            5.9023330000000005,
+            5.991042,
+            5.863167,
+            6.102665999999999,
+            6.191333,
+            6.41725,
+            6.725333,
+            6.4370840000000005,
+            6.630875,
+            6.670958000000001,
+            7.181958,
+            7.7537910000000005,
+            7.483499999999999,
+            8.009374999999999,
+            7.69725,
+            7.922791,
+            7.6565,
+            8.077917000000001,
+            7.746334,
+            8.228167,
+            7.906458,
+            8.969790999999999,
+            8.184958000000002,
+            8.627875,
+            8.262667,
+            8.804833,
+            8.513042,
+            8.772125,
+            8.647167000000001,
+            8.988375,
+            8.845625,
+            9.338375,
+            9.162042,
+            9.179166,
+            9.265584,
+            9.427416,
+            9.807417000000001,
+            9.646875,
+            9.639458,
+            9.753875,
+            9.882333000000001,
+            10.190625,
+            9.951542,
+            10.462958
+          ]
+        },
+        {
+          "name": "signed_journal_inspect",
+          "unit": "ms",
+          "n": 20,
+          "median": 10.105542,
+          "p95": 10.355833,
+          "samples": [
+            9.859958,
+            10.099708000000001,
+            10.105542,
+            10.113959000000001,
+            10.271542,
+            10.222916999999999,
+            10.123958,
+            10.430667,
+            10.176625,
+            10.043,
+            10.302541,
+            10.062291,
+            10.355833,
+            9.850625,
+            10.011709,
+            10.057125,
+            10.094958,
+            9.933167,
+            10.105375,
+            10.133667
+          ]
+        }
+      ],
+      "append_first_ms": 1.140416,
+      "append_last_ms": 10.462958,
+      "history_length": 100
+    },
+    "linux-storage": {
+      "metrics": [
+        {
+          "name": "signed_journal_append_full_history_replay",
+          "unit": "ms",
+          "n": 100,
+          "median": 6.964917,
+          "p95": 11.744029,
+          "samples": [
+            1.768219,
+            1.9908450000000002,
+            1.877595,
+            1.984137,
+            2.069179,
+            2.792808,
+            3.027976,
+            3.207977,
+            3.365354,
+            3.018643,
+            3.2855610000000004,
+            3.64598,
+            3.7603139999999997,
+            3.808439,
+            3.852523,
+            4.509694,
+            4.137108,
+            4.500401999999999,
+            4.918071,
+            5.5038659999999995,
+            4.8013200000000005,
+            5.19674,
+            5.151281,
+            5.316699,
+            5.12228,
+            5.385366,
+            5.244156,
+            5.723034999999999,
+            6.0507859999999996,
+            5.8619520000000005,
+            6.3161629999999995,
+            5.5407,
+            6.5039549999999995,
+            5.3882829999999995,
+            5.329447999999999,
+            5.574533,
+            6.205620000000001,
+            5.323157,
+            5.391824,
+            5.798743,
+            5.938243,
+            6.393455,
+            6.18187,
+            6.098954,
+            6.570539,
+            5.885452,
+            6.6459980000000005,
+            6.5319139999999996,
+            7.079333999999999,
+            7.066375,
+            6.747998,
+            6.964917,
+            7.196834,
+            6.907458,
+            7.296252,
+            7.01325,
+            7.37671,
+            7.320209999999999,
+            7.451877,
+            7.648171,
+            8.213133,
+            8.266383000000001,
+            7.870838999999999,
+            8.562301,
+            8.694177000000002,
+            8.780177,
+            9.067138,
+            8.626468,
+            8.887719,
+            9.040429000000001,
+            8.81772,
+            8.735009999999999,
+            9.235346999999999,
+            9.104595999999999,
+            9.330723,
+            9.257514,
+            9.309097000000001,
+            10.01981,
+            9.757975,
+            9.672224,
+            9.988352,
+            9.605516,
+            11.013566,
+            10.848648,
+            10.688605,
+            10.616689000000001,
+            10.841648000000001,
+            10.803148,
+            10.981732,
+            11.322650999999999,
+            12.032447,
+            11.584235999999999,
+            11.451902,
+            11.420276999999999,
+            11.693111,
+            11.744029,
+            11.943655,
+            11.94678,
+            12.042613000000001,
+            12.748451
+          ]
+        },
+        {
+          "name": "signed_journal_inspect",
+          "unit": "ms",
+          "n": 20,
+          "median": 11.014108,
+          "p95": 11.134191,
+          "samples": [
+            10.674563999999998,
+            10.892398,
+            10.902897999999999,
+            11.029107999999999,
+            10.979732,
+            11.048815999999999,
+            11.102108,
+            10.919023,
+            10.880649,
+            10.608855,
+            11.014108,
+            11.191067,
+            11.134191,
+            11.074983,
+            11.043315999999999,
+            10.918649,
+            11.088649,
+            11.104567,
+            10.940857,
+            10.89044
+          ]
+        }
+      ],
+      "append_first_ms": 1.768219,
+      "append_last_ms": 12.748451,
+      "history_length": 100
+    },
+    "host-host": {
+      "lab_only": true,
+      "payload_verified": true,
+      "metrics": [
+        {
+          "name": "tcp_tls_association",
+          "unit": "ms",
+          "n": 50,
+          "median": 2.11475,
+          "p95": 2.6155000000000004,
+          "min": 1.7242080000000002,
+          "max": 2.703083,
+          "samples": [
+            2.124,
+            2.231125,
+            1.766833,
+            2.095375,
+            2.201958,
+            2.191708,
+            2.099292,
+            2.703083,
+            2.102833,
+            1.8890829999999998,
+            1.9072920000000002,
+            1.9819170000000002,
+            1.814875,
+            1.7242080000000002,
+            2.2439579999999997,
+            1.8719590000000002,
+            2.157583,
+            1.9150420000000001,
+            2.355625,
+            1.859917,
+            1.912083,
+            2.05125,
+            2.280458,
+            2.449667,
+            2.366,
+            2.234375,
+            1.87175,
+            2.6155000000000004,
+            2.087708,
+            2.048333,
+            1.9715000000000003,
+            2.029542,
+            2.4792080000000003,
+            2.344084,
+            1.9924169999999999,
+            2.4377090000000003,
+            2.595583,
+            2.537084,
+            2.190458,
+            1.921209,
+            1.879,
+            2.11475,
+            1.918166,
+            2.069625,
+            1.830417,
+            2.40825,
+            2.460583,
+            2.233167,
+            2.616959,
+            2.23175
+          ]
+        },
+        {
+          "name": "echo_1024_bytes",
+          "unit": "ms",
+          "n": 200,
+          "median": 0.08383399999999999,
+          "p95": 0.10183299999999999,
+          "min": 0.058415999999999996,
+          "max": 0.13366699999999998,
+          "samples": [
+            0.077334,
+            0.08520900000000001,
+            0.09425,
+            0.089583,
+            0.073666,
+            0.07058299999999999,
+            0.09175,
+            0.094708,
+            0.08562499999999999,
+            0.076166,
+            0.08016699999999999,
+            0.09016600000000001,
+            0.080042,
+            0.097083,
+            0.090916,
+            0.083,
+            0.08725000000000001,
+            0.092042,
+            0.094375,
+            0.078083,
+            0.077666,
+            0.082,
+            0.082917,
+            0.09754199999999999,
+            0.081458,
+            0.075666,
+            0.08762500000000001,
+            0.077958,
+            0.078542,
+            0.077041,
+            0.07245800000000001,
+            0.07037500000000001,
+            0.074125,
+            0.097167,
+            0.091708,
+            0.08433299999999999,
+            0.084083,
+            0.07166600000000001,
+            0.081708,
+            0.074875,
+            0.082,
+            0.08524999999999999,
+            0.08775000000000001,
+            0.08475,
+            0.093792,
+            0.08325,
+            0.079792,
+            0.079875,
+            0.07066700000000001,
+            0.088209,
+            0.076584,
+            0.088209,
+            0.08791700000000001,
+            0.09912499999999999,
+            0.09883399999999999,
+            0.098541,
+            0.09016700000000001,
+            0.10183299999999999,
+            0.091,
+            0.09925,
+            0.094334,
+            0.080459,
+            0.092917,
+            0.087958,
+            0.095,
+            0.098125,
+            0.0885,
+            0.07120900000000001,
+            0.09241700000000001,
+            0.063167,
+            0.060875000000000005,
+            0.07662500000000001,
+            0.07575,
+            0.078375,
+            0.058415999999999996,
+            0.06224999999999999,
+            0.063333,
+            0.07483300000000001,
+            0.06833299999999999,
+            0.099917,
+            0.088792,
+            0.114208,
+            0.093792,
+            0.092333,
+            0.111333,
+            0.09849999999999999,
+            0.08529199999999999,
+            0.08691600000000001,
+            0.08920900000000001,
+            0.08795900000000001,
+            0.089125,
+            0.090792,
+            0.090042,
+            0.102625,
+            0.08954200000000001,
+            0.099541,
+            0.08466699999999999,
+            0.122875,
+            0.098583,
+            0.078875,
+            0.089708,
+            0.081083,
+            0.077542,
+            0.083334,
+            0.080459,
+            0.071584,
+            0.093084,
+            0.097334,
+            0.091,
+            0.078375,
+            0.0915,
+            0.083541,
+            0.075125,
+            0.091291,
+            0.09595899999999999,
+            0.067791,
+            0.073042,
+            0.079375,
+            0.077833,
+            0.07966699999999999,
+            0.08033399999999999,
+            0.067959,
+            0.067167,
+            0.08574999999999999,
+            0.08416699999999999,
+            0.091958,
+            0.08604099999999999,
+            0.13366699999999998,
+            0.073667,
+            0.06679199999999999,
+            0.079333,
+            0.078666,
+            0.07100000000000001,
+            0.067,
+            0.072041,
+            0.08383399999999999,
+            0.077459,
+            0.077666,
+            0.103667,
+            0.08320799999999999,
+            0.104292,
+            0.085959,
+            0.08224999999999999,
+            0.088375,
+            0.079625,
+            0.06075,
+            0.07100000000000001,
+            0.081291,
+            0.072542,
+            0.079792,
+            0.085875,
+            0.098792,
+            0.083458,
+            0.08,
+            0.07162500000000001,
+            0.079125,
+            0.093667,
+            0.09475,
+            0.089459,
+            0.09016700000000001,
+            0.10270800000000001,
+            0.077791,
+            0.0805,
+            0.085333,
+            0.078625,
+            0.075042,
+            0.082,
+            0.073458,
+            0.08725000000000001,
+            0.080041,
+            0.091208,
+            0.080417,
+            0.087875,
+            0.08,
+            0.086417,
+            0.093708,
+            0.079333,
+            0.064708,
+            0.077083,
+            0.102375,
+            0.079333,
+            0.07575,
+            0.085542,
+            0.08641599999999999,
+            0.090917,
+            0.132875,
+            0.090125,
+            0.079083,
+            0.081875,
+            0.07295900000000001,
+            0.07341700000000001,
+            0.097416,
+            0.08679200000000001,
+            0.067459,
+            0.08562499999999999,
+            0.07225,
+            0.08600000000000001,
+            0.085166,
+            0.083083,
+            0.07145800000000001
+          ]
+        },
+        {
+          "name": "download_32_mib",
+          "unit": "MiB/s",
+          "n": 5,
+          "median": 2634.7386837356016,
+          "p95": 3140.2821955714758,
+          "min": 2069.2832235707915,
+          "max": 3140.2821955714758,
+          "samples": [
+            3140.2821955714758,
+            2750.489909526932,
+            2634.7386837356016,
+            2411.4013467073673,
+            2069.2832235707915
+          ]
+        },
+        {
+          "name": "upload_32_mib",
+          "unit": "MiB/s",
+          "n": 5,
+          "median": 2364.9397679402855,
+          "p95": 2587.9236966872554,
+          "min": 2180.6163648443753,
+          "max": 2587.9236966872554,
+          "samples": [
+            2180.6163648443753,
+            2388.5944614465925,
+            2587.9236966872554,
+            2253.3359406307945,
+            2364.9397679402855
+          ]
+        },
+        {
+          "name": "upload_eight_channels_64_mib_total",
+          "unit": "MiB/s",
+          "n": 1,
+          "median": 2769.8483655168075,
+          "p95": 2769.8483655168075,
+          "min": 2769.8483655168075,
+          "max": 2769.8483655168075,
+          "samples": [
+            2769.8483655168075
+          ]
+        }
+      ]
+    },
+    "host-linux": {
+      "lab_only": true,
+      "payload_verified": true,
+      "metrics": [
+        {
+          "name": "tcp_tls_association",
+          "unit": "ms",
+          "n": 50,
+          "median": 4.652791,
+          "p95": 9.003792,
+          "min": 3.133541,
+          "max": 10.166416,
+          "samples": [
+            3.295125,
+            3.56625,
+            4.932583,
+            4.313625,
+            3.133541,
+            3.556625,
+            4.652791,
+            4.050459,
+            3.193333,
+            4.257792,
+            3.287958,
+            4.432917,
+            5.200458,
+            5.070291999999999,
+            4.804458,
+            6.527583,
+            4.943959,
+            4.915083,
+            4.282125000000001,
+            4.125916999999999,
+            3.972333,
+            4.205666,
+            5.424709,
+            5.649292,
+            7.316750000000001,
+            4.564334,
+            4.239583,
+            5.506667,
+            5.628541,
+            4.364624999999999,
+            4.4436670000000005,
+            5.625625,
+            4.54025,
+            4.409667,
+            7.472417,
+            5.140833,
+            3.903166,
+            4.214875,
+            4.123458,
+            3.7109579999999998,
+            4.2885,
+            4.8103750000000005,
+            5.532915999999999,
+            4.989583,
+            6.2776250000000005,
+            9.003792,
+            7.5345,
+            10.166416,
+            9.83375,
+            8.849208
+          ]
+        },
+        {
+          "name": "echo_1024_bytes",
+          "unit": "ms",
+          "n": 200,
+          "median": 0.234125,
+          "p95": 0.6456670000000001,
+          "min": 0.105209,
+          "max": 2.4905,
+          "samples": [
+            0.5924170000000001,
+            0.5439579999999999,
+            0.658666,
+            0.5565420000000001,
+            0.7264590000000001,
+            0.53325,
+            0.600334,
+            0.537625,
+            0.6456670000000001,
+            0.564709,
+            0.5870839999999999,
+            0.61275,
+            0.803291,
+            0.613333,
+            1.620125,
+            0.712208,
+            0.7901250000000001,
+            0.480042,
+            0.435792,
+            0.5105,
+            0.522375,
+            0.4125,
+            0.525458,
+            0.602541,
+            0.365333,
+            0.353958,
+            0.32941699999999996,
+            0.348416,
+            0.352541,
+            0.4095,
+            0.332792,
+            0.39275,
+            0.35266699999999995,
+            0.33975,
+            0.576666,
+            0.372458,
+            0.408375,
+            0.31012500000000004,
+            0.337834,
+            0.439667,
+            0.384417,
+            0.35312499999999997,
+            0.602917,
+            0.438583,
+            0.340167,
+            0.41162499999999996,
+            0.372375,
+            0.377959,
+            0.6511250000000001,
+            0.836417,
+            0.36845900000000004,
+            0.312834,
+            0.324167,
+            0.267459,
+            0.272417,
+            0.27799999999999997,
+            0.334166,
+            0.304292,
+            0.284834,
+            0.279125,
+            0.269916,
+            0.301958,
+            0.270375,
+            0.350125,
+            0.307084,
+            0.313959,
+            0.281084,
+            0.228917,
+            0.228125,
+            2.4905,
+            0.506792,
+            0.301167,
+            0.2795,
+            0.266958,
+            0.255375,
+            0.24333300000000002,
+            0.527041,
+            0.334375,
+            0.238625,
+            0.234833,
+            0.21825,
+            0.255,
+            0.237708,
+            0.215167,
+            0.249583,
+            0.229875,
+            0.213833,
+            0.227458,
+            0.231209,
+            0.2405,
+            0.216917,
+            0.20583400000000002,
+            0.231042,
+            0.209291,
+            0.409208,
+            0.761875,
+            0.332209,
+            0.38329199999999997,
+            0.360792,
+            0.467416,
+            0.267167,
+            0.279375,
+            0.483875,
+            0.234125,
+            0.3115,
+            0.24774999999999997,
+            0.271167,
+            0.288333,
+            0.273541,
+            0.228333,
+            0.300667,
+            0.24091600000000002,
+            0.210833,
+            0.178791,
+            0.15933399999999998,
+            0.157833,
+            0.146958,
+            0.13029200000000002,
+            0.163417,
+            0.12454100000000001,
+            0.15704200000000001,
+            0.12804200000000002,
+            0.14837499999999998,
+            0.13983299999999999,
+            0.148708,
+            0.135833,
+            0.125333,
+            0.1535,
+            0.18416600000000002,
+            0.223375,
+            0.178875,
+            0.16366699999999998,
+            0.193917,
+            0.155708,
+            0.161833,
+            0.14945799999999998,
+            0.153542,
+            0.138333,
+            0.15475,
+            0.167917,
+            0.12475,
+            0.13104100000000002,
+            0.132375,
+            0.160792,
+            0.151333,
+            0.133208,
+            0.17495799999999997,
+            0.160042,
+            0.142583,
+            0.12995800000000002,
+            0.12620900000000002,
+            0.17675,
+            0.12362500000000001,
+            0.11620799999999999,
+            0.182583,
+            0.133541,
+            0.13954200000000003,
+            0.137625,
+            0.138875,
+            0.115625,
+            0.129875,
+            0.13125,
+            0.115167,
+            0.11479199999999999,
+            0.1305,
+            0.135833,
+            0.139875,
+            0.16325,
+            0.13899999999999998,
+            0.133542,
+            0.131,
+            0.122875,
+            0.13558299999999998,
+            0.13262500000000002,
+            0.133416,
+            0.136875,
+            0.131791,
+            0.133083,
+            0.128833,
+            0.11900000000000001,
+            0.6096250000000001,
+            0.128792,
+            0.121,
+            0.147125,
+            0.136875,
+            0.135,
+            0.125166,
+            0.12995800000000002,
+            0.13908299999999998,
+            0.130625,
+            0.136041,
+            0.12825,
+            0.121666,
+            0.112417,
+            0.108958,
+            0.11316599999999999,
+            0.11425,
+            0.11695900000000001,
+            0.105209,
+            0.113375
+          ]
+        },
+        {
+          "name": "download_32_mib",
+          "unit": "MiB/s",
+          "n": 5,
+          "median": 1961.6056158807178,
+          "p95": 2119.9950312616456,
+          "min": 1840.0277568187116,
+          "max": 2119.9950312616456,
+          "samples": [
+            2119.9950312616456,
+            1961.6056158807178,
+            1840.0277568187116,
+            1853.5905584121124,
+            2048.8906281693776
+          ]
+        },
+        {
+          "name": "upload_32_mib",
+          "unit": "MiB/s",
+          "n": 5,
+          "median": 1459.2604577444686,
+          "p95": 1582.7644078425778,
+          "min": 1198.479429224172,
+          "max": 1582.7644078425778,
+          "samples": [
+            1198.479429224172,
+            1582.7644078425778,
+            1459.2604577444686,
+            1384.2701489712604,
+            1475.9211535246266
+          ]
+        },
+        {
+          "name": "upload_eight_channels_64_mib_total",
+          "unit": "MiB/s",
+          "n": 1,
+          "median": 1254.4499898320948,
+          "p95": 1254.4499898320948,
+          "min": 1254.4499898320948,
+          "max": 1254.4499898320948,
+          "samples": [
+            1254.4499898320948
+          ]
+        }
+      ]
+    },
+    "linux-linux": {
+      "lab_only": true,
+      "payload_verified": true,
+      "metrics": [
+        {
+          "name": "tcp_tls_association",
+          "unit": "ms",
+          "n": 50,
+          "median": 0.624087,
+          "p95": 1.544009,
+          "min": 0.49421100000000007,
+          "max": 1.830803,
+          "samples": [
+            0.5920040000000001,
+            1.248507,
+            0.767629,
+            0.537128,
+            0.552711,
+            0.535628,
+            0.5837950000000001,
+            1.158298,
+            0.6410870000000001,
+            0.7433379999999999,
+            0.597212,
+            0.624337,
+            0.54317,
+            0.694505,
+            1.191716,
+            1.062839,
+            0.722213,
+            0.57167,
+            0.5178780000000001,
+            0.7609210000000001,
+            1.012548,
+            0.6206710000000001,
+            0.81713,
+            0.5832949999999999,
+            0.553628,
+            0.5066689999999999,
+            0.7279209999999999,
+            0.557503,
+            0.549211,
+            0.49421100000000007,
+            0.500586,
+            0.5229199999999999,
+            0.549962,
+            0.531586,
+            0.624087,
+            0.862005,
+            0.765754,
+            1.227633,
+            1.1583400000000001,
+            1.830803,
+            0.669546,
+            1.544009,
+            0.556795,
+            0.634921,
+            0.587337,
+            0.516795,
+            1.617551,
+            0.553836,
+            0.508711,
+            1.4453420000000001
+          ]
+        },
+        {
+          "name": "echo_1024_bytes",
+          "unit": "ms",
+          "n": 200,
+          "median": 0.014,
+          "p95": 0.0185,
+          "min": 0.011583000000000001,
+          "max": 0.034416999999999996,
+          "samples": [
+            0.013166,
+            0.013125000000000001,
+            0.013042,
+            0.013084,
+            0.013084,
+            0.013,
+            0.012917,
+            0.013167,
+            0.012959,
+            0.012917,
+            0.012917,
+            0.012875,
+            0.013125000000000001,
+            0.013333,
+            0.013042,
+            0.01325,
+            0.013167,
+            0.013040999999999999,
+            0.012959,
+            0.012959,
+            0.013042,
+            0.012833,
+            0.013042,
+            0.012875,
+            0.012875,
+            0.013,
+            0.012917,
+            0.013083,
+            0.013083,
+            0.013,
+            0.013083,
+            0.013042,
+            0.013083,
+            0.013,
+            0.012958,
+            0.012917,
+            0.012834,
+            0.013,
+            0.013292,
+            0.01325,
+            0.019,
+            0.013458999999999999,
+            0.0185,
+            0.01325,
+            0.018167,
+            0.013083,
+            0.018417,
+            0.013125000000000001,
+            0.018251,
+            0.018209000000000003,
+            0.0195,
+            0.013375,
+            0.018084000000000003,
+            0.013125000000000001,
+            0.018167,
+            0.013334,
+            0.017750000000000002,
+            0.013,
+            0.017875000000000002,
+            0.013208,
+            0.018084000000000003,
+            0.013084,
+            0.017792,
+            0.013,
+            0.017750000000000002,
+            0.013084,
+            0.017750000000000002,
+            0.013125000000000001,
+            0.018000000000000002,
+            0.012959,
+            0.017875000000000002,
+            0.01325,
+            0.017958,
+            0.013334,
+            0.017792,
+            0.016291,
+            0.034416999999999996,
+            0.02875,
+            0.017667,
+            0.018583000000000002,
+            0.014583,
+            0.017333,
+            0.014292,
+            0.016541999999999998,
+            0.014334,
+            0.016084,
+            0.013458000000000001,
+            0.0165,
+            0.016167,
+            0.013542,
+            0.016375,
+            0.013875,
+            0.016292,
+            0.016125,
+            0.014,
+            0.016041,
+            0.015917,
+            0.013791000000000001,
+            0.015792,
+            0.013541,
+            0.015875,
+            0.013167,
+            0.016958,
+            0.012,
+            0.014334,
+            0.022375,
+            0.016667,
+            0.014251,
+            0.012125,
+            0.014,
+            0.011834,
+            0.014501,
+            0.016334,
+            0.016292,
+            0.011875,
+            0.013958,
+            0.013333,
+            0.015708,
+            0.014334,
+            0.017084000000000002,
+            0.013375,
+            0.015709,
+            0.019625,
+            0.015417000000000002,
+            0.017915999999999998,
+            0.01275,
+            0.01825,
+            0.013083,
+            0.018040999999999998,
+            0.0135,
+            0.017791,
+            0.013334,
+            0.018125,
+            0.01325,
+            0.017958,
+            0.013583,
+            0.027250000000000003,
+            0.013791000000000001,
+            0.018167,
+            0.012958,
+            0.01825,
+            0.012833,
+            0.017708,
+            0.012792000000000001,
+            0.017917000000000002,
+            0.013083,
+            0.017959,
+            0.013042,
+            0.016,
+            0.011708,
+            0.015959,
+            0.012084,
+            0.015875,
+            0.01225,
+            0.017499999999999998,
+            0.012792000000000001,
+            0.017750000000000002,
+            0.013209,
+            0.017708,
+            0.012667,
+            0.017499999999999998,
+            0.013,
+            0.017541,
+            0.012792000000000001,
+            0.017374999999999998,
+            0.012667,
+            0.017207999999999998,
+            0.012875,
+            0.017833,
+            0.013042,
+            0.017666,
+            0.013042,
+            0.017209000000000002,
+            0.012374999999999999,
+            0.015791,
+            0.011583000000000001,
+            0.015625999999999998,
+            0.015209,
+            0.01575,
+            0.017,
+            0.012875,
+            0.017499999999999998,
+            0.01275,
+            0.017458,
+            0.012958,
+            0.017249999999999998,
+            0.012707999999999999,
+            0.018459,
+            0.014624999999999999,
+            0.017499999999999998,
+            0.012959,
+            0.031417,
+            0.020667,
+            0.016334,
+            0.015125,
+            0.014667,
+            0.014333,
+            0.014542000000000001,
+            0.014916,
+            0.014292
+          ]
+        },
+        {
+          "name": "download_32_mib",
+          "unit": "MiB/s",
+          "n": 5,
+          "median": 2847.8342531986295,
+          "p95": 3101.771247084577,
+          "min": 2709.389448401329,
+          "max": 3101.771247084577,
+          "samples": [
+            2715.194201295504,
+            2709.389448401329,
+            3101.771247084577,
+            2847.8342531986295,
+            3007.359384333387
+          ]
+        },
+        {
+          "name": "upload_32_mib",
+          "unit": "MiB/s",
+          "n": 5,
+          "median": 2843.658583596764,
+          "p95": 3190.276992809016,
+          "min": 2348.4518345004894,
+          "max": 3190.276992809016,
+          "samples": [
+            3190.276992809016,
+            2843.658583596764,
+            3158.8889555765445,
+            2818.5592969385693,
+            2348.4518345004894
+          ]
+        },
+        {
+          "name": "upload_eight_channels_64_mib_total",
+          "unit": "MiB/s",
+          "n": 1,
+          "median": 2088.5104188931873,
+          "p95": 2088.5104188931873,
+          "min": 2088.5104188931873,
+          "max": 2088.5104188931873,
+          "samples": [
+            2088.5104188931873
+          ]
+        }
+      ]
+    },
+    "linux-host": {
+      "lab_only": true,
+      "payload_verified": true,
+      "metrics": [
+        {
+          "name": "tcp_tls_association",
+          "unit": "ms",
+          "n": 50,
+          "median": 4.715778,
+          "p95": 6.917375,
+          "min": 2.4529310000000004,
+          "max": 7.910047,
+          "samples": [
+            4.656652,
+            4.320276,
+            4.917320999999999,
+            4.784737,
+            3.9138569999999997,
+            3.718813,
+            4.612693999999999,
+            4.77357,
+            3.826231,
+            4.1239,
+            5.213864,
+            5.096613,
+            3.6173960000000003,
+            2.4529310000000004,
+            5.261573,
+            4.069399,
+            3.2392689999999997,
+            4.532401999999999,
+            6.136578999999999,
+            4.836238,
+            4.681528,
+            5.088113,
+            5.239365,
+            5.312156,
+            6.917375,
+            4.088482,
+            4.771903,
+            4.715778,
+            4.333776,
+            3.434104,
+            4.596194,
+            7.386961,
+            5.666867,
+            4.182817,
+            4.231441,
+            4.171024,
+            4.690194,
+            4.303901,
+            5.101281,
+            5.035655,
+            6.320329,
+            7.910047,
+            5.699618,
+            4.570777,
+            4.215817,
+            5.075697,
+            6.038453,
+            5.326574,
+            5.722742,
+            4.3201089999999995
+          ]
+        },
+        {
+          "name": "echo_1024_bytes",
+          "unit": "ms",
+          "n": 200,
+          "median": 0.15137599999999998,
+          "p95": 0.275127,
+          "min": 0.08191699999999999,
+          "max": 1.144341,
+          "samples": [
+            0.417961,
+            0.25471,
+            0.254751,
+            0.225501,
+            0.232377,
+            0.24675199999999997,
+            0.22825199999999998,
+            0.21921000000000002,
+            0.23071,
+            0.217877,
+            0.21670899999999998,
+            0.20646,
+            0.22246000000000002,
+            0.230418,
+            0.254668,
+            0.25375099999999995,
+            0.214293,
+            0.331335,
+            0.247876,
+            0.279418,
+            0.295043,
+            0.25691800000000004,
+            0.221918,
+            0.22354300000000002,
+            0.190626,
+            0.194667,
+            0.218084,
+            0.161293,
+            0.331586,
+            0.20146,
+            0.187502,
+            0.213293,
+            0.15820900000000002,
+            0.159251,
+            0.149918,
+            0.15595900000000001,
+            0.15737600000000002,
+            0.20491800000000002,
+            0.16554300000000002,
+            0.15420899999999998,
+            0.210418,
+            0.190584,
+            0.132876,
+            0.214376,
+            0.161917,
+            0.146585,
+            0.16437600000000002,
+            0.211502,
+            0.20371,
+            1.144341,
+            0.324919,
+            0.194668,
+            0.174251,
+            0.189752,
+            0.129084,
+            0.19525099999999998,
+            0.169585,
+            0.13258399999999998,
+            0.113918,
+            0.128876,
+            0.119375,
+            0.12208400000000001,
+            0.166959,
+            0.132209,
+            0.17908400000000002,
+            0.138042,
+            0.152834,
+            0.13275099999999998,
+            0.11841800000000001,
+            0.124418,
+            0.11654199999999999,
+            0.12075,
+            0.108959,
+            0.119751,
+            0.151834,
+            0.12350100000000001,
+            0.112959,
+            0.137709,
+            0.296293,
+            0.29254399999999997,
+            0.142876,
+            0.141918,
+            0.127542,
+            0.136167,
+            0.115959,
+            0.13275099999999998,
+            0.120375,
+            0.141709,
+            0.12620900000000002,
+            0.134292,
+            0.123917,
+            0.116834,
+            0.116834,
+            0.139251,
+            0.107959,
+            0.131959,
+            0.106334,
+            0.113126,
+            0.11237499999999999,
+            0.11525099999999999,
+            0.116292,
+            0.136167,
+            0.14770899999999998,
+            0.174668,
+            0.17033500000000001,
+            0.18721,
+            0.15779300000000002,
+            0.176626,
+            0.149751,
+            0.147793,
+            0.16004300000000002,
+            0.152584,
+            0.16295900000000002,
+            0.168001,
+            0.167918,
+            0.23616800000000002,
+            0.173876,
+            0.146126,
+            0.149417,
+            0.155584,
+            0.159751,
+            0.198043,
+            0.163751,
+            0.148334,
+            0.15946,
+            0.16971,
+            0.156501,
+            0.204626,
+            0.275127,
+            0.189418,
+            0.16625099999999998,
+            0.16821,
+            0.130793,
+            0.16537600000000002,
+            0.13362500000000002,
+            0.134876,
+            0.205877,
+            0.239252,
+            0.25646,
+            0.127542,
+            0.11775100000000001,
+            0.135084,
+            0.148501,
+            0.135292,
+            0.13500099999999998,
+            0.127001,
+            0.178376,
+            0.274335,
+            0.22420900000000002,
+            0.143876,
+            0.146585,
+            0.15137599999999998,
+            0.16033399999999998,
+            0.199168,
+            0.194127,
+            0.302169,
+            0.129709,
+            0.16645900000000002,
+            0.15012599999999998,
+            0.136459,
+            0.152918,
+            0.126959,
+            0.140543,
+            0.131667,
+            0.119792,
+            0.123251,
+            0.133042,
+            0.131959,
+            0.13175099999999998,
+            0.146584,
+            0.143084,
+            0.130417,
+            0.13941800000000001,
+            0.12287600000000001,
+            0.121459,
+            0.126626,
+            0.117043,
+            0.11887500000000001,
+            0.11562599999999999,
+            0.137959,
+            0.082543,
+            0.0925,
+            0.089959,
+            0.083917,
+            0.0875,
+            0.083084,
+            0.10045899999999999,
+            0.225751,
+            0.121084,
+            0.103167,
+            0.182043,
+            0.083625,
+            0.132793,
+            0.166293,
+            0.116792,
+            0.105917,
+            0.09025,
+            0.11645900000000001,
+            0.08954200000000001,
+            0.08191699999999999
+          ]
+        },
+        {
+          "name": "download_32_mib",
+          "unit": "MiB/s",
+          "n": 5,
+          "median": 1404.5707629553767,
+          "p95": 1462.6839610761515,
+          "min": 1357.7051592202054,
+          "max": 1462.6839610761515,
+          "samples": [
+            1357.7051592202054,
+            1462.6839610761515,
+            1407.882036379936,
+            1404.5707629553767,
+            1386.3783646644736
+          ]
+        },
+        {
+          "name": "upload_32_mib",
+          "unit": "MiB/s",
+          "n": 5,
+          "median": 2616.5546304308737,
+          "p95": 2759.159201416552,
+          "min": 2582.6083601938053,
+          "max": 2759.159201416552,
+          "samples": [
+            2601.857221946633,
+            2616.5546304308737,
+            2759.159201416552,
+            2582.6083601938053,
+            2730.553425155019
+          ]
+        },
+        {
+          "name": "upload_eight_channels_64_mib_total",
+          "unit": "MiB/s",
+          "n": 1,
+          "median": 2466.928035122271,
+          "p95": 2466.928035122271,
+          "min": 2466.928035122271,
+          "max": 2466.928035122271,
+          "samples": [
+            2466.928035122271
+          ]
+        }
+      ]
+    }
+  },
+  "acceptance": {
+    "host-tests": {
+      "passed": 268,
+      "failed": 0
+    },
+    "linux-tests": {
+      "passed": 268,
+      "failed": 0
+    },
+    "host-storage-faults": {
+      "sigkill_restart_trials": [
+        {
+          "acknowledged_floor": 10,
+          "recovered": {
+            "sequence": 10,
+            "admission_paused": true,
+            "pending": 10
+          },
+          "signal": "SIGKILL",
+          "integrity_check": "ok"
+        },
+        {
+          "acknowledged_floor": 25,
+          "recovered": {
+            "sequence": 25,
+            "admission_paused": true,
+            "pending": 25
+          },
+          "signal": "SIGKILL",
+          "integrity_check": "ok"
+        },
+        {
+          "acknowledged_floor": 50,
+          "recovered": {
+            "sequence": 50,
+            "admission_paused": true,
+            "pending": 50
+          },
+          "signal": "SIGKILL",
+          "integrity_check": "ok"
+        }
+      ],
+      "signature_tamper": {
+        "rejected": true,
+        "exit_code": 1,
+        "stderr": "Error: \"inspect: Conflict\""
+      },
+      "missing_outbox": {
+        "rejected": true,
+        "exit_code": 1,
+        "stderr": "Error: \"inspect: Conflict\""
+      },
+      "restored_valid_old_backup": {
+        "sequence": 5,
+        "admission_paused": true,
+        "pending": 5
+      },
+      "independent_rollback_detection_available": false,
+      "physical_power_loss_tested": false
+    },
+    "linux-storage-faults": {
+      "sigkill_restart_trials": [
+        {
+          "acknowledged_floor": 10,
+          "recovered": {
+            "sequence": 10,
+            "admission_paused": true,
+            "pending": 10
+          },
+          "signal": "SIGKILL",
+          "integrity_check": "ok"
+        },
+        {
+          "acknowledged_floor": 25,
+          "recovered": {
+            "sequence": 25,
+            "admission_paused": true,
+            "pending": 25
+          },
+          "signal": "SIGKILL",
+          "integrity_check": "ok"
+        },
+        {
+          "acknowledged_floor": 50,
+          "recovered": {
+            "sequence": 50,
+            "admission_paused": true,
+            "pending": 50
+          },
+          "signal": "SIGKILL",
+          "integrity_check": "ok"
+        }
+      ],
+      "signature_tamper": {
+        "rejected": true,
+        "exit_code": 1,
+        "stderr": "Error: \"inspect: Conflict\""
+      },
+      "missing_outbox": {
+        "rejected": true,
+        "exit_code": 1,
+        "stderr": "Error: \"inspect: Conflict\""
+      },
+      "restored_valid_old_backup": {
+        "sequence": 5,
+        "admission_paused": true,
+        "pending": 5
+      },
+      "independent_rollback_detection_available": false,
+      "physical_power_loss_tested": false
+    },
+    "host-quorum-recovery": {
+      "status": "passed",
+      "checks": {
+        "current_signed_history": {
+          "sequence": 8,
+          "admission_paused": true,
+          "fresh_quorum_checked": true,
+          "diagnostic_only": true
+        },
+        "valid_old_local_backup": {
+          "rejected": true,
+          "reason": "LocalRollbackOrFork",
+          "exit_code": 1
+        },
+        "old_signed_response_new_nonce": {
+          "rejected": true,
+          "reason": "WrongChallenge",
+          "exit_code": 1
+        },
+        "one_witness_offline": {
+          "rejected": true,
+          "reason": "MissingOrDuplicateWitness",
+          "exit_code": 1
+        },
+        "forged_signature": {
+          "rejected": true,
+          "reason": "InvalidSignature",
+          "exit_code": 1
+        },
+        "split_witness_histories": {
+          "rejected": true,
+          "reason": "SplitWitnesses",
+          "exit_code": 1
+        },
+        "local_signed_evidence_tamper": {
+          "rejected": true,
+          "reason": "inspect: Conflict",
+          "exit_code": 1
+        },
+        "local_missing_outbox": {
+          "rejected": true,
+          "reason": "inspect: Conflict",
+          "exit_code": 1
+        },
+        "corrupt_witness_refuses_to_sign": {
+          "rejected": true,
+          "reason": "inspect: Conflict",
+          "exit_code": 1
+        },
+        "fresh_recheck_after_repair": {
+          "sequence": 8,
+          "admission_paused": true,
+          "fresh_quorum_checked": true,
+          "diagnostic_only": true
+        }
+      },
+      "commands": [
+        {
+          "argv": [
+            "/Volumes/Data/Code/Loom/target/release/examples/l001_storage_lab",
+            "fill",
+            "/Volumes/Data/Code/Loom/target/l001-local-docker/20261020T010337Z/quorum/peer.sqlite",
+            "5"
+          ],
+          "exit_code": 0
+        },
+        {
+          "argv": [
+            "/Volumes/Data/Code/Loom/target/release/examples/l001_storage_lab",
+            "witness-read",
+            "/Volumes/Data/Code/Loom/target/l001-local-docker/20261020T010337Z/quorum/witness-1.sqlite",
+            "21",
+            "1f22d0a5ba8fd39ececc3190ebd167b8a63bd43350844e9885cf496f2645b3dc"
+          ],
+          "exit_code": 0
+        },
+        {
+          "argv": [
+            "/Volumes/Data/Code/Loom/target/release/examples/l001_storage_lab",
+            "witness-read",
+            "/Volumes/Data/Code/Loom/target/l001-local-docker/20261020T010337Z/quorum/witness-2.sqlite",
+            "22",
+            "1f22d0a5ba8fd39ececc3190ebd167b8a63bd43350844e9885cf496f2645b3dc"
+          ],
+          "exit_code": 0
+        },
+        {
+          "argv": [
+            "/Volumes/Data/Code/Loom/target/release/examples/l001_storage_lab",
+            "fill",
+            "/Volumes/Data/Code/Loom/target/l001-local-docker/20261020T010337Z/quorum/peer.sqlite",
+            "3"
+          ],
+          "exit_code": 0
+        },
+        {
+          "argv": [
+            "/Volumes/Data/Code/Loom/target/release/examples/l001_storage_lab",
+            "fill",
+            "/Volumes/Data/Code/Loom/target/l001-local-docker/20261020T010337Z/quorum/witness-1.sqlite",
+            "3"
+          ],
+          "exit_code": 0
+        },
+        {
+          "argv": [
+            "/Volumes/Data/Code/Loom/target/release/examples/l001_storage_lab",
+            "fill",
+            "/Volumes/Data/Code/Loom/target/l001-local-docker/20261020T010337Z/quorum/witness-2.sqlite",
+            "3"
+          ],
+          "exit_code": 0
+        },
+        {
+          "argv": [
+            "/Volumes/Data/Code/Loom/target/release/examples/l001_storage_lab",
+            "witness-read",
+            "/Volumes/Data/Code/Loom/target/l001-local-docker/20261020T010337Z/quorum/witness-1.sqlite",
+            "21",
+            "cbb4873f6f30377404d76200d54fd386ee39dbaf52e232ed010fcdc95278a959"
+          ],
+          "exit_code": 0
+        },
+        {
+          "argv": [
+            "/Volumes/Data/Code/Loom/target/release/examples/l001_storage_lab",
+            "witness-read",
+            "/Volumes/Data/Code/Loom/target/l001-local-docker/20261020T010337Z/quorum/witness-2.sqlite",
+            "22",
+            "cbb4873f6f30377404d76200d54fd386ee39dbaf52e232ed010fcdc95278a959"
+          ],
+          "exit_code": 0
+        },
+        {
+          "argv": [
+            "/Volumes/Data/Code/Loom/target/release/examples/l001_storage_lab",
+            "recover",
+            "/Volumes/Data/Code/Loom/target/l001-local-docker/20261020T010337Z/quorum/peer.sqlite",
+            "cbb4873f6f30377404d76200d54fd386ee39dbaf52e232ed010fcdc95278a959",
+            "0b8851fea263aa1cd685a908167b0d93e7efecaf2d81537577203c8613ad1133cbb4873f6f30377404d76200d54fd386ee39dbaf52e232ed010fcdc95278a95900000000000000080000000000000008fc3101ed2a259bb533313b4aae0a25c241f49e2caeba5dc4a9ec587ff227fe087d8ca0c00c1290e83870d6118b2c7868561b24c05c76a1045ead75002c4a6103b15afc2dbec17486ed36994b49492afe005e90f53657903558e6fcdac84f43461bbcef3cfa85d13fff3f31273482b5bdb6c7701e02c6a5b22341d6d83ae65e06",
+            "edd6d631a5833fb3a90153e8f286eeb2a4c86b09571583ade138e845b48214ebcbb4873f6f30377404d76200d54fd386ee39dbaf52e232ed010fcdc95278a95900000000000000080000000000000008fc3101ed2a259bb533313b4aae0a25c241f49e2caeba5dc4a9ec587ff227fe087d8ca0c00c1290e83870d6118b2c7868561b24c05c76a1045ead75002c4a610391c39749ba91c8f2c1238b9bd2f03734436ba76243de50f7625c1a769e2856ec7daf6f5e443e2958219ca0da06ed3f2e06c6cbe54ab5c5d91339e58c22db8b04"
+          ],
+          "exit_code": 0
+        },
+        {
+          "argv": [
+            "/Volumes/Data/Code/Loom/target/release/examples/l001_storage_lab",
+            "inspect",
+            "/Volumes/Data/Code/Loom/target/l001-local-docker/20261020T010337Z/quorum/peer.sqlite"
+          ],
+          "exit_code": 0
+        },
+        {
+          "argv": [
+            "/Volumes/Data/Code/Loom/target/release/examples/l001_storage_lab",
+            "witness-read",
+            "/Volumes/Data/Code/Loom/target/l001-local-docker/20261020T010337Z/quorum/witness-1.sqlite",
+            "21",
+            "8d232e4c3d041010df227deb0e4d7ca06e00a7c23b868051a680b4fe386ab1ba"
+          ],
+          "exit_code": 0
+        },
+        {
+          "argv": [
+            "/Volumes/Data/Code/Loom/target/release/examples/l001_storage_lab",
+            "witness-read",
+            "/Volumes/Data/Code/Loom/target/l001-local-docker/20261020T010337Z/quorum/witness-2.sqlite",
+            "22",
+            "8d232e4c3d041010df227deb0e4d7ca06e00a7c23b868051a680b4fe386ab1ba"
+          ],
+          "exit_code": 0
+        },
+        {
+          "argv": [
+            "/Volumes/Data/Code/Loom/target/release/examples/l001_storage_lab",
+            "recover",
+            "/Volumes/Data/Code/Loom/target/l001-local-docker/20261020T010337Z/quorum/peer.sqlite",
+            "8d232e4c3d041010df227deb0e4d7ca06e00a7c23b868051a680b4fe386ab1ba",
+            "0b8851fea263aa1cd685a908167b0d93e7efecaf2d81537577203c8613ad11338d232e4c3d041010df227deb0e4d7ca06e00a7c23b868051a680b4fe386ab1ba00000000000000080000000000000008fc3101ed2a259bb533313b4aae0a25c241f49e2caeba5dc4a9ec587ff227fe087d8ca0c00c1290e83870d6118b2c7868561b24c05c76a1045ead75002c4a610356d92e18bc3f9ec8f7d34fb5ce23f632ea902688a66d8136388fe397322408896dfcd2e6d0292cf65007b65b6327732a3719fca2a1f4e925fa593be57b2c8808",
+            "edd6d631a5833fb3a90153e8f286eeb2a4c86b09571583ade138e845b48214eb8d232e4c3d041010df227deb0e4d7ca06e00a7c23b868051a680b4fe386ab1ba00000000000000080000000000000008fc3101ed2a259bb533313b4aae0a25c241f49e2caeba5dc4a9ec587ff227fe087d8ca0c00c1290e83870d6118b2c7868561b24c05c76a1045ead75002c4a61032c173293888bd542e1c1128e2334244bfb53d6a9621b4f3078c764b0ed273c4294d8caed139de9f6e0eebd4337524472db7393d8943489bd85137dbedd941f05"
+          ],
+          "exit_code": 1
+        },
+        {
+          "argv": [
+            "/Volumes/Data/Code/Loom/target/release/examples/l001_storage_lab",
+            "recover",
+            "/Volumes/Data/Code/Loom/target/l001-local-docker/20261020T010337Z/quorum/peer.sqlite",
+            "8d232e4c3d041010df227deb0e4d7ca06e00a7c23b868051a680b4fe386ab1ba",
+            "0b8851fea263aa1cd685a908167b0d93e7efecaf2d81537577203c8613ad11331f22d0a5ba8fd39ececc3190ebd167b8a63bd43350844e9885cf496f2645b3dc0000000000000005000000000000000571dc3774a17ed2292fc045e7b68105ff9334dc73a18aae1e4e397bf905bb7ff130ebe575a49c83ed742bc5a0d910bdbb8d2273d4345d1e1b498150ebebdbfdb0555170ca4c4c66e02ddb9cb7733b5deed0a656cb7ceb3043446cbb36f613fb1497eee9a17bdf87ad842c7001f79f6ca93e7f1c4baeb9703ab39aab3179604304",
+            "edd6d631a5833fb3a90153e8f286eeb2a4c86b09571583ade138e845b48214eb1f22d0a5ba8fd39ececc3190ebd167b8a63bd43350844e9885cf496f2645b3dc0000000000000005000000000000000571dc3774a17ed2292fc045e7b68105ff9334dc73a18aae1e4e397bf905bb7ff130ebe575a49c83ed742bc5a0d910bdbb8d2273d4345d1e1b498150ebebdbfdb044673e81ea3b63759bc3dee5ac5b0267fc73b2491ca12db26c9825e1d4d5cecc0800c0578b9c740f053667b3ee977f8e45b5b624900b710c4826cc91ac342009"
+          ],
+          "exit_code": 1
+        },
+        {
+          "argv": [
+            "/Volumes/Data/Code/Loom/target/release/examples/l001_storage_lab",
+            "recover",
+            "/Volumes/Data/Code/Loom/target/l001-local-docker/20261020T010337Z/quorum/peer.sqlite",
+            "8d232e4c3d041010df227deb0e4d7ca06e00a7c23b868051a680b4fe386ab1ba",
+            "0b8851fea263aa1cd685a908167b0d93e7efecaf2d81537577203c8613ad11338d232e4c3d041010df227deb0e4d7ca06e00a7c23b868051a680b4fe386ab1ba00000000000000080000000000000008fc3101ed2a259bb533313b4aae0a25c241f49e2caeba5dc4a9ec587ff227fe087d8ca0c00c1290e83870d6118b2c7868561b24c05c76a1045ead75002c4a610356d92e18bc3f9ec8f7d34fb5ce23f632ea902688a66d8136388fe397322408896dfcd2e6d0292cf65007b65b6327732a3719fca2a1f4e925fa593be57b2c8808"
+          ],
+          "exit_code": 1
+        },
+        {
+          "argv": [
+            "/Volumes/Data/Code/Loom/target/release/examples/l001_storage_lab",
+            "recover",
+            "/Volumes/Data/Code/Loom/target/l001-local-docker/20261020T010337Z/quorum/peer.sqlite",
+            "8d232e4c3d041010df227deb0e4d7ca06e00a7c23b868051a680b4fe386ab1ba",
+            "0b8851fea263aa1cd685a908167b0d93e7efecaf2d81537577203c8613ad11338d232e4c3d041010df227deb0e4d7ca06e00a7c23b868051a680b4fe386ab1ba00000000000000080000000000000008fc3101ed2a259bb533313b4aae0a25c241f49e2caeba5dc4a9ec587ff227fe087d8ca0c00c1290e83870d6118b2c7868561b24c05c76a1045ead75002c4a610356d92e18bc3f9ec8f7d34fb5ce23f632ea902688a66d8136388fe397322408896dfcd2e6d0292cf65007b65b6327732a3719fca2a1f4e925fa593be57b2c8809",
+            "edd6d631a5833fb3a90153e8f286eeb2a4c86b09571583ade138e845b48214eb8d232e4c3d041010df227deb0e4d7ca06e00a7c23b868051a680b4fe386ab1ba00000000000000080000000000000008fc3101ed2a259bb533313b4aae0a25c241f49e2caeba5dc4a9ec587ff227fe087d8ca0c00c1290e83870d6118b2c7868561b24c05c76a1045ead75002c4a61032c173293888bd542e1c1128e2334244bfb53d6a9621b4f3078c764b0ed273c4294d8caed139de9f6e0eebd4337524472db7393d8943489bd85137dbedd941f05"
+          ],
+          "exit_code": 1
+        },
+        {
+          "argv": [
+            "/Volumes/Data/Code/Loom/target/release/examples/l001_storage_lab",
+            "witness-read",
+            "/Volumes/Data/Code/Loom/target/l001-local-docker/20261020T010337Z/quorum/witness-1.sqlite",
+            "21",
+            "ad874a49347520a604958e6deaf691eb7e27a1b96ee28d55cced23425e1e68d8"
+          ],
+          "exit_code": 0
+        },
+        {
+          "argv": [
+            "/Volumes/Data/Code/Loom/target/release/examples/l001_storage_lab",
+            "witness-read",
+            "/Volumes/Data/Code/Loom/target/l001-local-docker/20261020T010337Z/quorum/witness-2.sqlite",
+            "22",
+            "ad874a49347520a604958e6deaf691eb7e27a1b96ee28d55cced23425e1e68d8"
+          ],
+          "exit_code": 0
+        },
+        {
+          "argv": [
+            "/Volumes/Data/Code/Loom/target/release/examples/l001_storage_lab",
+            "recover",
+            "/Volumes/Data/Code/Loom/target/l001-local-docker/20261020T010337Z/quorum/peer.sqlite",
+            "ad874a49347520a604958e6deaf691eb7e27a1b96ee28d55cced23425e1e68d8",
+            "0b8851fea263aa1cd685a908167b0d93e7efecaf2d81537577203c8613ad1133ad874a49347520a604958e6deaf691eb7e27a1b96ee28d55cced23425e1e68d800000000000000080000000000000008fc3101ed2a259bb533313b4aae0a25c241f49e2caeba5dc4a9ec587ff227fe087d8ca0c00c1290e83870d6118b2c7868561b24c05c76a1045ead75002c4a61030af856483d403dbc31640dc3fdd71960c0bf554670b22f1329a3404d8c5f7601fa3ccc3e5fff67bcf16937528b649c92a7bde6d5019073466df5cd2f6a89120a",
+            "edd6d631a5833fb3a90153e8f286eeb2a4c86b09571583ade138e845b48214ebad874a49347520a604958e6deaf691eb7e27a1b96ee28d55cced23425e1e68d80000000000000005000000000000000571dc3774a17ed2292fc045e7b68105ff9334dc73a18aae1e4e397bf905bb7ff130ebe575a49c83ed742bc5a0d910bdbb8d2273d4345d1e1b498150ebebdbfdb0308d9bbb8fe4c1328da0ebd2c4d31cb1bf635b3ecb67e9caf4fe9c81030d890ad686a9d6993303e727824b110faa1676062d670b3cd47d656adc15cf36916d02"
+          ],
+          "exit_code": 1
+        },
+        {
+          "argv": [
+            "/Volumes/Data/Code/Loom/target/release/examples/l001_storage_lab",
+            "recover",
+            "/Volumes/Data/Code/Loom/target/l001-local-docker/20261020T010337Z/quorum/peer.sqlite",
+            "ad874a49347520a604958e6deaf691eb7e27a1b96ee28d55cced23425e1e68d8",
+            "0b8851fea263aa1cd685a908167b0d93e7efecaf2d81537577203c8613ad11338d232e4c3d041010df227deb0e4d7ca06e00a7c23b868051a680b4fe386ab1ba00000000000000080000000000000008fc3101ed2a259bb533313b4aae0a25c241f49e2caeba5dc4a9ec587ff227fe087d8ca0c00c1290e83870d6118b2c7868561b24c05c76a1045ead75002c4a610356d92e18bc3f9ec8f7d34fb5ce23f632ea902688a66d8136388fe397322408896dfcd2e6d0292cf65007b65b6327732a3719fca2a1f4e925fa593be57b2c8808",
+            "edd6d631a5833fb3a90153e8f286eeb2a4c86b09571583ade138e845b48214eb8d232e4c3d041010df227deb0e4d7ca06e00a7c23b868051a680b4fe386ab1ba00000000000000080000000000000008fc3101ed2a259bb533313b4aae0a25c241f49e2caeba5dc4a9ec587ff227fe087d8ca0c00c1290e83870d6118b2c7868561b24c05c76a1045ead75002c4a61032c173293888bd542e1c1128e2334244bfb53d6a9621b4f3078c764b0ed273c4294d8caed139de9f6e0eebd4337524472db7393d8943489bd85137dbedd941f05"
+          ],
+          "exit_code": 1
+        },
+        {
+          "argv": [
+            "/Volumes/Data/Code/Loom/target/release/examples/l001_storage_lab",
+            "recover",
+            "/Volumes/Data/Code/Loom/target/l001-local-docker/20261020T010337Z/quorum/peer.sqlite",
+            "ad874a49347520a604958e6deaf691eb7e27a1b96ee28d55cced23425e1e68d8",
+            "0b8851fea263aa1cd685a908167b0d93e7efecaf2d81537577203c8613ad11338d232e4c3d041010df227deb0e4d7ca06e00a7c23b868051a680b4fe386ab1ba00000000000000080000000000000008fc3101ed2a259bb533313b4aae0a25c241f49e2caeba5dc4a9ec587ff227fe087d8ca0c00c1290e83870d6118b2c7868561b24c05c76a1045ead75002c4a610356d92e18bc3f9ec8f7d34fb5ce23f632ea902688a66d8136388fe397322408896dfcd2e6d0292cf65007b65b6327732a3719fca2a1f4e925fa593be57b2c8808",
+            "edd6d631a5833fb3a90153e8f286eeb2a4c86b09571583ade138e845b48214eb8d232e4c3d041010df227deb0e4d7ca06e00a7c23b868051a680b4fe386ab1ba00000000000000080000000000000008fc3101ed2a259bb533313b4aae0a25c241f49e2caeba5dc4a9ec587ff227fe087d8ca0c00c1290e83870d6118b2c7868561b24c05c76a1045ead75002c4a61032c173293888bd542e1c1128e2334244bfb53d6a9621b4f3078c764b0ed273c4294d8caed139de9f6e0eebd4337524472db7393d8943489bd85137dbedd941f05"
+          ],
+          "exit_code": 1
+        },
+        {
+          "argv": [
+            "/Volumes/Data/Code/Loom/target/release/examples/l001_storage_lab",
+            "witness-read",
+            "/Volumes/Data/Code/Loom/target/l001-local-docker/20261020T010337Z/quorum/witness-1.sqlite",
+            "21",
+            "8df0acafe621b52c344745155e6395bff9d86431c52d2ad926f206ee3962b243"
+          ],
+          "exit_code": 1
+        },
+        {
+          "argv": [
+            "/Volumes/Data/Code/Loom/target/release/examples/l001_storage_lab",
+            "witness-read",
+            "/Volumes/Data/Code/Loom/target/l001-local-docker/20261020T010337Z/quorum/witness-1.sqlite",
+            "21",
+            "c2dd844b4ee7fb9064be288e790ca60591943417be58cbbeba5ab0d274495a91"
+          ],
+          "exit_code": 0
+        },
+        {
+          "argv": [
+            "/Volumes/Data/Code/Loom/target/release/examples/l001_storage_lab",
+            "witness-read",
+            "/Volumes/Data/Code/Loom/target/l001-local-docker/20261020T010337Z/quorum/witness-2.sqlite",
+            "22",
+            "c2dd844b4ee7fb9064be288e790ca60591943417be58cbbeba5ab0d274495a91"
+          ],
+          "exit_code": 0
+        },
+        {
+          "argv": [
+            "/Volumes/Data/Code/Loom/target/release/examples/l001_storage_lab",
+            "recover",
+            "/Volumes/Data/Code/Loom/target/l001-local-docker/20261020T010337Z/quorum/peer.sqlite",
+            "c2dd844b4ee7fb9064be288e790ca60591943417be58cbbeba5ab0d274495a91",
+            "0b8851fea263aa1cd685a908167b0d93e7efecaf2d81537577203c8613ad1133c2dd844b4ee7fb9064be288e790ca60591943417be58cbbeba5ab0d274495a9100000000000000080000000000000008fc3101ed2a259bb533313b4aae0a25c241f49e2caeba5dc4a9ec587ff227fe087d8ca0c00c1290e83870d6118b2c7868561b24c05c76a1045ead75002c4a6103f074560a719af4c8d770dfde3229a9f017911590085c5361ec991c7b39d8fead08042422c9e852ecf2d1d04b7ff76e550997f51fd56a338046a044b871429b04",
+            "edd6d631a5833fb3a90153e8f286eeb2a4c86b09571583ade138e845b48214ebc2dd844b4ee7fb9064be288e790ca60591943417be58cbbeba5ab0d274495a9100000000000000080000000000000008fc3101ed2a259bb533313b4aae0a25c241f49e2caeba5dc4a9ec587ff227fe087d8ca0c00c1290e83870d6118b2c7868561b24c05c76a1045ead75002c4a61039a83cfce1ebfa16d690a2b59bf2cac8f8d310309b28a68a6259b2bf0c3ef9c0e6b1b79690a249837129392e6f47f5687f879feed624f5c2f0a5a68c1bdef8507"
+          ],
+          "exit_code": 0
+        },
+        {
+          "argv": [
+            "/Volumes/Data/Code/Loom/target/release/examples/l001_storage_lab",
+            "witness-read",
+            "/Volumes/Data/Code/Loom/target/l001-local-docker/20261020T010337Z/quorum/witness-1.sqlite",
+            "21",
+            "74f26bb0b622c5a5f006dc6d15db680f499dac8b1b177e31c6a2a9be4a736ca8"
+          ],
+          "exit_code": 0
+        },
+        {
+          "argv": [
+            "/Volumes/Data/Code/Loom/target/release/examples/l001_storage_lab",
+            "witness-read",
+            "/Volumes/Data/Code/Loom/target/l001-local-docker/20261020T010337Z/quorum/witness-2.sqlite",
+            "22",
+            "74f26bb0b622c5a5f006dc6d15db680f499dac8b1b177e31c6a2a9be4a736ca8"
+          ],
+          "exit_code": 0
+        },
+        {
+          "argv": [
+            "/Volumes/Data/Code/Loom/target/release/examples/l001_storage_lab",
+            "recover",
+            "/Volumes/Data/Code/Loom/target/l001-local-docker/20261020T010337Z/quorum/peer.sqlite",
+            "74f26bb0b622c5a5f006dc6d15db680f499dac8b1b177e31c6a2a9be4a736ca8",
+            "0b8851fea263aa1cd685a908167b0d93e7efecaf2d81537577203c8613ad113374f26bb0b622c5a5f006dc6d15db680f499dac8b1b177e31c6a2a9be4a736ca80000000000000005000000000000000571dc3774a17ed2292fc045e7b68105ff9334dc73a18aae1e4e397bf905bb7ff130ebe575a49c83ed742bc5a0d910bdbb8d2273d4345d1e1b498150ebebdbfdb02fb75d44a28b3391a262e83c3cae53550ce0fb399eaa083bd47016d38b6b469f6db5a1fce9a37350e5fd02c2db18fef14ac1028f8a3999b15a257f2ce5be3b03",
+            "edd6d631a5833fb3a90153e8f286eeb2a4c86b09571583ade138e845b48214eb74f26bb0b622c5a5f006dc6d15db680f499dac8b1b177e31c6a2a9be4a736ca80000000000000005000000000000000571dc3774a17ed2292fc045e7b68105ff9334dc73a18aae1e4e397bf905bb7ff130ebe575a49c83ed742bc5a0d910bdbb8d2273d4345d1e1b498150ebebdbfdb0c0b5dd527e4ba72251270a6b7adc0b537d8c633bd1b09d578497943cbd612d44a19351bb007bce84963685e43df84a257aad0ba712d2b0faca480ce01af48c06"
+          ],
+          "exit_code": 0
+        }
+      ],
+      "all_same_host_stores_rollback_counterexample": {
+        "sequence": 5,
+        "admission_paused": true,
+        "fresh_quorum_checked": true,
+        "diagnostic_only": true
+      },
+      "independent_storage_certified": false,
+      "production_admission_enabled": false,
+      "fixture_keys_only": true
+    },
+    "linux-quorum-recovery": {
+      "status": "passed",
+      "checks": {
+        "current_signed_history": {
+          "sequence": 8,
+          "admission_paused": true,
+          "fresh_quorum_checked": true,
+          "diagnostic_only": true
+        },
+        "valid_old_local_backup": {
+          "rejected": true,
+          "reason": "LocalRollbackOrFork",
+          "exit_code": 1
+        },
+        "old_signed_response_new_nonce": {
+          "rejected": true,
+          "reason": "WrongChallenge",
+          "exit_code": 1
+        },
+        "one_witness_offline": {
+          "rejected": true,
+          "reason": "MissingOrDuplicateWitness",
+          "exit_code": 1
+        },
+        "forged_signature": {
+          "rejected": true,
+          "reason": "InvalidSignature",
+          "exit_code": 1
+        },
+        "split_witness_histories": {
+          "rejected": true,
+          "reason": "SplitWitnesses",
+          "exit_code": 1
+        },
+        "local_signed_evidence_tamper": {
+          "rejected": true,
+          "reason": "inspect: Conflict",
+          "exit_code": 1
+        },
+        "local_missing_outbox": {
+          "rejected": true,
+          "reason": "inspect: Conflict",
+          "exit_code": 1
+        },
+        "corrupt_witness_refuses_to_sign": {
+          "rejected": true,
+          "reason": "inspect: Conflict",
+          "exit_code": 1
+        },
+        "fresh_recheck_after_repair": {
+          "sequence": 8,
+          "admission_paused": true,
+          "fresh_quorum_checked": true,
+          "diagnostic_only": true
+        }
+      },
+      "commands": [
+        {
+          "argv": [
+            "/build/release/examples/l001_storage_lab",
+            "fill",
+            "/build/l001-lab/20261020T010337Z/quorum/peer.sqlite",
+            "5"
+          ],
+          "exit_code": 0
+        },
+        {
+          "argv": [
+            "/build/release/examples/l001_storage_lab",
+            "witness-read",
+            "/build/l001-lab/20261020T010337Z/quorum/witness-1.sqlite",
+            "21",
+            "877be08c0f429ab9d2248fda000bcee2309761df3ce3ef321c13a4fcc0eeacf4"
+          ],
+          "exit_code": 0
+        },
+        {
+          "argv": [
+            "/build/release/examples/l001_storage_lab",
+            "witness-read",
+            "/build/l001-lab/20261020T010337Z/quorum/witness-2.sqlite",
+            "22",
+            "877be08c0f429ab9d2248fda000bcee2309761df3ce3ef321c13a4fcc0eeacf4"
+          ],
+          "exit_code": 0
+        },
+        {
+          "argv": [
+            "/build/release/examples/l001_storage_lab",
+            "fill",
+            "/build/l001-lab/20261020T010337Z/quorum/peer.sqlite",
+            "3"
+          ],
+          "exit_code": 0
+        },
+        {
+          "argv": [
+            "/build/release/examples/l001_storage_lab",
+            "fill",
+            "/build/l001-lab/20261020T010337Z/quorum/witness-1.sqlite",
+            "3"
+          ],
+          "exit_code": 0
+        },
+        {
+          "argv": [
+            "/build/release/examples/l001_storage_lab",
+            "fill",
+            "/build/l001-lab/20261020T010337Z/quorum/witness-2.sqlite",
+            "3"
+          ],
+          "exit_code": 0
+        },
+        {
+          "argv": [
+            "/build/release/examples/l001_storage_lab",
+            "witness-read",
+            "/build/l001-lab/20261020T010337Z/quorum/witness-1.sqlite",
+            "21",
+            "31b030d2658fd7fdb732ed6f4b4082e7897df8044dda97e089c0e15813ac89d5"
+          ],
+          "exit_code": 0
+        },
+        {
+          "argv": [
+            "/build/release/examples/l001_storage_lab",
+            "witness-read",
+            "/build/l001-lab/20261020T010337Z/quorum/witness-2.sqlite",
+            "22",
+            "31b030d2658fd7fdb732ed6f4b4082e7897df8044dda97e089c0e15813ac89d5"
+          ],
+          "exit_code": 0
+        },
+        {
+          "argv": [
+            "/build/release/examples/l001_storage_lab",
+            "recover",
+            "/build/l001-lab/20261020T010337Z/quorum/peer.sqlite",
+            "31b030d2658fd7fdb732ed6f4b4082e7897df8044dda97e089c0e15813ac89d5",
+            "0b8851fea263aa1cd685a908167b0d93e7efecaf2d81537577203c8613ad113331b030d2658fd7fdb732ed6f4b4082e7897df8044dda97e089c0e15813ac89d500000000000000080000000000000008fc3101ed2a259bb533313b4aae0a25c241f49e2caeba5dc4a9ec587ff227fe087d8ca0c00c1290e83870d6118b2c7868561b24c05c76a1045ead75002c4a6103d4617842b5f98c401ddd7d06a96a29ee2f8a3af20b9100db278ce9bebd7f4f5c83c978bb686627febdd7db3aec627dc4604cb444ea718c43ac09b86664499e02",
+            "edd6d631a5833fb3a90153e8f286eeb2a4c86b09571583ade138e845b48214eb31b030d2658fd7fdb732ed6f4b4082e7897df8044dda97e089c0e15813ac89d500000000000000080000000000000008fc3101ed2a259bb533313b4aae0a25c241f49e2caeba5dc4a9ec587ff227fe087d8ca0c00c1290e83870d6118b2c7868561b24c05c76a1045ead75002c4a6103fd125a00440eeca1a7d8d3709252f2b9ea477407f377e5c50a0b0676ed53d627385216eec6f6f8024dd12e883405a617f44855b980e171f0db41c68b3077f20a"
+          ],
+          "exit_code": 0
+        },
+        {
+          "argv": [
+            "/build/release/examples/l001_storage_lab",
+            "inspect",
+            "/build/l001-lab/20261020T010337Z/quorum/peer.sqlite"
+          ],
+          "exit_code": 0
+        },
+        {
+          "argv": [
+            "/build/release/examples/l001_storage_lab",
+            "witness-read",
+            "/build/l001-lab/20261020T010337Z/quorum/witness-1.sqlite",
+            "21",
+            "4ded053adca4ef44c2b3ca392a164341f2cf6b8574c7b0bc66fecebbe77d2eb1"
+          ],
+          "exit_code": 0
+        },
+        {
+          "argv": [
+            "/build/release/examples/l001_storage_lab",
+            "witness-read",
+            "/build/l001-lab/20261020T010337Z/quorum/witness-2.sqlite",
+            "22",
+            "4ded053adca4ef44c2b3ca392a164341f2cf6b8574c7b0bc66fecebbe77d2eb1"
+          ],
+          "exit_code": 0
+        },
+        {
+          "argv": [
+            "/build/release/examples/l001_storage_lab",
+            "recover",
+            "/build/l001-lab/20261020T010337Z/quorum/peer.sqlite",
+            "4ded053adca4ef44c2b3ca392a164341f2cf6b8574c7b0bc66fecebbe77d2eb1",
+            "0b8851fea263aa1cd685a908167b0d93e7efecaf2d81537577203c8613ad11334ded053adca4ef44c2b3ca392a164341f2cf6b8574c7b0bc66fecebbe77d2eb100000000000000080000000000000008fc3101ed2a259bb533313b4aae0a25c241f49e2caeba5dc4a9ec587ff227fe087d8ca0c00c1290e83870d6118b2c7868561b24c05c76a1045ead75002c4a610331aa75b859786009b8db8b24abfc7cce5556c1e5210e729a30e3ae6f57b9112ab37072138c0149f5e5c1db43d6452d8624d22bf8a778a671639aa052e343dd02",
+            "edd6d631a5833fb3a90153e8f286eeb2a4c86b09571583ade138e845b48214eb4ded053adca4ef44c2b3ca392a164341f2cf6b8574c7b0bc66fecebbe77d2eb100000000000000080000000000000008fc3101ed2a259bb533313b4aae0a25c241f49e2caeba5dc4a9ec587ff227fe087d8ca0c00c1290e83870d6118b2c7868561b24c05c76a1045ead75002c4a6103fbb549e6ece11268da310eb039997732c79d05c167d877500668fcb143e100f6b0dae548a849e24ae10ab79ac3a01945e79d4d39b67343f91eea72637dbb9f04"
+          ],
+          "exit_code": 1
+        },
+        {
+          "argv": [
+            "/build/release/examples/l001_storage_lab",
+            "recover",
+            "/build/l001-lab/20261020T010337Z/quorum/peer.sqlite",
+            "4ded053adca4ef44c2b3ca392a164341f2cf6b8574c7b0bc66fecebbe77d2eb1",
+            "0b8851fea263aa1cd685a908167b0d93e7efecaf2d81537577203c8613ad1133877be08c0f429ab9d2248fda000bcee2309761df3ce3ef321c13a4fcc0eeacf40000000000000005000000000000000571dc3774a17ed2292fc045e7b68105ff9334dc73a18aae1e4e397bf905bb7ff130ebe575a49c83ed742bc5a0d910bdbb8d2273d4345d1e1b498150ebebdbfdb0ad1de46623aecd0b2b77d4664a41bd3c0f52812dc9223038fb9dd25899f6e7b08fd805086d660bf0a92706d69c9e2c3d9673f169b5930737fc77a58fbf56540c",
+            "edd6d631a5833fb3a90153e8f286eeb2a4c86b09571583ade138e845b48214eb877be08c0f429ab9d2248fda000bcee2309761df3ce3ef321c13a4fcc0eeacf40000000000000005000000000000000571dc3774a17ed2292fc045e7b68105ff9334dc73a18aae1e4e397bf905bb7ff130ebe575a49c83ed742bc5a0d910bdbb8d2273d4345d1e1b498150ebebdbfdb0ab921fdd961159f6d31f838cd8c5d2704e672cbe05c38e379a3df304c96f64818b8d1fa4c48000ea20590eee00f75cd6caa02059e4aadbf023e0e95eac131201"
+          ],
+          "exit_code": 1
+        },
+        {
+          "argv": [
+            "/build/release/examples/l001_storage_lab",
+            "recover",
+            "/build/l001-lab/20261020T010337Z/quorum/peer.sqlite",
+            "4ded053adca4ef44c2b3ca392a164341f2cf6b8574c7b0bc66fecebbe77d2eb1",
+            "0b8851fea263aa1cd685a908167b0d93e7efecaf2d81537577203c8613ad11334ded053adca4ef44c2b3ca392a164341f2cf6b8574c7b0bc66fecebbe77d2eb100000000000000080000000000000008fc3101ed2a259bb533313b4aae0a25c241f49e2caeba5dc4a9ec587ff227fe087d8ca0c00c1290e83870d6118b2c7868561b24c05c76a1045ead75002c4a610331aa75b859786009b8db8b24abfc7cce5556c1e5210e729a30e3ae6f57b9112ab37072138c0149f5e5c1db43d6452d8624d22bf8a778a671639aa052e343dd02"
+          ],
+          "exit_code": 1
+        },
+        {
+          "argv": [
+            "/build/release/examples/l001_storage_lab",
+            "recover",
+            "/build/l001-lab/20261020T010337Z/quorum/peer.sqlite",
+            "4ded053adca4ef44c2b3ca392a164341f2cf6b8574c7b0bc66fecebbe77d2eb1",
+            "0b8851fea263aa1cd685a908167b0d93e7efecaf2d81537577203c8613ad11334ded053adca4ef44c2b3ca392a164341f2cf6b8574c7b0bc66fecebbe77d2eb100000000000000080000000000000008fc3101ed2a259bb533313b4aae0a25c241f49e2caeba5dc4a9ec587ff227fe087d8ca0c00c1290e83870d6118b2c7868561b24c05c76a1045ead75002c4a610331aa75b859786009b8db8b24abfc7cce5556c1e5210e729a30e3ae6f57b9112ab37072138c0149f5e5c1db43d6452d8624d22bf8a778a671639aa052e343dd03",
+            "edd6d631a5833fb3a90153e8f286eeb2a4c86b09571583ade138e845b48214eb4ded053adca4ef44c2b3ca392a164341f2cf6b8574c7b0bc66fecebbe77d2eb100000000000000080000000000000008fc3101ed2a259bb533313b4aae0a25c241f49e2caeba5dc4a9ec587ff227fe087d8ca0c00c1290e83870d6118b2c7868561b24c05c76a1045ead75002c4a6103fbb549e6ece11268da310eb039997732c79d05c167d877500668fcb143e100f6b0dae548a849e24ae10ab79ac3a01945e79d4d39b67343f91eea72637dbb9f04"
+          ],
+          "exit_code": 1
+        },
+        {
+          "argv": [
+            "/build/release/examples/l001_storage_lab",
+            "witness-read",
+            "/build/l001-lab/20261020T010337Z/quorum/witness-1.sqlite",
+            "21",
+            "8d49102c3da52e0216c5357ebfaecfb8c64b8e8db696b4481a8e53a15fb69b42"
+          ],
+          "exit_code": 0
+        },
+        {
+          "argv": [
+            "/build/release/examples/l001_storage_lab",
+            "witness-read",
+            "/build/l001-lab/20261020T010337Z/quorum/witness-2.sqlite",
+            "22",
+            "8d49102c3da52e0216c5357ebfaecfb8c64b8e8db696b4481a8e53a15fb69b42"
+          ],
+          "exit_code": 0
+        },
+        {
+          "argv": [
+            "/build/release/examples/l001_storage_lab",
+            "recover",
+            "/build/l001-lab/20261020T010337Z/quorum/peer.sqlite",
+            "8d49102c3da52e0216c5357ebfaecfb8c64b8e8db696b4481a8e53a15fb69b42",
+            "0b8851fea263aa1cd685a908167b0d93e7efecaf2d81537577203c8613ad11338d49102c3da52e0216c5357ebfaecfb8c64b8e8db696b4481a8e53a15fb69b4200000000000000080000000000000008fc3101ed2a259bb533313b4aae0a25c241f49e2caeba5dc4a9ec587ff227fe087d8ca0c00c1290e83870d6118b2c7868561b24c05c76a1045ead75002c4a6103f027e65f1fd5fde26586f336e7a8803a061da4a9d0802ccf15b9cfa3c86e96aa538abccd25aede7df0ae6b85d0cb547b91b5dbce73a11c616b935009bb4c9004",
+            "edd6d631a5833fb3a90153e8f286eeb2a4c86b09571583ade138e845b48214eb8d49102c3da52e0216c5357ebfaecfb8c64b8e8db696b4481a8e53a15fb69b420000000000000005000000000000000571dc3774a17ed2292fc045e7b68105ff9334dc73a18aae1e4e397bf905bb7ff130ebe575a49c83ed742bc5a0d910bdbb8d2273d4345d1e1b498150ebebdbfdb058b3a04e774ec3c982eb01968b7e76915186dfe38de14ef4980cc541080c012f8ee11faafead41bcc6ededdf9925f581f46a07e3558e91bfa1f2d5bc55b6350b"
+          ],
+          "exit_code": 1
+        },
+        {
+          "argv": [
+            "/build/release/examples/l001_storage_lab",
+            "recover",
+            "/build/l001-lab/20261020T010337Z/quorum/peer.sqlite",
+            "8d49102c3da52e0216c5357ebfaecfb8c64b8e8db696b4481a8e53a15fb69b42",
+            "0b8851fea263aa1cd685a908167b0d93e7efecaf2d81537577203c8613ad11334ded053adca4ef44c2b3ca392a164341f2cf6b8574c7b0bc66fecebbe77d2eb100000000000000080000000000000008fc3101ed2a259bb533313b4aae0a25c241f49e2caeba5dc4a9ec587ff227fe087d8ca0c00c1290e83870d6118b2c7868561b24c05c76a1045ead75002c4a610331aa75b859786009b8db8b24abfc7cce5556c1e5210e729a30e3ae6f57b9112ab37072138c0149f5e5c1db43d6452d8624d22bf8a778a671639aa052e343dd02",
+            "edd6d631a5833fb3a90153e8f286eeb2a4c86b09571583ade138e845b48214eb4ded053adca4ef44c2b3ca392a164341f2cf6b8574c7b0bc66fecebbe77d2eb100000000000000080000000000000008fc3101ed2a259bb533313b4aae0a25c241f49e2caeba5dc4a9ec587ff227fe087d8ca0c00c1290e83870d6118b2c7868561b24c05c76a1045ead75002c4a6103fbb549e6ece11268da310eb039997732c79d05c167d877500668fcb143e100f6b0dae548a849e24ae10ab79ac3a01945e79d4d39b67343f91eea72637dbb9f04"
+          ],
+          "exit_code": 1
+        },
+        {
+          "argv": [
+            "/build/release/examples/l001_storage_lab",
+            "recover",
+            "/build/l001-lab/20261020T010337Z/quorum/peer.sqlite",
+            "8d49102c3da52e0216c5357ebfaecfb8c64b8e8db696b4481a8e53a15fb69b42",
+            "0b8851fea263aa1cd685a908167b0d93e7efecaf2d81537577203c8613ad11334ded053adca4ef44c2b3ca392a164341f2cf6b8574c7b0bc66fecebbe77d2eb100000000000000080000000000000008fc3101ed2a259bb533313b4aae0a25c241f49e2caeba5dc4a9ec587ff227fe087d8ca0c00c1290e83870d6118b2c7868561b24c05c76a1045ead75002c4a610331aa75b859786009b8db8b24abfc7cce5556c1e5210e729a30e3ae6f57b9112ab37072138c0149f5e5c1db43d6452d8624d22bf8a778a671639aa052e343dd02",
+            "edd6d631a5833fb3a90153e8f286eeb2a4c86b09571583ade138e845b48214eb4ded053adca4ef44c2b3ca392a164341f2cf6b8574c7b0bc66fecebbe77d2eb100000000000000080000000000000008fc3101ed2a259bb533313b4aae0a25c241f49e2caeba5dc4a9ec587ff227fe087d8ca0c00c1290e83870d6118b2c7868561b24c05c76a1045ead75002c4a6103fbb549e6ece11268da310eb039997732c79d05c167d877500668fcb143e100f6b0dae548a849e24ae10ab79ac3a01945e79d4d39b67343f91eea72637dbb9f04"
+          ],
+          "exit_code": 1
+        },
+        {
+          "argv": [
+            "/build/release/examples/l001_storage_lab",
+            "witness-read",
+            "/build/l001-lab/20261020T010337Z/quorum/witness-1.sqlite",
+            "21",
+            "dacc6011c4e116ad8a43db90e0442196a9e1dbd7e96ec279441d921be3f2311e"
+          ],
+          "exit_code": 1
+        },
+        {
+          "argv": [
+            "/build/release/examples/l001_storage_lab",
+            "witness-read",
+            "/build/l001-lab/20261020T010337Z/quorum/witness-1.sqlite",
+            "21",
+            "794b0233aa79f4d6695ec3ab8294cccc6ef0f2c5bbbf44c17478a56c415bab24"
+          ],
+          "exit_code": 0
+        },
+        {
+          "argv": [
+            "/build/release/examples/l001_storage_lab",
+            "witness-read",
+            "/build/l001-lab/20261020T010337Z/quorum/witness-2.sqlite",
+            "22",
+            "794b0233aa79f4d6695ec3ab8294cccc6ef0f2c5bbbf44c17478a56c415bab24"
+          ],
+          "exit_code": 0
+        },
+        {
+          "argv": [
+            "/build/release/examples/l001_storage_lab",
+            "recover",
+            "/build/l001-lab/20261020T010337Z/quorum/peer.sqlite",
+            "794b0233aa79f4d6695ec3ab8294cccc6ef0f2c5bbbf44c17478a56c415bab24",
+            "0b8851fea263aa1cd685a908167b0d93e7efecaf2d81537577203c8613ad1133794b0233aa79f4d6695ec3ab8294cccc6ef0f2c5bbbf44c17478a56c415bab2400000000000000080000000000000008fc3101ed2a259bb533313b4aae0a25c241f49e2caeba5dc4a9ec587ff227fe087d8ca0c00c1290e83870d6118b2c7868561b24c05c76a1045ead75002c4a610375eb5e33b6a2d236be136460cf9e1eefd94fdaf2f87eb7fcd8fe8cd2bd6cbe67fa53c457846f902cb12f13ba9ae81acd802272c209f2b108ae9a2d0b0c916003",
+            "edd6d631a5833fb3a90153e8f286eeb2a4c86b09571583ade138e845b48214eb794b0233aa79f4d6695ec3ab8294cccc6ef0f2c5bbbf44c17478a56c415bab2400000000000000080000000000000008fc3101ed2a259bb533313b4aae0a25c241f49e2caeba5dc4a9ec587ff227fe087d8ca0c00c1290e83870d6118b2c7868561b24c05c76a1045ead75002c4a6103dba68db68331aefc543809ea3fc12491a71c68c8a4635059e5aa88a6c37fe47957ce9067e73b80e690ddcbe933c343675404bbc490b1e3a3bc81bd3f35e57e0c"
+          ],
+          "exit_code": 0
+        },
+        {
+          "argv": [
+            "/build/release/examples/l001_storage_lab",
+            "witness-read",
+            "/build/l001-lab/20261020T010337Z/quorum/witness-1.sqlite",
+            "21",
+            "6304a56783952ffe7f31b485f8865c2ea031fa67197bf7bb775c5f7f5ad962b2"
+          ],
+          "exit_code": 0
+        },
+        {
+          "argv": [
+            "/build/release/examples/l001_storage_lab",
+            "witness-read",
+            "/build/l001-lab/20261020T010337Z/quorum/witness-2.sqlite",
+            "22",
+            "6304a56783952ffe7f31b485f8865c2ea031fa67197bf7bb775c5f7f5ad962b2"
+          ],
+          "exit_code": 0
+        },
+        {
+          "argv": [
+            "/build/release/examples/l001_storage_lab",
+            "recover",
+            "/build/l001-lab/20261020T010337Z/quorum/peer.sqlite",
+            "6304a56783952ffe7f31b485f8865c2ea031fa67197bf7bb775c5f7f5ad962b2",
+            "0b8851fea263aa1cd685a908167b0d93e7efecaf2d81537577203c8613ad11336304a56783952ffe7f31b485f8865c2ea031fa67197bf7bb775c5f7f5ad962b20000000000000005000000000000000571dc3774a17ed2292fc045e7b68105ff9334dc73a18aae1e4e397bf905bb7ff130ebe575a49c83ed742bc5a0d910bdbb8d2273d4345d1e1b498150ebebdbfdb0e538d77e7fae0c675b7d8ff26591905e5c2729f91c3c7f8b422f5dfae372e5a4886317017619aef176fb0cb9256607413f216c4578816baafb4fe024f5479e0a",
+            "edd6d631a5833fb3a90153e8f286eeb2a4c86b09571583ade138e845b48214eb6304a56783952ffe7f31b485f8865c2ea031fa67197bf7bb775c5f7f5ad962b20000000000000005000000000000000571dc3774a17ed2292fc045e7b68105ff9334dc73a18aae1e4e397bf905bb7ff130ebe575a49c83ed742bc5a0d910bdbb8d2273d4345d1e1b498150ebebdbfdb0a02feef2922840b1e327177d74bf275886feafb99357d7b12b2652134fc02f284b5ca8cfc883a07ad4c41c1e7dd1b53ca8c63a1ba28749b5d85e193d5cf46102"
+          ],
+          "exit_code": 0
+        }
+      ],
+      "all_same_host_stores_rollback_counterexample": {
+        "sequence": 5,
+        "admission_paused": true,
+        "fresh_quorum_checked": true,
+        "diagnostic_only": true
+      },
+      "independent_storage_certified": false,
+      "production_admission_enabled": false,
+      "fixture_keys_only": true
+    },
+    "container-kill-restart": [
+      {
+        "acknowledged_floor": 10,
+        "recovered": {
+          "sequence": 21,
+          "admission_paused": true,
+          "pending": 21
+        },
+        "container_exit": 137,
+        "writer_argv": [
+          "docker",
+          "run",
+          "--rm",
+          "--name",
+          "loom-l001-kill-0-20261020t010337z",
+          "--label",
+          "loom.task=l001-local-docker",
+          "--cpus=2",
+          "--memory=512m",
+          "--pids-limit=128",
+          "--cap-drop=ALL",
+          "--security-opt=no-new-privileges",
+          "--read-only",
+          "--tmpfs",
+          "/tmp:rw,noexec,nosuid,size=64m",
+          "--network",
+          "none",
+          "-v",
+          "loom-l001-target:/build",
+          "rust:1.90.0-slim-bookworm@sha256:64232e656c058f4468e8d024e990acff04f0fd5a5c0a88a574dc37773d7325c9",
+          "/build/release/examples/l001_storage_lab",
+          "writer",
+          "/build/l001-lab/20261020T010337Z/container-kill-0.sqlite"
+        ]
+      },
+      {
+        "acknowledged_floor": 25,
+        "recovered": {
+          "sequence": 32,
+          "admission_paused": true,
+          "pending": 32
+        },
+        "container_exit": 137,
+        "writer_argv": [
+          "docker",
+          "run",
+          "--rm",
+          "--name",
+          "loom-l001-kill-1-20261020t010337z",
+          "--label",
+          "loom.task=l001-local-docker",
+          "--cpus=2",
+          "--memory=512m",
+          "--pids-limit=128",
+          "--cap-drop=ALL",
+          "--security-opt=no-new-privileges",
+          "--read-only",
+          "--tmpfs",
+          "/tmp:rw,noexec,nosuid,size=64m",
+          "--network",
+          "none",
+          "-v",
+          "loom-l001-target:/build",
+          "rust:1.90.0-slim-bookworm@sha256:64232e656c058f4468e8d024e990acff04f0fd5a5c0a88a574dc37773d7325c9",
+          "/build/release/examples/l001_storage_lab",
+          "writer",
+          "/build/l001-lab/20261020T010337Z/container-kill-1.sqlite"
+        ]
+      },
+      {
+        "acknowledged_floor": 50,
+        "recovered": {
+          "sequence": 55,
+          "admission_paused": true,
+          "pending": 55
+        },
+        "container_exit": 137,
+        "writer_argv": [
+          "docker",
+          "run",
+          "--rm",
+          "--name",
+          "loom-l001-kill-2-20261020t010337z",
+          "--label",
+          "loom.task=l001-local-docker",
+          "--cpus=2",
+          "--memory=512m",
+          "--pids-limit=128",
+          "--cap-drop=ALL",
+          "--security-opt=no-new-privileges",
+          "--read-only",
+          "--tmpfs",
+          "/tmp:rw,noexec,nosuid,size=64m",
+          "--network",
+          "none",
+          "-v",
+          "loom-l001-target:/build",
+          "rust:1.90.0-slim-bookworm@sha256:64232e656c058f4468e8d024e990acff04f0fd5a5c0a88a574dc37773d7325c9",
+          "/build/release/examples/l001_storage_lab",
+          "writer",
+          "/build/l001-lab/20261020T010337Z/container-kill-2.sqlite"
+        ]
+      }
+    ],
+    "host-host-negative": {
+      "negative_cases": [
+        {
+          "case": "wrong_server_pin",
+          "rejected": true,
+          "error": "HandshakeFailed"
+        },
+        {
+          "case": "untrusted_client",
+          "rejected": true,
+          "error": "HandshakeFailed"
+        },
+        {
+          "case": "wrong_space",
+          "rejected": true,
+          "error": "HandshakeFailed"
+        },
+        {
+          "case": "wrong_epoch",
+          "rejected": true,
+          "error": "HandshakeFailed"
+        },
+        {
+          "case": "membership_denied",
+          "rejected": true,
+          "error": "UntrustedMembership"
+        }
+      ]
+    },
+    "host-linux-negative": {
+      "negative_cases": [
+        {
+          "case": "wrong_server_pin",
+          "rejected": true,
+          "error": "HandshakeFailed"
+        },
+        {
+          "case": "untrusted_client",
+          "rejected": true,
+          "error": "HandshakeFailed"
+        },
+        {
+          "case": "wrong_space",
+          "rejected": true,
+          "error": "HandshakeFailed"
+        },
+        {
+          "case": "wrong_epoch",
+          "rejected": true,
+          "error": "HandshakeFailed"
+        },
+        {
+          "case": "membership_denied",
+          "rejected": true,
+          "error": "UntrustedMembership"
+        }
+      ]
+    },
+    "linux-linux-negative": {
+      "negative_cases": [
+        {
+          "case": "wrong_server_pin",
+          "rejected": true,
+          "error": "HandshakeFailed"
+        },
+        {
+          "case": "untrusted_client",
+          "rejected": true,
+          "error": "HandshakeFailed"
+        },
+        {
+          "case": "wrong_space",
+          "rejected": true,
+          "error": "HandshakeFailed"
+        },
+        {
+          "case": "wrong_epoch",
+          "rejected": true,
+          "error": "HandshakeFailed"
+        },
+        {
+          "case": "membership_denied",
+          "rejected": true,
+          "error": "UntrustedMembership"
+        }
+      ]
+    },
+    "linux-host-negative": {
+      "negative_cases": [
+        {
+          "case": "wrong_server_pin",
+          "rejected": true,
+          "error": "HandshakeFailed"
+        },
+        {
+          "case": "untrusted_client",
+          "rejected": true,
+          "error": "HandshakeFailed"
+        },
+        {
+          "case": "wrong_space",
+          "rejected": true,
+          "error": "HandshakeFailed"
+        },
+        {
+          "case": "wrong_epoch",
+          "rejected": true,
+          "error": "HandshakeFailed"
+        },
+        {
+          "case": "membership_denied",
+          "rejected": true,
+          "error": "UntrustedMembership"
+        }
+      ]
+    },
+    "relay-confidentiality": {
+      "captured_bytes": 3983,
+      "canary_found": false,
+      "scope": "smoke test, not cryptographic proof"
+    },
+    "relay-active-tamper": {
+      "mutated": true,
+      "authenticated_echo_refused": true
+    }
+  },
+  "release_state": "blocked",
+  "performance_thresholds": null,
+  "source_commit": "498870abff9b7fede983b9ef59b0aa7132520ca4",
+  "source_sha256": {
+    "Cargo.lock": "f04310015fdb5f955a6174886dcce51a0cc28b85d69938179a762a5263a04e29",
+    "Cargo.toml": "c15ad3c511fcf89a31de754728f18fbdb60aa2eec556a90a34c9060044277968",
+    "apps/loomd/Cargo.toml": "30dd00fa6ea49d14e4078ecbe396f88914cafedc61b59fc5584383753531e17c",
+    "apps/loomd/src/main.rs": "8cf6b37b6ce86e43a18c2f34c130d02acf30914a18fdf93f5d8ca96ee8661f9e",
+    "crates/loom-android/Cargo.toml": "2764ad366f11048377d5b5d9a334b1b082bf198406e15cdd46a79a00cb63bce7",
+    "crates/loom-android/examples/membership_fixture.rs": "81e8d7d2d26a194adcd98b4d1cec6045409a163bfeb4f0e66787eb322e406ca9",
+    "crates/loom-android/src/lib.rs": "599ff446527945c1bb97a8afd2800a28dd16993bc91c39cab067e7905c3318de",
+    "crates/loom-core/Cargo.toml": "c3eed48c91fd838cb17841327dd6b4a56c88dde6a4a4c45e0d22cb75ff028379",
+    "crates/loom-core/src/lan_file_read_model.rs": "a75236be2cf46e14afa599b1a2801780f65d22dfe2a1be2ab6ebd69a744999b4",
+    "crates/loom-core/src/lib.rs": "ad30336650f1552644b6edae3130d31cf1f5a56c29b9ed5882b659b9e885e00a",
+    "crates/loom-crypto/Cargo.toml": "be1a6dc83ce27636fd5d536957212ba93a316239ca01b19f353b112641f41a39",
+    "crates/loom-crypto/src/lib.rs": "af7cb5e38d7a7e576028a2985b10610a0dbe62d1bd615af7fac78c2e7d9c37c8",
+    "crates/loom-crypto/src/membership.rs": "cce51051df33cbde5cac83f52ff1971da43bbfc737a4c45c1612bb310dfe0d57",
+    "crates/loom-crypto/src/owner_authority.rs": "17f7896321c5d7ec295be891319408abd30180a28ae07e2da2f3a9bd9be444a4",
+    "crates/loom-crypto/src/owner_lifecycle.rs": "ca6c7bb3bc385f13510fb938ece2aa0e05f09ecdf847d6c17820c7616ba8926e",
+    "crates/loom-crypto/src/resource_grant.rs": "d8d90506683d21d5bc57361bc4a0b3607d487c4e1d07635076fd55309c7b3741",
+    "crates/loom-crypto/src/root_rotation.rs": "d9dc95b8eb88ac12a493e8fba7bc911b366912374e72882443ede756c8c2b7f2",
+    "crates/loom-crypto/src/signed_revocation.rs": "71c59a0e8fa17b742cc84ff4810bea8266486480c030a84a494054f1a12f28e5",
+    "crates/loom-crypto/src/space_trust.rs": "1d4c515e8b4788b7f33e38e2fba0450b7f238fe7629da6b9956efcadceb5cc27",
+    "crates/loom-crypto/src/witness_checkpoint.rs": "829eb059e79564137c2c84f5ffddcc7408dfe4c49b88711b9fbaaa89f03e7a1c",
+    "crates/loom-identity/Cargo.toml": "65fca579af33832a12a7b716d8a1eeade785a041b9a2c2b980469e5837832dc7",
+    "crates/loom-identity/src/lib.rs": "d860be5e360f82626e2c2d9424123f360ac3a181df9ed0bd7855d9698f19a045",
+    "crates/loom-identity/src/signed_membership.rs": "3d5181c0c3316076d6c8b01827296b2924ec7e1c7bb213abdb4871713bf6151d",
+    "crates/loom-policy/Cargo.toml": "9d4f41b782bb5b15a93cd71a9bf157e0003eedf76fac14611f706c6e08e1e07d",
+    "crates/loom-policy/src/lib.rs": "1a0a2772b339e5069da0642195a3c749c7cc65e557d2b85dba0523a1546204d7",
+    "crates/loom-store/Cargo.toml": "9f43f00de5da3b0aa61d7406524e32ac171aa834389ceb0dff96ac8d4c4d2b3e",
+    "crates/loom-store/examples/l001_storage_lab.rs": "01de198a3f29e0d6b7d9074684179bf59186e607eb286281e35fa7916fb6dcb9",
+    "crates/loom-store/examples/probe_tpm2.rs": "b67933d133ec6618c2fb123827d78491124261f9a6b49a56f5e5ad5c9911ab9a",
+    "crates/loom-store/src/anchor_conformance.rs": "5342891620406311dd4f7f707f681b850e09d1012ce87fa7837a12eabfd48271",
+    "crates/loom-store/src/authenticated_intent_read_gate.rs": "d05eafd2c697add28905dfda94abc23061b3560721f164907238ba1e5a697eeb",
+    "crates/loom-store/src/authenticated_intent_record.rs": "d3537dcb5cc29f63233d9fa4e10fb583aaf1ef377f984b66a38fb2d534e30332",
+    "crates/loom-store/src/authenticated_intent_write_model.rs": "164520935a8f79498500ebd6bc803c571ac8db91b0dca6beb2fc3a03c994693e",
+    "crates/loom-store/src/challenge_witness_quorum.rs": "ada1158c845f385630f98d5765219d8251108513e9f2e4d1ead698217f7bf718",
+    "crates/loom-store/src/durable_intent_simulator.rs": "65b4913d55a0d25d79a0dc62852264f2cb31b398b21c6197d74d7ac8c735f737",
+    "crates/loom-store/src/independent_reservation_fence_model.rs": "fdd1757305396fd886f9066c45fa806a9d9772a23fd72d5fbcbad5934fb990e7",
+    "crates/loom-store/src/legacy_history_audit.rs": "00df7cd9e77c5d16dea071a4a1932617286a3beda2aa4bfa12dc2aae3b1bb4e3",
+    "crates/loom-store/src/legacy_migration.rs": "f7b4ff4bc22704ab5141e622334997a2673423f42ed04c3db42101b470f40e3b",
+    "crates/loom-store/src/lib.rs": "9fb0c079d0b979f4f7ec983b6f6d9b4e1eb4438b5eb9ad9d23617fa3d85d02d4",
+    "crates/loom-store/src/linux_tpm2_probe.rs": "50af849ca76954c4d45fdd751c234cdcd8c13b513745afbf22e796cfe0399cf7",
+    "crates/loom-store/src/policy_journal_codec.rs": "388a6df1409c6934004083eec82a738ff45cfc57f8460f788dffffc2c4d16426",
+    "crates/loom-store/src/rollback_anchor.rs": "36e2a43e9266d90a4d9c4e6814165cfc241351bbf5c07a25cec0251af68e0144",
+    "crates/loom-store/src/sqlite_revocation.rs": "663e5ac3205f8016c8890434549de1fc774f5274b1f86d35fecddf4582a4977d",
+    "crates/loom-store/src/tpm_counter_binding.rs": "b06b22c469fa13ee13b10aee95e1f5835fa84ef5788cc87425f3cddfb9540e2f",
+    "crates/loom-store/src/trusted_state_provider.rs": "eb0a4c37d27f3914146fd12c3479b74bf64a9dd976333f58ed4cf28417a20ed7",
+    "crates/loom-store/src/unified_policy_anchor.rs": "f2d2822401961d7ec6937378d0f117b34e10562178013947cd463d354e11d000",
+    "crates/loom-store/src/unified_policy_journal.rs": "8a5b7a9e5fd57cdb557a37cfd46826d34e02091ab9f75b482013da924eb63440",
+    "crates/loom-transport/Cargo.toml": "a510911875637f2a09ce2d95b13768c9ed20e15053f520009d5432e178046f10",
+    "crates/loom-transport/examples/l001_channel_lab.rs": "a81ee34f452fb0b9965c4f53df45ad8a1f5268745846b48d4dbd4d1f151b5be6",
+    "crates/loom-transport/src/lib.rs": "a191c3d9da31cbf8624c93e6d168f26e04acf3c205308b7c38f56d7be1ac28ee",
+    "crates/loom-transport/src/secure_channel.rs": "6aa567e2322e808cd152ebd149633d17f240c14184f2ddece606f162c631ad40",
+    "crates/loom-transport/tests/signed_membership_channel.rs": "e7d72bea3eda2c661eeddca3131b09802c17d4d1f3d0e695b79c68c645e3e0c7",
+    "crates/loom-types/Cargo.toml": "173289a59a62e58240674810648941d36b22c2dc5dab4ee0d22e8141c8183999",
+    "crates/loom-types/src/lib.rs": "c88be845ee5a1f3299ff842be2e805d07ab6c972fd9665e9ff7dcc44ec0fefe5",
+    "crates/loom-wire/Cargo.toml": "024ab9e9f0c67fcb90391fb0fbb8b14f41e6676a7a7a760f77bf8c104a94955a",
+    "crates/loom-wire/src/lib.rs": "c2acd5497bb2223dc683158b4bc10ff436c8d34e284aeabdd25cdc7800e43583",
+    "crates/loom-wire/src/security_event.rs": "d89c7cefc3eb73913a8e493c3de326a4f490d9c06429e689eab1f029229b81c2",
+    "deny.toml": "94b25862286227665400f74dac4b008871ba1720e78dbc618c3055417b801d63",
+    "docs/acceptance/evidence/l001-android-docker-20261020/runner.py": "5db402165063f6b37a9671ec4b56a621e49fa19b1a761507207e806e4afd24df",
+    "docs/acceptance/evidence/l001-android-jp-20261020/sources/scripts/l001_android_docker.py": "5db402165063f6b37a9671ec4b56a621e49fa19b1a761507207e806e4afd24df",
+    "docs/acceptance/evidence/l001-android-jp-20261020/sources/scripts/l001_android_server.py": "b0c4f05f5389adc64cdff3ba30b19cc2483455d28bc0ae8cc34a089f9ef7c720",
+    "docs/acceptance/evidence/l001-android-jp-20261020/sources/scripts/l001_android_server_setup.py": "7043922f636cbcd16047ad47886eb8222fe488fccaa863570eaec6dcb71c979d",
+    "docs/acceptance/evidence/l001-android-jp-20261020/sources/scripts/l001_android_vpn_test.py": "efabf647615a917d506c771550a567f95c5ba8a8ffcc1bbcc6048e2a806b2bf7",
+    "docs/acceptance/evidence/l001-android-jp-20261020/sources/scripts/l001_build_android_vpn_lab.py": "a7c275dd35b131ffa1f0e05209201c472ff42c3d6d99f26510de15e3b72285cd",
+    "docs/acceptance/evidence/l001-android-jp-20261020/sources/tools/android-vpn-lab/udp_echo.py": "7b2d46fd2216d4fe020d42e1e586078821afe0000e2e8d824f3add947a7d44a0",
+    "docs/acceptance/l001.json": "b3eb9b4914b0b738ecf58313052b179af07e6216dc5b2d2ed388d08b8ba785ee",
+    "interop/wire01/go/main.go": "5271bcfa38bcabe699df7e4ddd9aefd40997e97aaf665dd513bd01964275acb3",
+    "interop/wire01/js/check.mjs": "b4330adff2149517e7884c9c51e589fa133af54332abf537ac9744630a333098",
+    "interop/wire01/kotlin/Main.kt": "65fb0588d731f22941da67cfec3c363b29a58a3b8fb7a06d5f2e8af2201ab6e8",
+    "rust-toolchain.toml": "c33d1f0b1b8fda448bea32d7dc867aa64947c87169fd9de7122ffccad1dd80f9",
+    "scripts/l001-lab.Dockerfile": "82e587d5f5dfe8185abe16885aa8ae0382df9b345b2ed29758f0f119b24db7c8",
+    "scripts/l001_android_docker.py": "5db402165063f6b37a9671ec4b56a621e49fa19b1a761507207e806e4afd24df",
+    "scripts/l001_android_server.py": "34f1b9a8b557823bd32a10fd81db7aea420a5031c84e1dda760e2eac62b431b5",
+    "scripts/l001_android_server_setup.py": "7043922f636cbcd16047ad47886eb8222fe488fccaa863570eaec6dcb71c979d",
+    "scripts/l001_android_vpn_test.py": "f0831437152902a0ed7a40933997eadec876b0373f53e3a14abbada049b1c7d7",
+    "scripts/l001_build_android_vpn_lab.py": "21af4651d3b92abfb16e43ea6011ab48f495b7822b7ab0ff0adcb0bc6497b060",
+    "scripts/l001_gate.py": "23657e1ed87052cec5f325cbe2ed3e9d49e0b49684217d634879f8e41700937f",
+    "scripts/l001_local_docker.py": "1badadd997c1c092d8c7d1b66835bec0c040515c56802a5b660f9f6833199384",
+    "scripts/l001_local_gate.py": "ee655b1852495a4297bd710bb89e39af1cdfe519d35827aa6ae12c4978191f32",
+    "scripts/l001_quorum_faults.py": "c1cbdd1e9109cb1ed9b79eeb349005b399b7f424e36b2fa2a2afbaa29933c159",
+    "scripts/l001_stage_android_server.py": "0d69b3738041f139576056e3dd0ad7d4011e2beaed8e38b0030a6d0b50f53c57",
+    "scripts/l001_storage_faults.py": "02077e8a572da3e2930aea89403a97fffdd24e315a834113e97fab07fc8af0ff",
+    "test-vectors/wire-v1/check.go": "a86a0fce1ca147706c9b66b1d0564d86ae5af15990def7d9ec5df0adc07f512b",
+    "test-vectors/wire-v1/check.mjs": "cfe98f3d1cfcb5189bf50d900f9542a53f3599fe4dc2ab061e3140506204d45f",
+    "test-vectors/wire-v1/event-01.cbor.hex": "ccdbbc1d5c5cba6f2afdd731b6591374603815f596ec144c695c6907a9c3c52c",
+    "test-vectors/wire-v1/event-01.event-id.hex": "b17e2451756e3fcd7b0334a1787a05a21369c6430e0597ad40f6b16d0d37c5b9",
+    "test-vectors/wire-v1/event-01.pubkey.hex": "ef5d759f7608f49322bcb47de61380c1e69890140bd298a3d594a569cd11d195",
+    "test-vectors/wire-v1/event-01.signature.hex": "cc03607642333b5c698529059a754a138fe4067b52272f0b602b03bdee9a53e5",
+    "test-vectors/wire-v1/event-01.signing.hex": "88bff258413643757378ef422e59f29316134e5d9a7e38296961bb753ab255ea",
+    "test-vectors/wire-v1/event-02.cbor.hex": "ec79919924d919e635228652b60b5e42606923c97a9a9a83f388010d77cdb688",
+    "test-vectors/wire-v1/event-02.signing.hex": "de775ddea755c7fabdb7d9d42bcb84579dee7910916bbd2263198638505270b2",
+    "test-vectors/wire-v1/event-03.cbor.hex": "c70be755c95900c0fccab605330214439e8dda4254d1dabd1f2aeae80d64f164",
+    "test-vectors/wire-v1/event-03.signing.hex": "cf18f56331cbfea1f78b34346c511d4ee05514712155a8f26f4d3499ced8ec14",
+    "tools/android-vpn-lab/udp_echo.py": "7b2d46fd2216d4fe020d42e1e586078821afe0000e2e8d824f3add947a7d44a0"
+  },
+  "environment": {
+    "uname": "Darwin MAC-8E71A2.lan 27.0.0 Darwin Kernel Version 27.0.0: Tue Aug 11 21:02:57 PDT 2026; root:xnu-13432.1.9~1/RELEASE_ARM64_T8132 arm64",
+    "macos": "ProductName:\t\tmacOS\nProductVersion:\t\t27.0\nBuildVersion:\t\t26A428",
+    "cpu_memory": "Mac16,10\n10\n17179869184",
+    "rust": "rustc 1.90.0 (1159e78c4 2025-09-14)\nbinary: rustc\ncommit-hash: 1159e78c4747b02ef996e55082b704c09b970588\ncommit-date: 2025-09-14\nhost: aarch64-apple-darwin\nrelease: 1.90.0\nLLVM version: 20.1.8",
+    "docker": {
+      "Client": {
+        "Version": "29.8.2",
+        "ApiVersion": "1.56",
+        "DefaultAPIVersion": "1.56",
+        "GitCommit": "7fc2dff",
+        "GoVersion": "go1.26.8",
+        "Os": "darwin",
+        "Arch": "arm64",
+        "BuildTime": "Sun Oct 11 12:42:20 2026",
+        "Context": "orbstack"
+      },
+      "Server": {
+        "Platform": {
+          "Name": "Docker Engine - Community"
+        },
+        "Version": "29.8.2",
+        "ApiVersion": "1.56",
+        "MinAPIVersion": "1.40",
+        "Os": "linux",
+        "Arch": "arm64",
+        "Components": [
+          {
+            "Name": "Engine",
+            "Version": "29.8.2",
+            "Details": {
+              "ApiVersion": "1.56",
+              "Arch": "arm64",
+              "BuildTime": "Wed Sep 30 19:32:49 2026",
+              "Experimental": "true",
+              "GitCommit": "8af9fe3",
+              "GoVersion": "go1.26.8",
+              "KernelVersion": "7.2.9-orbstack-00391-g2b298d05fbd4",
+              "MinAPIVersion": "1.40",
+              "Module": "github.com/moby/moby/v2",
+              "ModuleVersion": "v2.0.0+unknown",
+              "Os": "linux"
+            }
+          },
+          {
+            "Name": "containerd",
+            "Version": "v2.3.6",
+            "Details": {
+              "GitCommit": "ee2735368117d2eb259779949d5e75cdafec9761"
+            }
+          },
+          {
+            "Name": "runc",
+            "Version": "1.5.2",
+            "Details": {
+              "GitCommit": "29dd3dc2b13b4123162e5fe132504bb4b15569f1"
+            }
+          },
+          {
+            "Name": "docker-init",
+            "Version": "0.19.0",
+            "Details": {
+              "GitCommit": "de40ad0"
+            }
+          }
+        ],
+        "GitCommit": "8af9fe3",
+        "GoVersion": "go1.26.8",
+        "KernelVersion": "7.2.9-orbstack-00391-g2b298d05fbd4",
+        "Experimental": true,
+        "BuildTime": "2026-09-30T19:32:49.000000000+00:00"
+      }
+    },
+    "docker_resources": "cpus=10 memory=8392605696 kernel=7.2.9-orbstack-00391-g2b298d05fbd4 os=OrbStack\n",
+    "base_image": "rust:1.90.0-slim-bookworm@sha256:64232e656c058f4468e8d024e990acff04f0fd5a5c0a88a574dc37773d7325c9",
+    "builder_resources": {
+      "NanoCpus": 4000000000,
+      "Memory": 4294967296,
+      "PidsLimit": 512
+    }
+  },
+  "source_unchanged": true,
+  "run_status": "completed",
+  "local_acceptance": {
+    "profile": "L-001-local-docker-v1",
+    "state": "passed",
+    "checks": [
+      "SOURCE: source hashes unchanged; native/Linux rebuilt",
+      "BUILD: native/Linux tests, format, strict Clippy, Linux docs",
+      "WIRE: Rust/Go/JavaScript/Kotlin vectors",
+      "FAIL-CLOSED: bootstrap disabled; missing TPM and release refused",
+      "CHANNEL: four real TCP/mTLS paths, verified payloads, 20 refusals",
+      "RELAY: plaintext canary absent; active tamper refused",
+      "STORAGE: nine SIGKILL recoveries; evidence/mirror tampering refused",
+      "RECOVERY: 20 native/Linux cases; fresh quorum detects old local backup",
+      "BASELINE: finite measured performance samples; release gates unchanged"
+    ]
+  },
+  "finished_utc": "2026-10-20T01:04:37.005081+00:00"
+}

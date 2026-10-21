@@ -1,0 +1,105 @@
+
+STDERR:
+ Documenting loom-transport v0.1.0 (/workspace/crates/loom-transport)
+warning: unresolved link to `0;32`
+  --> crates/loom-store/src/authenticated_intent_record.rs:62:10
+   |
+62 |     /// [0;32] is only valid with minimum_record_sequence = 0.
+   |          ^^^^ no item named `0;32` in scope
+   |
+   = help: to escape `[` and `]` characters, add '\' before them like `\[` or `\]`
+   = note: `#[warn(rustdoc::broken_intra_doc_links)]` on by default
+
+warning: `loom-store` (lib doc) generated 1 warning
+warning: unresolved link to `16`
+   --> crates/loom-crypto/src/signed_revocation.rs:113:50
+    |
+113 | /// Revocation payload V1 candidate: resource-id[16] || peer-id[32] || actions[1].
+    |                                                  ^^ no item named `16` in scope
+    |
+    = help: to escape `[` and `]` characters, add '\' before them like `\[` or `\]`
+    = note: `#[warn(rustdoc::broken_intra_doc_links)]` on by default
+
+warning: unresolved link to `32`
+   --> crates/loom-crypto/src/signed_revocation.rs:113:65
+    |
+113 | /// Revocation payload V1 candidate: resource-id[16] || peer-id[32] || actions[1].
+    |                                                                 ^^ no item named `32` in scope
+    |
+    = help: to escape `[` and `]` characters, add '\' before them like `\[` or `\]`
+
+warning: unresolved link to `1`
+   --> crates/loom-crypto/src/signed_revocation.rs:113:80
+    |
+113 | /// Revocation payload V1 candidate: resource-id[16] || peer-id[32] || actions[1].
+    |                                                                                ^ no item named `1` in scope
+    |
+    = help: to escape `[` and `]` characters, add '\' before them like `\[` or `\]`
+
+warning: unresolved link to `16`
+   --> crates/loom-crypto/src/owner_authority.rs:114:17
+    |
+114 | /// resource_id[16] | delegated Ed25519 pubkey[32] | derived key-id[32] |
+    |                 ^^ no item named `16` in scope
+    |
+    = help: to escape `[` and `]` characters, add '\' before them like `\[` or `\]`
+
+warning: unresolved link to `32`
+   --> crates/loom-crypto/src/owner_authority.rs:114:48
+    |
+114 | /// resource_id[16] | delegated Ed25519 pubkey[32] | derived key-id[32] |
+    |                                                ^^ no item named `32` in scope
+    |
+    = help: to escape `[` and `]` characters, add '\' before them like `\[` or `\]`
+
+warning: unresolved link to `32`
+   --> crates/loom-crypto/src/owner_authority.rs:114:69
+    |
+114 | /// resource_id[16] | delegated Ed25519 pubkey[32] | derived key-id[32] |
+    |                                                                     ^^ no item named `32` in scope
+    |
+    = help: to escape `[` and `]` characters, add '\' before them like `\[` or `\]`
+
+warning: unresolved link to `1`
+   --> crates/loom-crypto/src/owner_authority.rs:115:17
+    |
+115 | /// revoke_only[1] | delegated_key_epoch(u64BE).
+    |                 ^ no item named `1` in scope
+    |
+    = help: to escape `[` and `]` characters, add '\' before them like `\[` or `\]`
+
+warning: `loom-crypto` (lib doc) generated 7 warnings
+warning: unresolved link to `16`
+ --> crates/loom-wire/src/lib.rs:94:1
+  |
+9 | |     Incomplete,
+  | |________________^
+...
+94| / /// Candidate canonical security-event wire codec (protocol not frozen).
+  |
+  = note: the link appears in this line:
+          
+          0=major-version(1), 1=event-kind(1..=5), 2=space-id(bytes[16]),
+                                                                    ^^
+  = note: no item named `16` in scope
+  = help: to escape `[` and `]` characters, add '\' before them like `\[` or `\]`
+  = note: `#[warn(rustdoc::broken_intra_doc_links)]` on by default
+
+warning: unresolved link to `32`
+ --> crates/loom-wire/src/lib.rs:94:1
+  |
+9 | |     Incomplete,
+  | |________________^
+...
+94| / /// Candidate canonical security-event wire codec (protocol not frozen).
+  |
+  = note: the link appears in this line:
+          
+          3=signer-key-id(bytes[32]), 4=issuer-epoch(u64),
+                                ^^
+  = note: no item named `32` in scope
+  = help: to escape `[` and `]` characters, add '\' before them like `\[` or `\]`
+
+warning: `loom-wire` (lib doc) generated 2 warnings
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.39s
+   Generated /build/doc/loom_core/index.html and 8 other files

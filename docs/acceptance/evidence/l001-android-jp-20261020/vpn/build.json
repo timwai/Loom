@@ -1,0 +1,104 @@
+{
+  "lab_only": true,
+  "debug_signed": true,
+  "apk_sha256": "ef70aa49143a3e3270b7265a1d3150e74a3667433722868812483953370413db",
+  "source_sha256": {
+    "tools/android-vpn-lab/ProbeActivity.java": "29221140c423642ff041f99b9743c8e2dfb415fa3b0ac3a78a7650c3e5f2f095",
+    "tools/android-vpn-lab/AndroidManifest.xml": "e97f6cf363746c9ba34cddecb9e9f6c754bcb662b5068cb0b4e679a4f21376cd",
+    "scripts/l001_build_android_vpn_lab.py": "a7c275dd35b131ffa1f0e05209201c472ff42c3d6d99f26510de15e3b72285cd"
+  },
+  "commands": [
+    {
+      "argv": [
+        "javac",
+        "--release",
+        "8",
+        "-cp",
+        "/Users/will/Library/Android/sdk/platforms/android-35/android.jar",
+        "-d",
+        "/Volumes/Data/Code/Loom/target/android-vpn-lab/classes",
+        "/Volumes/Data/Code/Loom/tools/android-vpn-lab/ProbeActivity.java"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": "\u8b66\u544a: [options] \u6e90\u503c 8 \u5df2\u8fc7\u65f6\uff0c\u5c06\u5728\u672a\u6765\u53d1\u884c\u7248\u4e2d\u5220\u9664\n\u8b66\u544a: [options] \u76ee\u6807\u503c 8 \u5df2\u8fc7\u65f6\uff0c\u5c06\u5728\u672a\u6765\u53d1\u884c\u7248\u4e2d\u5220\u9664\n\u8b66\u544a: [options] \u8981\u9690\u85cf\u6709\u5173\u5df2\u8fc7\u65f6\u9009\u9879\u7684\u8b66\u544a, \u8bf7\u4f7f\u7528 -Xlint:-options\u3002\n3 \u4e2a\u8b66\u544a\n"
+    },
+    {
+      "argv": [
+        "/Users/will/Library/Android/sdk/build-tools/35.0.0/d8",
+        "--min-api",
+        "26",
+        "--lib",
+        "/Users/will/Library/Android/sdk/platforms/android-35/android.jar",
+        "--output",
+        "/Volumes/Data/Code/Loom/target/android-vpn-lab/dex",
+        "/Volumes/Data/Code/Loom/target/android-vpn-lab/classes/fun/loom/lab/ProbeActivity$Tunnel$1.class",
+        "/Volumes/Data/Code/Loom/target/android-vpn-lab/classes/fun/loom/lab/ProbeActivity$Tunnel.class",
+        "/Volumes/Data/Code/Loom/target/android-vpn-lab/classes/fun/loom/lab/ProbeActivity.class"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "/Users/will/Library/Android/sdk/build-tools/35.0.0/aapt",
+        "package",
+        "-f",
+        "-M",
+        "/Volumes/Data/Code/Loom/tools/android-vpn-lab/AndroidManifest.xml",
+        "-I",
+        "/Users/will/Library/Android/sdk/platforms/android-35/android.jar",
+        "-F",
+        "/Volumes/Data/Code/Loom/target/android-vpn-lab/unsigned.apk"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "/Users/will/Library/Android/sdk/build-tools/35.0.0/zipalign",
+        "-f",
+        "4",
+        "/Volumes/Data/Code/Loom/target/android-vpn-lab/unsigned.apk",
+        "/Volumes/Data/Code/Loom/target/android-vpn-lab/aligned.apk"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "/Users/will/Library/Android/sdk/build-tools/35.0.0/apksigner",
+        "sign",
+        "--ks",
+        "/Volumes/Data/Code/Loom/target/android-vpn-lab/debug-only.p12",
+        "--ks-key-alias",
+        "lab",
+        "--ks-pass",
+        "pass:android",
+        "--key-pass",
+        "pass:android",
+        "--out",
+        "/Volumes/Data/Code/Loom/target/android-vpn-lab/loom-vpn-lab.apk",
+        "/Volumes/Data/Code/Loom/target/android-vpn-lab/aligned.apk"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "/Users/will/Library/Android/sdk/build-tools/35.0.0/apksigner",
+        "verify",
+        "--verbose",
+        "--print-certs",
+        "/Volumes/Data/Code/Loom/target/android-vpn-lab/loom-vpn-lab.apk"
+      ],
+      "exit_code": 0,
+      "stdout": "Verifies\nVerified using v1 scheme (JAR signing): false\nVerified using v2 scheme (APK Signature Scheme v2): true\nVerified using v3 scheme (APK Signature Scheme v3): true\nVerified using v3.1 scheme (APK Signature Scheme v3.1): false\nVerified using v4 scheme (APK Signature Scheme v4): false\nVerified for SourceStamp: false\nNumber of signers: 1\nSigner #1 certificate DN: CN=Loom disposable laboratory\nSigner #1 certificate SHA-256 digest: 062e671341f30e5faaeaafa81d716b8a8d219fe24abf3d2dd61af5cfa522e51a\nSigner #1 certificate SHA-1 digest: 8dc17701a2fcb9699f996bb07bd2c5a7d003c2cf\nSigner #1 certificate MD5 digest: 4594e356ce692e656162eb957d2a1d71\nSigner #1 key algorithm: RSA\nSigner #1 key size (bits): 2048\nSigner #1 public key SHA-256 digest: c022bc21cb8a9877436de9d2a21237220271a4940c8d5c0ed749d44c8576319b\nSigner #1 public key SHA-1 digest: 2987db453e2e815bd20602df1f7720e027e208e0\nSigner #1 public key MD5 digest: c75b4c57da173aca8530a6221fe07743\n",
+      "stderr": ""
+    }
+  ]
+}

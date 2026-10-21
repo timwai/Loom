@@ -1,0 +1,6 @@
+{
+  "state": "failed",
+  "scope": "aggregate validator",
+  "reason": "stop-android-server runner uses expected=null; its actual exit code is 0 in both runs",
+  "fix": "explicitly require exit 0 for the named cleanup command; all other commands must match expected"
+}

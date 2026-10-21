@@ -1,12 +1,12 @@
 # Loom v1.1 评审整改跟踪与安全门禁
 
 > 基线：2026-10-17 原 v1.0 评审；本表的“设计已补充”**不等于任何测试通过**。
-> 当前所有行均未完成实施验证。`candidate_only` 表示重要协议选择尚待 P0 比较、验签向量和正式签字。
+> 本表保留 2026-10-17 的历史设计评审基线，不代表当前实施进度。最新本机与 Docker 证据见 [L-001 实测报告](acceptance/evidence/l001-local-docker-20261019/REPORT.md)，正式门禁仍未通过。基线时所有行均未完成实施验证。`candidate_only` 表示重要协议选择尚待 P0 比较、验签向量和正式签字。
 
 | 项目 | P0 | P1 | P2 | 结论 |
 |---|---:|---:|---:|---|
 | 已形成设计回应 | 8 | 9 | 4 | 均待复核并签字 |
-| 实际实施/跑测完成 | 0 | 0 | 0 | 未运行 Rust PoC 或目标平台实测 |
+| 基线时实际实施/跑测完成 | 0 | 0 | 0 | 2026-10-17 的历史统计，不是当前测试状态 |
 
 ## 21 条跟踪映射
 
@@ -43,6 +43,11 @@
 5. Android/Windows/macOS P0 实机 Spike 输出可交付范围；不满足 entitlement 的功能明确降级。
 6. 旧 RelayProxy 仍保持正常运行；默认不切换系统代理/过滤驱动。
 
-## 当前 Release Gate
+## 2026-10-17 历史 Release Gate
 
 `DESIGN_ONLY / SECURITY_PROTOCOL_NOT_FROZEN / NO_RUST_BUILD / NO_CROSS_PLATFORM_POC / MAIN_NOT_TOUCHED`。
+当前状态：L-001 PoC 工程已整合，本机与 Docker 实验已完成；生产发布门禁仍为 `BLOCKED / NO_SERVICE_OPEN`。参见 [机器可读验收清单](acceptance/l001.json)。
+
+2026-10-20 补充：[JP Android Docker 实验](acceptance/evidence/l001-android-jp-20261020/REPORT.md)在容器重启后通过 248 项原生测试及独立 VPN API 调试 APK 五项检查。生产 Rust/JNI VPN、完整泄漏测试与物理设备仍未验收，不据此填写平台或安全审查签字。
+
+2026-10-20 本轮：[现有环境集成验收](acceptance/evidence/l001-integrated-20261020/REPORT.md)中 macOS/Linux/Android 各 268 项通过；真实 Rust JNI 成员签名、TUN 边界及保护后连接的 socket 工厂在容器重启后复验通过。签名成员与 Owner 授权只是候选验证，生产 ServiceOpen、独立防回滚、完整 VPN 转发和真机仍缺失；Windows 暂无环境、macOS 暂无签名条件。本轮不填写四类独立审查签字。

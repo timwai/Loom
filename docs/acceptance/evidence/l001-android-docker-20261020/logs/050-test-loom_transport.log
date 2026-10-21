@@ -1,0 +1,14 @@
+
+running 7 tests
+test secure_channel::tests::direct_mutual_tls_and_encrypted_association ... ok
+test secure_channel::tests::malicious_relay_observes_ciphertext_not_service_plaintext ... ok
+test secure_channel::tests::relay_cannot_modify_tls_handshake_into_valid_peer_channel ... ok
+test secure_channel::tests::space_mismatch_fails_before_service_open ... ok
+test secure_channel::tests::wrong_remote_epoch_or_revoked_membership_fails ... ok
+test tests::transport_is_not_implicitly_trusted ... ok
+test secure_channel::tests::wrong_target_certificate_fails_tls ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+
+STDERR:

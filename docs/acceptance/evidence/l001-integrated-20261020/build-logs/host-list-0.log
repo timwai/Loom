@@ -1,0 +1,17 @@
+lan_file_read_model::tests::any_policy_change_fails_closed_for_existing_stream: test
+lan_file_read_model::tests::concurrent_revoke_race_orders_before_subsequent_read: test
+lan_file_read_model::tests::default_is_no_grants_no_sessions: test
+lan_file_read_model::tests::grant_after_revoke_cannot_resurrect_an_old_stream: test
+lan_file_read_model::tests::invalid_chunk_requests_do_not_consume_file: test
+lan_file_read_model::tests::lost_process_state_fails_closed_without_grants: test
+lan_file_read_model::tests::membership_key_epoch_rotation_requires_new_session: test
+lan_file_read_model::tests::oversized_fixture_and_invalid_zero_epoch_are_rejected: test
+lan_file_read_model::tests::owner_fixture_allows_exact_peer_resource_and_epoch_only: test
+lan_file_read_model::tests::production_policy_boundary_still_denies_every_file_read: test
+lan_file_read_model::tests::revoke_invalidates_an_already_open_file_stream_before_next_chunk: test
+lan_file_read_model::tests::wrong_space_resource_and_membership_epoch_are_denied: test
+tests::bootstrap_must_not_serve_network_or_resources: test
+
+13 tests, 0 benchmarks
+
+STDERR:

@@ -1,0 +1,2 @@
+# Preserve acceptance snapshots byte-for-byte, including raw log spacing.
+docs/acceptance/evidence/** -text -whitespace

@@ -1,0 +1,49 @@
+
+running 42 tests
+test membership::tests::root_delegates_only_membership_and_epochs_remain_distinct ... ok
+test membership::tests::stale_or_future_sequence_and_zero_requirement_refused ... ok
+test membership::tests::substituted_root_and_modified_delegation_refused ... ok
+test membership::tests::validity_is_half_open_and_bounded_by_delegation ... ok
+test membership::tests::wrong_kind_length_and_invalid_member_key_refused ... ok
+test membership::tests::wrong_space_writer_and_exact_epochs_refused ... ok
+test owner_authority::tests::cannot_forge_owner_or_delegate ... ok
+test owner_authority::tests::cannot_increase_delegation_rights_or_cross_resource ... ok
+test owner_authority::tests::grant_not_signed_for_different_space_or_key_id ... ok
+test owner_authority::tests::no_replay_as_different_event_type ... ok
+test owner_authority::tests::owner_signed_revoke_only_chain_and_persisted_evidence ... ok
+test owner_authority::tests::reject_expiry_owner_epoch_and_delegated_key_epoch ... ok
+test owner_authority::tests::saved_envelope_rejects_truncation_suffix_and_forged_grant ... ok
+test owner_authority::tests::saved_owner_delegation_replays_with_both_signatures ... ok
+test membership::tests::bad_signature_trailing_bytes_and_truncated_cbor_refused ... ok
+test owner_lifecycle::tests::forged_cancellation_wrong_scope_epoch_and_duplicate_rejected ... ok
+test owner_lifecycle::tests::cancellation_consumes_sequence_and_blocks_backdated_valid_signature ... ok
+test owner_lifecycle::tests::other_valid_delegate_can_still_revoke_after_cancel ... ok
+test owner_lifecycle::tests::forging_either_owner_signature_or_replaying_transfer_fails ... ok
+test owner_lifecycle::tests::owner_transfer_requires_both_owners_and_root_signed_successor_policy ... ok
+test owner_lifecycle::tests::resource_policy_head_commits_to_control_and_data_order ... ok
+test root_rotation::tests::both_root_keys_must_confirm_rotation ... ok
+test root_rotation::tests::changes_to_epoch_space_or_successor_key_fail ... ok
+test root_rotation::tests::expired_or_future_dated_rotation_rejected ... ok
+test root_rotation::tests::forged_old_or_new_signature_rejected ... ok
+test owner_lifecycle::tests::wrong_successor_epoch_and_manifest_detected ... ok
+test root_rotation::tests::substituted_previously_pinned_key_is_not_accepted ... ok
+test signed_revocation::tests::malformed_revocation_payload_is_not_authorized_by_valid_signature ... ok
+test signed_revocation::tests::typed_revocation_requires_scope_signature_epoch_and_time ... ok
+test signed_revocation::tests::verifies_independent_go_js_ed25519_vector ... ok
+test space_trust::tests::root_epoch_cross_space_and_expiry_rejected ... ok
+test space_trust::tests::cannot_replace_or_duplicate_authorized_witness ... ok
+test space_trust::tests::root_key_substitution_and_manipulated_owner_rejected ... ok
+test space_trust::tests::signed_root_binds_owner_and_two_distinct_witnesses ... ok
+test tests::no_placeholder_accepts_signature ... ok
+test witness_checkpoint::tests::conflicting_valid_signatures_freeze_instead_of_selecting_lower_seq ... ok
+test space_trust::tests::writer_epoch_and_checkpoint_signature_are_bound_to_root_policy ... ok
+test witness_checkpoint::tests::deterministic_revocation_roots_are_epoch_sensitive ... ok
+test witness_checkpoint::tests::duplicate_witness_or_missing_witness_cannot_fake_quorum ... ok
+test witness_checkpoint::tests::independent_signatures_verify_but_do_not_mint_access ... ok
+test witness_checkpoint::tests::witness_id_binding_detects_substitution ... ok
+test witness_checkpoint::tests::tampering_wrong_scope_and_expiry_rejected ... ok
+
+test result: ok. 42 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.19s
+
+
+STDERR:

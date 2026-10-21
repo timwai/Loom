@@ -1,0 +1,15 @@
+
+running 8 tests
+test owner_grant_binds_root_resource_member_epochs_actions_and_time ... ok
+test owner_grant_refuses_signed_field_substitution ... ok
+test owner_grant_refuses_stale_policy_and_membership_writer_authority ... ok
+test owner_grant_refuses_tampered_truncated_and_noncanonical_input ... ok
+test paused_membership_refuses_real_tls_association ... ok
+test membership_is_rechecked_after_asynchronous_association ... ok
+test signed_credentials_bind_tls_key_and_distinct_membership_epoch ... ok
+test tls_key_epoch_cannot_impersonate_membership_epoch ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+
+
+STDERR:

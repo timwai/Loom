@@ -1,0 +1,20 @@
+VPNs:
+  0: fun.loom.lab
+    Active package name: fun.loom.lab
+    Active vpn type: -1
+    NetworkCapabilities: [ Transports: VPN Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED TransportInfo: <VpnTransportInfo{type=-1, sessionId=null, bypassable=false longLivedTcpConnectionsExpensive=false}> OwnerUid: 10092 AdminUids: [10092] UnderlyingNetworks: Null]
+    
+    mCachedCarrierConfigInfoPerSubId={}
+    mEventChanges (most recent first):
+      2026-10-20T01:03:55.631780 - [UnderlyingNW] Switch to null
+      2026-10-20T01:03:54.410324 - [LockdownAlwaysOn] Mode changed: lockdown=false alwaysOn=false calling from 1000
+      2026-10-20T01:03:47.281347 - [UnderlyingNW] Switch to null
+      2026-10-20T01:03:45.368539 - [UnderlyingNW] Switch to null
+      2026-10-20T00:57:09.326552 - [UnderlyingNW] Switch to null
+      2026-10-20T00:57:08.146594 - [LockdownAlwaysOn] Mode changed: lockdown=false alwaysOn=false calling from 1000
+      2026-10-20T00:57:00.256055 - [UnderlyingNW] Switch to null
+      2026-10-20T00:56:58.724746 - [UnderlyingNW] Switch to null
+      2026-10-20T00:53:48.501420 - [LockdownAlwaysOn] Mode changed: lockdown=false alwaysOn=false calling from 1000
+  
+
+STDERR:

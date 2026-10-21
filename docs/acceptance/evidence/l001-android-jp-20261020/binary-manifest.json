@@ -1,0 +1,157 @@
+{
+  "binaries": [
+    {
+      "name": "loom_identity",
+      "file": "loom_identity-8e6780a0813b8405",
+      "kind": "test",
+      "source_binary_sha256": "6aef4f8bde7aa943ef3e4c2d56621546cf6984fb983e29ec264296d237fdc9e5",
+      "sha256": "b0d0a068614a8040dc2dd5da2d4cf87f6be3c7dbcd0ec475833e6d228ac59aad"
+    },
+    {
+      "name": "loom_policy",
+      "file": "loom_policy-3d7476e18a646a63",
+      "kind": "test",
+      "source_binary_sha256": "9f9764ed7666cdc6853ad7082d75a837fbcacd8a7ff4f623bf102db9d99f0630",
+      "sha256": "194c8a36ea4ad306e2f018c99d3db27ca7b19e32b316c278d3f7b3153985df3f"
+    },
+    {
+      "name": "loom_types",
+      "file": "loom_types-2980fda90dd1f95c",
+      "kind": "test",
+      "source_binary_sha256": "fa63533703ee7dcb77ea7ce7a00d7d3c05ff2e92c07b1b722a655c5e55319410",
+      "sha256": "9c43532032f5fe241041b944bc61c23dad3aff7185ea96b815e617bf45515903"
+    },
+    {
+      "name": "loom_wire",
+      "file": "loom_wire-a87839a5136da267",
+      "kind": "test",
+      "source_binary_sha256": "4574157801efa075d7be6e0021a423d383c49b1b513555d40577f50a863f3d4f",
+      "sha256": "1bc13fc1fefbb80c70b344e26601deb1c10143d089263b2acb7d387e8eeb4cae"
+    },
+    {
+      "name": "loom_crypto",
+      "file": "loom_crypto-8c9ef1ca847fbe47",
+      "kind": "test",
+      "source_binary_sha256": "7083d41c6c96808d35ab973ec8923bb19c4d1ae9668b500ecd6fffd036f2fe03",
+      "sha256": "30fe26577b60efde09fa369266e32042d78e83671c42e19757d280cd7955d204"
+    },
+    {
+      "name": "l001_storage_lab",
+      "file": "l001_storage_lab-dd30f92bae76ba5a",
+      "kind": "test",
+      "source_binary_sha256": "c7498be20b027a479f4ecf9b440771f1655639242f0ac34787eff854a53ee294",
+      "sha256": "3aa9d589471caf5462a7331a563ca00da79c859d3008506889e57797f02dbb39"
+    },
+    {
+      "name": "probe_tpm2",
+      "file": "probe_tpm2-12990fedbbf5e9f1",
+      "kind": "test",
+      "source_binary_sha256": "bc3b840ca4c5472cea6c34d5d3aec59ac6d6591ca63df1febddf3aaa67722b6a",
+      "sha256": "dcaf43633f235227d9392aeca548b5d87ed2efbd7c9a6d8607a206e192736e0e"
+    },
+    {
+      "name": "loom_store",
+      "file": "loom_store-423327a9f55ca10d",
+      "kind": "test",
+      "source_binary_sha256": "4a740c316386a83631902bbac743d333d44b26f4398c2cb3523b284a10174a2c",
+      "sha256": "0859ca3b747f4a54e0f6795869ce035fcbe04ac83213d9c3de25267aa53ac05d"
+    },
+    {
+      "name": "loomd",
+      "file": "loomd-cc21644a5168284e",
+      "kind": "test",
+      "source_binary_sha256": "1a42683c8115ff0f89580e6af64ad07828e7911ab4f4b9eb40ca2f8382e38142",
+      "sha256": "c7604b7dc816dd4284023906a703608b23b07916d643cf69d5d22dc5781573ba"
+    },
+    {
+      "name": "loom_core",
+      "file": "loom_core-b1fd32ad14e1c42d",
+      "kind": "test",
+      "source_binary_sha256": "07dc69eb9a0015f6b06d8e054533bce84104f6be6b2d5b781ec7bd02e00b18e1",
+      "sha256": "7e87afd0c5e6ce2f3ae2094a1dca3300608477f88ddfdfd9d7c77858b9a99088"
+    },
+    {
+      "name": "l001_channel_lab",
+      "file": "l001_channel_lab-07897b1e0a2f4381",
+      "kind": "test",
+      "source_binary_sha256": "a1b8ee1f4e41c7923d6c59738b359652385d0d3676149a19745d88041e1e5f72",
+      "sha256": "97cc9175c7bf25bd2b579308385cb5f9b84c5f80bd3510f55521acf7265af1ae"
+    },
+    {
+      "name": "loom_transport",
+      "file": "loom_transport-a530c3515269d9da",
+      "kind": "test",
+      "source_binary_sha256": "c9c53aeb1797eeb948f9f33290c490994b89311c45a5203631d3036a4a802787",
+      "sha256": "c1ac9d554a0ed266bea74bf3447c19f03c982f98ba236b7011b49effedb3ead7"
+    },
+    {
+      "name": "l001_channel_lab",
+      "file": "l001_channel_lab",
+      "kind": "example",
+      "source_binary_sha256": "f0cd84a61ae03ba6d1428b846cd43083ceed3816b65567b02d93db9365b4d766",
+      "sha256": "58c3424f8765a9fa7616f9868c812d371197bec5584e17717aec50b4531b447e"
+    },
+    {
+      "name": "l001_storage_lab",
+      "file": "l001_storage_lab",
+      "kind": "example",
+      "source_binary_sha256": "c163955aaf47207de4edb13cb1175f39106696c320b3a42d44e1d6479e67dc9f",
+      "sha256": "06cce7f47e8caa3bf1e3781e3163f646c79bf2445c856be960fa841f7af2a0f3"
+    }
+  ],
+  "linux_channel_sha256": "4c36c68af84df33893e2cfcc2da61350436e169596f714fc63d8714b91283a39",
+  "transform": "llvm-strip --strip-debug; no code changes",
+  "source_commit": "498870abff9b7fede983b9ef59b0aa7132520ca4",
+  "source_sha256": {
+    "Cargo.lock": "86c893d344638712f2222043042bfc5508b4e49bfe979fe4040bd5cbb23eec18",
+    "Cargo.toml": "fc85a70998409d898ef287b0360b38b0ff22be9a286b413c007b076324961ba2",
+    "crates/loom-core/Cargo.toml": "c3eed48c91fd838cb17841327dd6b4a56c88dde6a4a4c45e0d22cb75ff028379",
+    "crates/loom-core/src/lan_file_read_model.rs": "a75236be2cf46e14afa599b1a2801780f65d22dfe2a1be2ab6ebd69a744999b4",
+    "crates/loom-core/src/lib.rs": "ad30336650f1552644b6edae3130d31cf1f5a56c29b9ed5882b659b9e885e00a",
+    "crates/loom-crypto/Cargo.toml": "be1a6dc83ce27636fd5d536957212ba93a316239ca01b19f353b112641f41a39",
+    "crates/loom-crypto/src/lib.rs": "78e09f5cf02e1ab307089d8d4e8a20a9d4e4eaac4410435a77e4caccc2fa886a",
+    "crates/loom-crypto/src/owner_authority.rs": "17f7896321c5d7ec295be891319408abd30180a28ae07e2da2f3a9bd9be444a4",
+    "crates/loom-crypto/src/owner_lifecycle.rs": "ca6c7bb3bc385f13510fb938ece2aa0e05f09ecdf847d6c17820c7616ba8926e",
+    "crates/loom-crypto/src/root_rotation.rs": "d9dc95b8eb88ac12a493e8fba7bc911b366912374e72882443ede756c8c2b7f2",
+    "crates/loom-crypto/src/signed_revocation.rs": "71c59a0e8fa17b742cc84ff4810bea8266486480c030a84a494054f1a12f28e5",
+    "crates/loom-crypto/src/space_trust.rs": "20e8eece3bb3ff71c6a64c72e3152299cd311a78e8d1d2795215e06821053c44",
+    "crates/loom-crypto/src/witness_checkpoint.rs": "829eb059e79564137c2c84f5ffddcc7408dfe4c49b88711b9fbaaa89f03e7a1c",
+    "crates/loom-identity/Cargo.toml": "65fca579af33832a12a7b716d8a1eeade785a041b9a2c2b980469e5837832dc7",
+    "crates/loom-identity/src/lib.rs": "17cd030fc55ce7d305e6b5fce1b1abe6c9f7e76d069fbe966405d81dfd557f72",
+    "crates/loom-policy/Cargo.toml": "9d4f41b782bb5b15a93cd71a9bf157e0003eedf76fac14611f706c6e08e1e07d",
+    "crates/loom-policy/src/lib.rs": "1a0a2772b339e5069da0642195a3c749c7cc65e557d2b85dba0523a1546204d7",
+    "crates/loom-store/Cargo.toml": "9f43f00de5da3b0aa61d7406524e32ac171aa834389ceb0dff96ac8d4c4d2b3e",
+    "crates/loom-store/examples/l001_storage_lab.rs": "01de198a3f29e0d6b7d9074684179bf59186e607eb286281e35fa7916fb6dcb9",
+    "crates/loom-store/examples/probe_tpm2.rs": "b67933d133ec6618c2fb123827d78491124261f9a6b49a56f5e5ad5c9911ab9a",
+    "crates/loom-store/src/anchor_conformance.rs": "5342891620406311dd4f7f707f681b850e09d1012ce87fa7837a12eabfd48271",
+    "crates/loom-store/src/authenticated_intent_read_gate.rs": "d05eafd2c697add28905dfda94abc23061b3560721f164907238ba1e5a697eeb",
+    "crates/loom-store/src/authenticated_intent_record.rs": "d3537dcb5cc29f63233d9fa4e10fb583aaf1ef377f984b66a38fb2d534e30332",
+    "crates/loom-store/src/authenticated_intent_write_model.rs": "164520935a8f79498500ebd6bc803c571ac8db91b0dca6beb2fc3a03c994693e",
+    "crates/loom-store/src/challenge_witness_quorum.rs": "ada1158c845f385630f98d5765219d8251108513e9f2e4d1ead698217f7bf718",
+    "crates/loom-store/src/durable_intent_simulator.rs": "65b4913d55a0d25d79a0dc62852264f2cb31b398b21c6197d74d7ac8c735f737",
+    "crates/loom-store/src/independent_reservation_fence_model.rs": "fdd1757305396fd886f9066c45fa806a9d9772a23fd72d5fbcbad5934fb990e7",
+    "crates/loom-store/src/legacy_history_audit.rs": "00df7cd9e77c5d16dea071a4a1932617286a3beda2aa4bfa12dc2aae3b1bb4e3",
+    "crates/loom-store/src/legacy_migration.rs": "f7b4ff4bc22704ab5141e622334997a2673423f42ed04c3db42101b470f40e3b",
+    "crates/loom-store/src/lib.rs": "9fb0c079d0b979f4f7ec983b6f6d9b4e1eb4438b5eb9ad9d23617fa3d85d02d4",
+    "crates/loom-store/src/linux_tpm2_probe.rs": "50af849ca76954c4d45fdd751c234cdcd8c13b513745afbf22e796cfe0399cf7",
+    "crates/loom-store/src/policy_journal_codec.rs": "388a6df1409c6934004083eec82a738ff45cfc57f8460f788dffffc2c4d16426",
+    "crates/loom-store/src/rollback_anchor.rs": "36e2a43e9266d90a4d9c4e6814165cfc241351bbf5c07a25cec0251af68e0144",
+    "crates/loom-store/src/sqlite_revocation.rs": "663e5ac3205f8016c8890434549de1fc774f5274b1f86d35fecddf4582a4977d",
+    "crates/loom-store/src/tpm_counter_binding.rs": "b06b22c469fa13ee13b10aee95e1f5835fa84ef5788cc87425f3cddfb9540e2f",
+    "crates/loom-store/src/trusted_state_provider.rs": "eb0a4c37d27f3914146fd12c3479b74bf64a9dd976333f58ed4cf28417a20ed7",
+    "crates/loom-store/src/unified_policy_anchor.rs": "f2d2822401961d7ec6937378d0f117b34e10562178013947cd463d354e11d000",
+    "crates/loom-store/src/unified_policy_journal.rs": "8a5b7a9e5fd57cdb557a37cfd46826d34e02091ab9f75b482013da924eb63440",
+    "crates/loom-transport/Cargo.toml": "98ef8ac0bcf11d5abf012a45e06b318bbcb54d2e19b64e0fddf997dc6ef4f439",
+    "crates/loom-transport/examples/l001_channel_lab.rs": "a81ee34f452fb0b9965c4f53df45ad8a1f5268745846b48d4dbd4d1f151b5be6",
+    "crates/loom-transport/src/lib.rs": "a191c3d9da31cbf8624c93e6d168f26e04acf3c205308b7c38f56d7be1ac28ee",
+    "crates/loom-transport/src/secure_channel.rs": "8f0ec1f8fb0b565a7dff6acd2c3b94f4d5145e7a1b9585814287e40658beb14f",
+    "crates/loom-types/Cargo.toml": "173289a59a62e58240674810648941d36b22c2dc5dab4ee0d22e8141c8183999",
+    "crates/loom-types/src/lib.rs": "c88be845ee5a1f3299ff842be2e805d07ab6c972fd9665e9ff7dcc44ec0fefe5",
+    "crates/loom-wire/Cargo.toml": "024ab9e9f0c67fcb90391fb0fbb8b14f41e6676a7a7a760f77bf8c104a94955a",
+    "crates/loom-wire/src/lib.rs": "c2acd5497bb2223dc683158b4bc10ff436c8d34e284aeabdd25cdc7800e43583",
+    "crates/loom-wire/src/security_event.rs": "d89c7cefc3eb73913a8e493c3de326a4f490d9c06429e689eab1f029229b81c2",
+    "scripts/l001_android_docker.py": "5db402165063f6b37a9671ec4b56a621e49fa19b1a761507207e806e4afd24df",
+    "scripts/l001_android_server.py": "b0c4f05f5389adc64cdff3ba30b19cc2483455d28bc0ae8cc34a089f9ef7c720"
+  },
+  "android_build_provenance": "local Android NDK build, validated 20261019T234819Z; Rust/Cargo source hashes unchanged"
+}

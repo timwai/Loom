@@ -1,0 +1,10 @@
+Starting: Intent { act=android.settings.VPN_SETTINGS }
+Warning: Activity not started, its current task has been brought to the front
+Status: ok
+LaunchState: HOT
+Activity: com.android.settings/.Settings$VpnSettingsActivity
+TotalTime: 82
+WaitTime: 85
+Complete
+
+STDERR:

@@ -1,0 +1,34 @@
+{
+  "state": "passed",
+  "native_tests": 248,
+  "native_execution_uid": 2000,
+  "vpn_cases": 5,
+  "vpn_application_uid": 10090,
+  "source_snapshots_match": true,
+  "all_performance_samples_finite_positive": true,
+  "independent_echo_log": {
+    "protected_datagrams": 3,
+    "unprotected_datagrams": 0,
+    "window_start_utc": "2026-10-20T00:17:50.818724+00:00",
+    "window_end_utc": "2026-10-20T00:18:17.614129+00:00"
+  },
+  "container_restart_revalidated": true,
+  "production_android_acceptance": "blocked",
+  "checks": {
+    "python3 scripts/l001_gate.py": {
+      "exit_code": 0,
+      "stdout": "L-001 COMPLETION: BLOCKED\nUnmet gates: E2EE-01, TLS-ID-01, WIRE-01, AUTHZ-RACE-01, AUTHZ-CRASH-02, ROLLBACK-01, PLATFORM-ANDROID-01, PLATFORM-WIN-01, PLATFORM-MAC-01, SIGNOFF:security, SIGNOFF:interop, SIGNOFF:platform, SIGNOFF:trusted_state\n",
+      "stderr": ""
+    },
+    "python3 scripts/l001_gate.py --require-complete": {
+      "exit_code": 1,
+      "stdout": "L-001 COMPLETION: BLOCKED\nUnmet gates: E2EE-01, TLS-ID-01, WIRE-01, AUTHZ-RACE-01, AUTHZ-CRASH-02, ROLLBACK-01, PLATFORM-ANDROID-01, PLATFORM-WIN-01, PLATFORM-MAC-01, SIGNOFF:security, SIGNOFF:interop, SIGNOFF:platform, SIGNOFF:trusted_state\n",
+      "stderr": "Refusing release: all L-001A/B/C/D reviews required\n"
+    },
+    "git diff --check": {
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    }
+  }
+}

@@ -1,0 +1,180 @@
+diff --git a/Cargo.lock b/Cargo.lock
+index 68cd29e..dfe4b9c 100644
+--- a/Cargo.lock
++++ b/Cargo.lock
+@@ -486,6 +486,17 @@ version = "0.2.1"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "68354c5c6bd36d73ff3feceb05efa59b6acb7626617f4962be322a825e61f79a"
+ 
++[[package]]
++name = "mio"
++version = "1.2.0"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "50b7e5b27aa02a74bac8c3f23f448f8d87ff11f92d3aac1a6ed369ee08cc56c1"
++dependencies = [
++ "libc",
++ "wasi",
++ "windows-sys 0.61.2",
++]
++
+ [[package]]
+ name = "nom"
+ version = "7.1.3"
+@@ -640,7 +651,7 @@ dependencies = [
+  "getrandom 0.2.17",
+  "libc",
+  "untrusted",
+- "windows-sys",
++ "windows-sys 0.52.0",
+ ]
+ 
+ [[package]]
+@@ -778,6 +789,16 @@ version = "1.16.3"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "5b3dc8af474f516a851ff4bd12db780f948b9250ad37211e4eec0bccea54e01b"
+ 
++[[package]]
++name = "socket2"
++version = "0.6.3"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "3a766e1110788c36f4fa1c2b71b387a7815aa65f88ce0229841826633d93723e"
++dependencies = [
++ "libc",
++ "windows-sys 0.61.2",
++]
++
+ [[package]]
+ name = "spki"
+ version = "0.7.3"
+@@ -884,8 +905,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "ce3335fa71841cda333a58d7615b03901380ecf09d59b3296d21f8bbac0dde4e"
+ dependencies = [
+  "bytes",
++ "libc",
++ "mio",
+  "pin-project-lite",
++ "socket2",
+  "tokio-macros",
++ "windows-sys 0.61.2",
+ ]
+ 
+ [[package]]
+@@ -945,6 +970,12 @@ version = "0.11.1+wasi-snapshot-preview1"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "ccf3ec651a847eb01de73ccad15eb7d99f80485de043efb2f370cd654f4ea44b"
+ 
++[[package]]
++name = "windows-link"
++version = "0.2.1"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "f0805222e57f7521d6a62e36fa9163bc891acd422f971defe97d64e70d0a4fe5"
++
+ [[package]]
+ name = "windows-sys"
+ version = "0.52.0"
+@@ -954,6 +985,15 @@ dependencies = [
+  "windows-targets",
+ ]
+ 
++[[package]]
++name = "windows-sys"
++version = "0.61.2"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "ae137229bcbd6cdf0f7b80a31df61766145077ddf49416a728b02cb3921ff3fc"
++dependencies = [
++ "windows-link",
++]
++
+ [[package]]
+ name = "windows-targets"
+ version = "0.52.6"
+diff --git a/crates/loom-store/src/linux_tpm2_probe.rs b/crates/loom-store/src/linux_tpm2_probe.rs
+index b9a52bd..48b980a 100644
+--- a/crates/loom-store/src/linux_tpm2_probe.rs
++++ b/crates/loom-store/src/linux_tpm2_probe.rs
+@@ -11,16 +11,27 @@ use crate::unified_policy_anchor::{
+ };
+ use loom_types::{ResourceId, SpaceId};
+ 
++#[cfg(any(target_os = "linux", test))]
+ const TPM_ST_NO_SESSIONS: u16 = 0x8001;
++#[cfg(any(target_os = "linux", test))]
+ const TPM_CC_GET_CAPABILITY: u32 = 0x0000_017a;
++#[cfg(any(target_os = "linux", test))]
+ const TPM_CAP_HANDLES: u32 = 1;
++#[cfg(any(target_os = "linux", test))]
+ const TPM_CAP_PROPERTIES: u32 = 6;
++#[cfg(any(target_os = "linux", test))]
+ const TPM_PT_FAMILY_INDICATOR: u32 = 0x0000_0100;
++#[cfg(any(target_os = "linux", test))]
+ const TPM_PT_MANUFACTURER: u32 = 0x0000_0105;
++#[cfg(any(target_os = "linux", test))]
+ const TPM_NV_FIRST: u32 = 0x0100_0000;
++#[cfg(any(target_os = "linux", test))]
+ const TPM_NV_LAST: u32 = 0x01ff_ffff;
++#[cfg(any(target_os = "linux", test))]
+ const TPM_FAMILY_20: u32 = 0x322e_3000; // "2.0\0"
++#[cfg(any(target_os = "linux", test))]
+ const MAX_NV_PAGE: u32 = 32;
++#[cfg(any(target_os = "linux", test))]
+ const MAX_REPLY: usize = 4096;
+ 
+ #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+@@ -68,6 +79,7 @@ impl IndependentUnifiedPolicyAnchor for LinuxTpm2Candidate {
+ 
+ /// The TPM chip command is a *read-only* TPM2_GetCapability. Its request and
+ /// response contain no passwords, data writes or authorization sessions.
++#[cfg(any(target_os = "linux", test))]
+ fn request(capability: u32, property: u32, count: u32) -> [u8; 22] {
+     let mut output = [0u8; 22];
+     output[0..2].copy_from_slice(&TPM_ST_NO_SESSIONS.to_be_bytes());
+@@ -81,15 +93,18 @@ fn request(capability: u32, property: u32, count: u32) -> [u8; 22] {
+ 
+ /// Low-level raw read-only TPM command transport. A mock is used in CI;
+ /// the actual Linux provider uses a Linux TPM resource-manager char device.
++#[cfg(any(target_os = "linux", test))]
+ trait TpmTransport {
+     fn exchange(&mut self, command: &[u8]) -> Result<Vec<u8>, TpmProbeError>;
+ }
+ 
++#[cfg(any(target_os = "linux", test))]
+ struct CapabilityPage {
+     more: bool,
+     values: Vec<(u32, u32)>,
+ }
+ 
++#[cfg(any(target_os = "linux", test))]
+ fn parse_response(
+     bytes: &[u8],
+     expected_cap: u32,
+@@ -148,6 +163,7 @@ fn parse_response(
+     })
+ }
+ 
++#[cfg(any(target_os = "linux", test))]
+ fn property(io: &mut impl TpmTransport, property: u32) -> Result<u32, TpmProbeError> {
+     let message = io.exchange(&request(TPM_CAP_PROPERTIES, property, 1))?;
+     let page = parse_response(&message, TPM_CAP_PROPERTIES, 1)?;
+@@ -160,6 +176,7 @@ fn property(io: &mut impl TpmTransport, property: u32) -> Result<u32, TpmProbeEr
+     Ok(page.values[0].1)
+ }
+ 
++#[cfg(any(target_os = "linux", test))]
+ fn probe_with_transport(
+     version: u32,
+     device_index: u8,
+diff --git a/crates/loom-transport/Cargo.toml b/crates/loom-transport/Cargo.toml
+index 2292e58..863e184 100644
+--- a/crates/loom-transport/Cargo.toml
++++ b/crates/loom-transport/Cargo.toml
+@@ -15,7 +15,7 @@ sha2 = "0.10.9"
+ x509-parser = "0.17.0"
+ 
+ [dev-dependencies]
+-tokio = { version = "1.48.0", features = ["macros", "rt", "time", "io-util", "sync"] }
++tokio = { version = "1.48.0", features = ["macros", "rt", "time", "io-util", "sync", "net"] }
+ rcgen = "0.13.2"
+ 
+ [lints]
+
+STDERR:

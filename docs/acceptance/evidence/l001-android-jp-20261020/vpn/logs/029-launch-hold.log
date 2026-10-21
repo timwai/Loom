@@ -1,0 +1,9 @@
+Starting: Intent { flg=0x10008000 cmp=fun.loom.lab/.ProbeActivity (has extras) }
+Status: ok
+LaunchState: COLD
+Activity: fun.loom.lab/.ProbeActivity
+TotalTime: 433
+WaitTime: 435
+Complete
+
+STDERR:

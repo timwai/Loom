@@ -1,0 +1,357 @@
+{
+  "profile": "L-001-android-vpn-api-lab-v1",
+  "state": "failed",
+  "cases": {
+    "unprepared_establish_refused": {
+      "lab_only": true,
+      "uid": 10087,
+      "mode": "denied",
+      "prepare_requires_consent": true,
+      "foreground_started": true,
+      "unprepared_establish_refused": true,
+      "state": "passed",
+      "on_destroy": true
+    },
+    "system_consent_cancel": {
+      "lab_only": true,
+      "uid": 10087,
+      "mode": "probe",
+      "prepare_requires_consent": true,
+      "consent_result_ok": false,
+      "state": "consent_denied"
+    }
+  },
+  "commands": [
+    {
+      "name": "interfaces",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "-T",
+        "ip -o link show"
+      ],
+      "exit_code": 0,
+      "log": "logs/000-interfaces.log"
+    },
+    {
+      "name": "device",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "-T",
+        "sh -c 'getprop ro.build.fingerprint; getprop init.svc.lmkd; pidof system_server'"
+      ],
+      "exit_code": 0,
+      "log": "logs/001-device.log"
+    },
+    {
+      "name": "stop-previous-probe",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "-T",
+        "am force-stop fun.loom.lab"
+      ],
+      "exit_code": 0,
+      "log": "logs/002-stop-previous-probe.log"
+    },
+    {
+      "name": "close-old-consent-dialog",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "-T",
+        "am force-stop com.android.vpndialogs"
+      ],
+      "exit_code": 0,
+      "log": "logs/003-close-old-consent-dialog.log"
+    },
+    {
+      "name": "launch-denied",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "-T",
+        "am start -W -f 0x10008000 -n fun.loom.lab/.ProbeActivity --es mode denied --es echo_host 172.17.0.1 --ei echo_port 19999"
+      ],
+      "exit_code": 0,
+      "log": "logs/004-launch-denied.log"
+    },
+    {
+      "name": "app-state",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "-T",
+        "run-as fun.loom.lab cat files/result.json"
+      ],
+      "exit_code": 0,
+      "log": "logs/005-app-state.log"
+    },
+    {
+      "name": "stop-previous-probe",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "-T",
+        "am force-stop fun.loom.lab"
+      ],
+      "exit_code": 0,
+      "log": "logs/006-stop-previous-probe.log"
+    },
+    {
+      "name": "close-old-consent-dialog",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "-T",
+        "am force-stop com.android.vpndialogs"
+      ],
+      "exit_code": 0,
+      "log": "logs/007-close-old-consent-dialog.log"
+    },
+    {
+      "name": "launch-probe",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "-T",
+        "am start -W -f 0x10008000 -n fun.loom.lab/.ProbeActivity --es mode probe --es echo_host 172.17.0.1 --ei echo_port 19999"
+      ],
+      "exit_code": 0,
+      "log": "logs/008-launch-probe.log"
+    },
+    {
+      "name": "consent-cancel-dump",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "-T",
+        "uiautomator dump /data/local/tmp/loom-vpn-ui.xml"
+      ],
+      "exit_code": 0,
+      "log": "logs/009-consent-cancel-dump.log"
+    },
+    {
+      "name": "consent-cancel-xml",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "-T",
+        "cat /data/local/tmp/loom-vpn-ui.xml"
+      ],
+      "exit_code": 0,
+      "log": "logs/010-consent-cancel-xml.log"
+    },
+    {
+      "name": "tap",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "-T",
+        "input tap 441 836"
+      ],
+      "exit_code": 0,
+      "log": "logs/011-tap.log"
+    },
+    {
+      "name": "app-state",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "-T",
+        "run-as fun.loom.lab cat files/result.json"
+      ],
+      "exit_code": 0,
+      "log": "logs/012-app-state.log"
+    },
+    {
+      "name": "app-state",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "-T",
+        "run-as fun.loom.lab cat files/result.json"
+      ],
+      "exit_code": 0,
+      "log": "logs/013-app-state.log"
+    },
+    {
+      "name": "interfaces",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "-T",
+        "ip -o link show"
+      ],
+      "exit_code": 0,
+      "log": "logs/014-interfaces.log"
+    },
+    {
+      "name": "stop-previous-probe",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "-T",
+        "am force-stop fun.loom.lab"
+      ],
+      "exit_code": 0,
+      "log": "logs/015-stop-previous-probe.log"
+    },
+    {
+      "name": "close-old-consent-dialog",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "-T",
+        "am force-stop com.android.vpndialogs"
+      ],
+      "exit_code": 0,
+      "log": "logs/016-close-old-consent-dialog.log"
+    },
+    {
+      "name": "launch-probe",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "-T",
+        "am start -W -f 0x10008000 -n fun.loom.lab/.ProbeActivity --es mode probe --es echo_host 172.17.0.1 --ei echo_port 19999"
+      ],
+      "exit_code": 0,
+      "log": "logs/017-launch-probe.log"
+    },
+    {
+      "name": "consent-accept-dump",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "-T",
+        "uiautomator dump /data/local/tmp/loom-vpn-ui.xml"
+      ],
+      "exit_code": 0,
+      "log": "logs/018-consent-accept-dump.log"
+    },
+    {
+      "name": "consent-accept-xml",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "-T",
+        "cat /data/local/tmp/loom-vpn-ui.xml"
+      ],
+      "exit_code": 0,
+      "log": "logs/019-consent-accept-xml.log"
+    },
+    {
+      "name": "tap",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "-T",
+        "input tap 582 836"
+      ],
+      "exit_code": 0,
+      "log": "logs/020-tap.log"
+    },
+    {
+      "name": "app-state",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "-T",
+        "run-as fun.loom.lab cat files/result.json"
+      ],
+      "exit_code": 0,
+      "log": "logs/021-app-state.log"
+    },
+    {
+      "name": "app-state",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "-T",
+        "run-as fun.loom.lab cat files/result.json"
+      ],
+      "exit_code": 0,
+      "log": "logs/022-app-state.log"
+    },
+    {
+      "name": "final-force-stop",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "-T",
+        "am force-stop fun.loom.lab"
+      ],
+      "exit_code": 0,
+      "log": "logs/023-final-force-stop.log"
+    },
+    {
+      "name": "app-log",
+      "argv": [
+        "/Users/will/Library/Android/sdk/platform-tools/adb",
+        "-s",
+        "127.0.0.1:15556",
+        "shell",
+        "-T",
+        "logcat -d -s LoomVpnLab:I"
+      ],
+      "exit_code": 0,
+      "log": "logs/024-app-log.log"
+    }
+  ],
+  "real_device": false,
+  "rust_jni_integrated": false,
+  "production_vpn": false,
+  "platform_android_acceptance": "blocked",
+  "error": "{'lab_only': True, 'uid': 10087, 'mode': 'probe', 'prepare_requires_consent': True, 'consent_result_ok': True, 'foreground_started': True, 'prepared_after_consent': True, 'protect_before_connect': True, 'error': 'java.lang.IllegalStateException: Cannot create interface', 'state': 'failed', 'protected_socket_closed': True, 'on_destroy': True}",
+  "finished_utc": "2026-10-20T00:10:13.650810+00:00"
+}

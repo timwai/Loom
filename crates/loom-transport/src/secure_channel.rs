@@ -119,6 +119,10 @@ impl<S> SecurePeerChannel<S> {
         &self.remote
     }
 
+    pub fn remote_key_epoch(&self) -> u64 {
+        self.remote_key_epoch
+    }
+
     pub fn stream_mut(&mut self) -> &mut S {
         &mut self.stream
     }

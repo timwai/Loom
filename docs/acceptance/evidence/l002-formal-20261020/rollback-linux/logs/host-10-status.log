@@ -1,0 +1,5 @@
+{"log":"policy","sequence":2,"allowed":false}
+{"log":"witness-a","sequence":1,"allowed":true}
+{"log":"witness-b","sequence":2,"allowed":false}
+
+STDERR:

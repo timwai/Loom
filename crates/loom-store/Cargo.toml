@@ -5,6 +5,10 @@ edition.workspace = true
 rust-version.workspace = true
 publish = false
 
+[features]
+default = []
+witness-lab = []
+
 [dependencies]
 loom-types = { path = "../loom-types" }
 loom-crypto = { path = "../loom-crypto" }

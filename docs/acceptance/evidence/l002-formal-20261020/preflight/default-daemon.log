@@ -1,0 +1,6 @@
+Loom L-000 bootstrap | state=BootstrapOnly | network_enabled=false
+Not ready for production. No sockets, proxy, relay, or helper are started.
+
+STDERR:
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.26s
+     Running `target/debug/loomd`

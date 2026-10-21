@@ -1,5 +1,7 @@
 # L-002A — two-Peer LAN file-read and revoke model
 
+> 2026-10-20 follow-up: [L-002D authenticated append](l-002d-authenticated-witness-append.md) and [L-002E isolated LAN read acceptance](l-002e-lan-file-read-acceptance.md) now implement and test the next candidate steps. The original model boundaries below are historical; independent Witness provisioning, production admission and release approval remain blocked.
+
 > 2026-10-18. **TEST-ONLY SECURITY_MODEL. NO SERVICEOPEN / NO NETWORK LISTENER / NO REAL FILE ACCESS / NO TRUSTED OWNER GRANTS.** L-001 Rust PoC engineering was consolidated at `main@d50eae4`, but all nine independent L-001 security/platform release checks remain BLOCKED.
 
 ## Scope and implementation

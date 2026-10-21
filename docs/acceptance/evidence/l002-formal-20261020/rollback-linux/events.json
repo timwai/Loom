@@ -1,0 +1,86 @@
+[
+  {
+    "pid": 10,
+    "event": {
+      "listen": "127.0.0.1:39833",
+      "snapshot": "49093611c45456773fa3012dbb2104fe503394c7729e27135efbb2cb4ed555e3"
+    }
+  },
+  {
+    "pid": 11,
+    "event": {
+      "ok": true,
+      "bytes_hex": ""
+    }
+  },
+  {
+    "pid": 11,
+    "event": {
+      "ok": true,
+      "bytes_hex": "4c4f4f4d2d4c3030322d505249564154452d46494c452d43414e4152590a6f776e657220617070726f76656420736e617073686f740a"
+    }
+  },
+  {
+    "pid": 14,
+    "event": {
+      "listen": "127.0.0.1:44635",
+      "snapshot": "49093611c45456773fa3012dbb2104fe503394c7729e27135efbb2cb4ed555e3"
+    }
+  },
+  {
+    "pid": 15,
+    "event": {
+      "ok": false,
+      "bytes_hex": ""
+    }
+  },
+  {
+    "pid": 17,
+    "event": {
+      "listen": "127.0.0.1:34195",
+      "snapshot": "49093611c45456773fa3012dbb2104fe503394c7729e27135efbb2cb4ed555e3"
+    }
+  },
+  {
+    "pid": 18,
+    "event": {
+      "ok": false,
+      "bytes_hex": ""
+    }
+  },
+  {
+    "pid": 20,
+    "event": {
+      "listen": "127.0.0.1:40361",
+      "snapshot": "49093611c45456773fa3012dbb2104fe503394c7729e27135efbb2cb4ed555e3"
+    }
+  },
+  {
+    "pid": 21,
+    "event": {
+      "ok": false,
+      "bytes_hex": ""
+    }
+  },
+  {
+    "pid": 23,
+    "event": {
+      "listen": "127.0.0.1:33619",
+      "snapshot": "49093611c45456773fa3012dbb2104fe503394c7729e27135efbb2cb4ed555e3"
+    }
+  },
+  {
+    "pid": 24,
+    "event": {
+      "ok": true,
+      "bytes_hex": ""
+    }
+  },
+  {
+    "pid": 24,
+    "event": {
+      "ok": true,
+      "bytes_hex": "4c4f4f4d2d4c3030322d505249564154452d46494c452d43414e4152590a6f776e657220617070726f76656420736e617073686f740a"
+    }
+  }
+]

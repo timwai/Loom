@@ -1,0 +1,48 @@
+{
+  "schema": 1,
+  "milestone": "L-002",
+  "updated": "2026-10-21",
+  "owner": "Codex / Loom workspace",
+  "source_base_commit": "e9fe4a5f5704b9608ccbca85b8a7281b6e17596e",
+  "laboratory": {
+    "profile": "L-002-isolated-lab-v1",
+    "status": "passed",
+    "tests_per_os": 282,
+    "evidence": "docs/acceptance/evidence/l002-formal-20261020/lab/summary.json",
+    "sha256": "13f452c8fdfaa0260fd2242a1d988598b80e96ce4546258d814d278881986bd5"
+  },
+  "modules": [
+    "loom-store::witness_append",
+    "loom-core::lan_read",
+    "loom-transport::secure_channel"
+  ],
+  "test_ids": [
+    "L002-OWNER-APPEND",
+    "L002-WITNESS-PARTIAL",
+    "L002-FORK-QUARANTINE",
+    "L002-TLS-FILE",
+    "L002-REVOKE-RESTART",
+    "L002-CRASH-GRANT-REVOKE"
+  ],
+  "rollback_strategy": "Disable experimental-lan; normal loomd stays BootstrapOnly. Preserve fork evidence and do not erase or recreate enrolled logs.",
+  "release": {
+    "status": "blocked",
+    "blockers": {
+      "independent-witnesses": "FORMAL-ROLLBACK-ALL fails on macOS and Linux Docker: restoring policy and both local Witness logs after committed revoke resurrects a 54-byte file read. Independent durable state, authenticated remote enrollment/transport/rotation and external freshness provenance remain missing.",
+      "production-admission": "No production AdmissionPermit, compulsory cross-device writer participation, globally synchronized membership/policy barrier, or production runtime scheduling exists.",
+      "independent-review": "L-001 security/interop/trusted-state signoffs and review of the new append/pull formats are absent.",
+      "physical-platforms": "Physical platform and deployment acceptance remains incomplete; Docker namespaces are one host, not two physical devices."
+    },
+    "review_signoff": []
+  },
+  "implementation_commit": "e5e757d0ac9e4c7d3272f94f01c4a0bb37544fd8",
+  "pull_request": "https://github.com/timwai/Loom/pull/42",
+  "ci_run": "https://github.com/timwai/Loom/actions/runs/39390202644",
+  "formal_acceptance": {
+    "profile": "L-002-formal-local-docker-v1",
+    "status": "failed",
+    "candidate_commit": "36cfc55957659a451e26190a8186ddbe1a744ca7",
+    "evidence": "docs/acceptance/evidence/l002-formal-20261020/summary.json",
+    "sha256": "0b4d6578a9ec61ae0e225898799e85559b4a4e84c6a484972e969d625d8d8676"
+  }
+}

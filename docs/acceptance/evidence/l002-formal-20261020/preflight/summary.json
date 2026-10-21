@@ -1,0 +1,90 @@
+{
+  "laboratory-gate": {
+    "command": [
+      "python3",
+      "scripts/l002_gate.py",
+      "--require-lab"
+    ],
+    "exit_code": 0,
+    "log": "laboratory-gate.log",
+    "sha256": "389e21d05b374b69f7bbc3c30617f2bed25b5611a00fe6bf3bdf21367aa86f1d"
+  },
+  "formal-release-gate": {
+    "command": [
+      "python3",
+      "scripts/l002_gate.py",
+      "--require-release"
+    ],
+    "exit_code": 1,
+    "log": "formal-release-gate.log",
+    "sha256": "fdcbbe7ea6377ab50bdca5f8ca8da4b6abaec66d49d1976e62c62c37b9b5b5d1"
+  },
+  "inherited-l001-gate": {
+    "command": [
+      "python3",
+      "scripts/l001_gate.py",
+      "--require-complete"
+    ],
+    "exit_code": 1,
+    "log": "inherited-l001-gate.log",
+    "sha256": "fbd9f28fc1c0d70d3612afc5f058eae3e361ed1fbe8917dae3bb634d55d51260"
+  },
+  "default-daemon": {
+    "command": [
+      "cargo",
+      "run",
+      "-p",
+      "loomd",
+      "--locked"
+    ],
+    "exit_code": 0,
+    "log": "default-daemon.log",
+    "sha256": "1346875c8e117c097bf6ca2e6e6903b7e2781a24efca459cd8ff3d56f83b9075"
+  },
+  "android-devices": {
+    "command": [
+      "/Users/will/Library/Android/sdk/platform-tools/adb",
+      "devices",
+      "-l"
+    ],
+    "exit_code": 0,
+    "log": "android-devices.log",
+    "sha256": "6e4aa687cc5156d1d08ae4ec75ec1fd584487c690345b7a503f8c6f9c2542ff1"
+  },
+  "macos-signing": {
+    "command": [
+      "security",
+      "find-identity",
+      "-v",
+      "-p",
+      "codesigning"
+    ],
+    "exit_code": 0,
+    "log": "macos-signing.log",
+    "sha256": "4d3562ced6e8246e9ff200e3eb5bedac290b52b2f9d4ca597dbfd9c1d8223816"
+  },
+  "containers-after-lab": {
+    "command": [
+      "docker",
+      "ps",
+      "--format",
+      "{{.Names}}\t{{.Status}}"
+    ],
+    "exit_code": 0,
+    "log": "containers-after-lab.log",
+    "sha256": "34258e7731bcb6ec7695e737328454810b9dcd73bffcb4d3303b98ace8fe0194"
+  },
+  "pr-review-state": {
+    "command": [
+      "gh",
+      "pr",
+      "view",
+      "42",
+      "--json",
+      "number,url,headRefOid,baseRefName,isDraft,state,reviewDecision,reviews,reviewRequests,updatedAt"
+    ],
+    "exit_code": 0,
+    "log": "pr-review-state.log",
+    "sha256": "a8ca8460392501b425a0f3a145794688f9e294afaa40be95053b86db4baaacd0"
+  }
+}

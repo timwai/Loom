@@ -1,0 +1,59 @@
+{
+  "scope": "User requested local machine and Docker only; no external hosts were used.",
+  "candidate_commit": "36cfc55957659a451e26190a8186ddbe1a744ca7",
+  "dependency_update": "rustls-webpki 0.103.15 -> 0.103.16 in Cargo.lock, merged from L-001 dependency-policy remediation.",
+  "host_probe": {
+    "command": [
+      "python3",
+      "docs/acceptance/evidence/l002-formal-20261020/reproduce.py",
+      "--output",
+      "target/l002-branch-merge-20261021/rollback-host"
+    ],
+    "exit_code": 1,
+    "binary_sha256": "589ebce472c371bdf2ce5db875b53c4d7f54778606f591f5bc7325d932977afe"
+  },
+  "linux_probe": {
+    "command": [
+      "docker",
+      "run",
+      "--rm",
+      "--name",
+      "loom-l002-formal-rollback-20261021",
+      "--network",
+      "none",
+      "--cpus=1",
+      "--memory=512m",
+      "--pids-limit=64",
+      "-v",
+      "/Volumes/Data/Code/Loom:/workspace:ro",
+      "-v",
+      "loom-l001-target:/build:ro",
+      "-v",
+      "/Volumes/Data/Code/Loom/target/l002-branch-merge-20261021:/probe",
+      "loom-l001-lab:local",
+      "python3",
+      "docs/acceptance/evidence/l002-formal-20261020/reproduce.py",
+      "--binary",
+      "/build/debug/examples/l002_lan_lab",
+      "--output",
+      "/probe/rollback-linux"
+    ],
+    "exit_code": 1,
+    "binary_sha256": "1c5abc2a58c69dd9bced9ae1156acabaff138cd6f3542b8e759f95735d0d565c"
+  },
+  "full_regression": {
+    "command": [
+      "python3",
+      "scripts/l002_acceptance.py",
+      "--output",
+      "target/l002-branch-merge-20261021/lab"
+    ],
+    "exit_code": 0,
+    "started_utc": "2026-10-21T10:02:30.594236+00:00",
+    "finished_utc": "2026-10-21T10:03:11.156084+00:00"
+  },
+  "docker_image": "loom-l001-lab:local (existing image; no image rebuild required)",
+  "cleanup_containers": "Temporary probe container removed by docker --rm; no new persistent services were created.",
+  "private_probe_state_removed": true,
+  "result": "Formal rollback failure reproduced on host and Linux Docker; release remains blocked."
+}

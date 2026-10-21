@@ -4,6 +4,8 @@
 
 ## Fixed provenance and scope
 
+- **2026-10-20 L-002 formal acceptance FAILED:** the local macOS / Docker campaign reproduces full file reads after restoring the policy and both Witness logs to pre-revoke state. [Formal report](acceptance/evidence/l002-formal-20261020/REPORT.md). The laboratory regression passes; `--require-formal` and `--require-release` must fail. Independent reviews and inherited release gates remain required.
+
 - RelayProxy comparison baseline: `timwai/RelayProxy main@e4254c81ed678198c948272c22981fd16c19be9a`. Loom is a new Rust-first project, not a drop-in Go wire-compatible agent.
 - Existing Rust security work includes library crates and disabled `loomd`, signed Owner/Root/dual-Witness journal models, independent rollback and crash simulations, and isolated Peer mTLS experiments. These are **not** a usable Mesh service.
 - Never assume a signed frame, persistent SQLite record, volatile CAS mutex, numeric NV value or unverified Witness pair is sufficient for production authorization.
@@ -42,6 +44,6 @@ Engineering can advance the original L-001A/B/C/D code, but **the selected trust
 
 **No-Go:** public WAN relay, traffic interception without OS approval, auto-ban of self-reported RDP IP, automatic trust restoration from legacy databases, unverifiable signer/witness credentials, claimed Rust performance superiority without measurement, or any production ServiceOpen before nine-gate and human release sign-off.
 
-**L-002A has started:** twelve test-only Rust model cases for two-Peer LAN file reads with simulated Owner ACL, exact Space/Peer/Resource/Epoch binding and revoke-on-next-chunk behavior. **L-002B adds** a cross-platform `TrustedStateProvider` capability gate: volatile software settings by default, optional hardware/independent quorum assurances, no self-attested promotion. This is not a real LAN transfer and cannot relax any L-001 release gate; see [L-002A test plan](spikes/l-002a-lan-file-read-model.md).
+**L-002 isolated laboratory accepted (2026-10-20):** A–C models are extended by authenticated Owner/Witness append, durable SQLite crash recovery and opt-in TLS file-snapshot reads/revocation. macOS/Linux each pass 282 tests, six grant/revoke SIGKILL cases per OS and a two-container internal LAN experiment. [Report](acceptance/evidence/l002-isolated-lab-20261020/REPORT.md), [machine-readable record](acceptance/l002.json), `python3 scripts/l002_gate.py --require-lab`. Public fixture keys and same-host Witness logs do not satisfy independent trust or production admission; **L-002 release stays BLOCKED**, `loomd` stays disabled and `--require-release` must fail.
 
 2026-10-20: [Integrated existing-environment lab](acceptance/evidence/l001-integrated-20261020/REPORT.md) passes 268 tests on macOS, Linux and Android, including signed-member/Owner candidate verification and actual Rust JNI membership/TUN/protected-socket checks after container restart. This does not establish production VPN forwarding, revocation/session barriers, atomic ServiceOpen, trusted enrollment or antirollback. Windows is currently unavailable and macOS signing unavailable; no independent signoff is inferred.

@@ -1,0 +1,591 @@
+[
+  {
+    "pid": 29329,
+    "event": {
+      "cut": "before-insert"
+    }
+  },
+  {
+    "pid": 29334,
+    "event": {
+      "listen": "127.0.0.1:60572",
+      "snapshot": "49093611c45456773fa3012dbb2104fe503394c7729e27135efbb2cb4ed555e3"
+    }
+  },
+  {
+    "pid": 29335,
+    "event": {
+      "ok": false,
+      "bytes_hex": ""
+    }
+  },
+  {
+    "pid": 29338,
+    "event": {
+      "listen": "127.0.0.1:60574",
+      "snapshot": "49093611c45456773fa3012dbb2104fe503394c7729e27135efbb2cb4ed555e3"
+    }
+  },
+  {
+    "pid": 29339,
+    "event": {
+      "ok": true,
+      "bytes_hex": ""
+    }
+  },
+  {
+    "pid": 29339,
+    "event": {
+      "ok": true,
+      "bytes_hex": "4c4f4f4d2d4c3030322d505249564154452d46494c452d43414e4152590a6f776e657220617070726f76656420736e617073686f740a"
+    }
+  },
+  {
+    "pid": 29342,
+    "event": {
+      "cut": "after-insert"
+    }
+  },
+  {
+    "pid": 29347,
+    "event": {
+      "listen": "127.0.0.1:60576",
+      "snapshot": "49093611c45456773fa3012dbb2104fe503394c7729e27135efbb2cb4ed555e3"
+    }
+  },
+  {
+    "pid": 29348,
+    "event": {
+      "ok": false,
+      "bytes_hex": ""
+    }
+  },
+  {
+    "pid": 29351,
+    "event": {
+      "listen": "127.0.0.1:60578",
+      "snapshot": "49093611c45456773fa3012dbb2104fe503394c7729e27135efbb2cb4ed555e3"
+    }
+  },
+  {
+    "pid": 29352,
+    "event": {
+      "ok": true,
+      "bytes_hex": ""
+    }
+  },
+  {
+    "pid": 29352,
+    "event": {
+      "ok": true,
+      "bytes_hex": "4c4f4f4d2d4c3030322d505249564154452d46494c452d43414e4152590a6f776e657220617070726f76656420736e617073686f740a"
+    }
+  },
+  {
+    "pid": 29355,
+    "event": {
+      "cut": "after-commit"
+    }
+  },
+  {
+    "pid": 29360,
+    "event": {
+      "listen": "127.0.0.1:60580",
+      "snapshot": "49093611c45456773fa3012dbb2104fe503394c7729e27135efbb2cb4ed555e3"
+    }
+  },
+  {
+    "pid": 29363,
+    "event": {
+      "ok": false,
+      "bytes_hex": ""
+    }
+  },
+  {
+    "pid": 29366,
+    "event": {
+      "listen": "127.0.0.1:60583",
+      "snapshot": "49093611c45456773fa3012dbb2104fe503394c7729e27135efbb2cb4ed555e3"
+    }
+  },
+  {
+    "pid": 29367,
+    "event": {
+      "ok": true,
+      "bytes_hex": ""
+    }
+  },
+  {
+    "pid": 29367,
+    "event": {
+      "ok": true,
+      "bytes_hex": "4c4f4f4d2d4c3030322d505249564154452d46494c452d43414e4152590a6f776e657220617070726f76656420736e617073686f740a"
+    }
+  },
+  {
+    "pid": 29371,
+    "event": {
+      "cut": "before-insert"
+    }
+  },
+  {
+    "pid": 29377,
+    "event": {
+      "listen": "127.0.0.1:60585",
+      "snapshot": "49093611c45456773fa3012dbb2104fe503394c7729e27135efbb2cb4ed555e3"
+    }
+  },
+  {
+    "pid": 29378,
+    "event": {
+      "ok": false,
+      "bytes_hex": ""
+    }
+  },
+  {
+    "pid": 29381,
+    "event": {
+      "listen": "127.0.0.1:60587",
+      "snapshot": "49093611c45456773fa3012dbb2104fe503394c7729e27135efbb2cb4ed555e3"
+    }
+  },
+  {
+    "pid": 29382,
+    "event": {
+      "ok": false,
+      "bytes_hex": ""
+    }
+  },
+  {
+    "pid": 29386,
+    "event": {
+      "cut": "after-insert"
+    }
+  },
+  {
+    "pid": 29391,
+    "event": {
+      "listen": "127.0.0.1:60589",
+      "snapshot": "49093611c45456773fa3012dbb2104fe503394c7729e27135efbb2cb4ed555e3"
+    }
+  },
+  {
+    "pid": 29392,
+    "event": {
+      "ok": false,
+      "bytes_hex": ""
+    }
+  },
+  {
+    "pid": 29395,
+    "event": {
+      "listen": "127.0.0.1:60591",
+      "snapshot": "49093611c45456773fa3012dbb2104fe503394c7729e27135efbb2cb4ed555e3"
+    }
+  },
+  {
+    "pid": 29396,
+    "event": {
+      "ok": false,
+      "bytes_hex": ""
+    }
+  },
+  {
+    "pid": 29400,
+    "event": {
+      "cut": "after-commit"
+    }
+  },
+  {
+    "pid": 29405,
+    "event": {
+      "listen": "127.0.0.1:60593",
+      "snapshot": "49093611c45456773fa3012dbb2104fe503394c7729e27135efbb2cb4ed555e3"
+    }
+  },
+  {
+    "pid": 29406,
+    "event": {
+      "ok": false,
+      "bytes_hex": ""
+    }
+  },
+  {
+    "pid": 29409,
+    "event": {
+      "listen": "127.0.0.1:60595",
+      "snapshot": "49093611c45456773fa3012dbb2104fe503394c7729e27135efbb2cb4ed555e3"
+    }
+  },
+  {
+    "pid": 29410,
+    "event": {
+      "ok": false,
+      "bytes_hex": ""
+    }
+  },
+  {
+    "pid": 29413,
+    "event": {
+      "listen": "127.0.0.1:60597",
+      "snapshot": "49093611c45456773fa3012dbb2104fe503394c7729e27135efbb2cb4ed555e3"
+    }
+  },
+  {
+    "pid": 29414,
+    "event": {
+      "ok": false,
+      "bytes_hex": ""
+    }
+  },
+  {
+    "pid": 29414,
+    "event": {
+      "ok": false,
+      "bytes_hex": ""
+    }
+  },
+  {
+    "pid": 29414,
+    "event": {
+      "ok": true,
+      "bytes_hex": ""
+    }
+  },
+  {
+    "pid": 29414,
+    "event": {
+      "ok": false,
+      "bytes_hex": ""
+    }
+  },
+  {
+    "pid": 29414,
+    "event": {
+      "ok": false,
+      "bytes_hex": ""
+    }
+  },
+  {
+    "pid": 29414,
+    "event": {
+      "ok": true,
+      "bytes_hex": "4c4f4f4d2d4c30"
+    }
+  },
+  {
+    "pid": 29414,
+    "event": {
+      "ok": true,
+      "bytes_hex": "30322d50524956"
+    }
+  },
+  {
+    "pid": 29414,
+    "event": {
+      "ok": true,
+      "bytes_hex": "4154452d46494c"
+    }
+  },
+  {
+    "pid": 29414,
+    "event": {
+      "ok": true,
+      "bytes_hex": "452d43414e4152"
+    }
+  },
+  {
+    "pid": 29414,
+    "event": {
+      "ok": true,
+      "bytes_hex": "590a6f776e6572"
+    }
+  },
+  {
+    "pid": 29414,
+    "event": {
+      "ok": true,
+      "bytes_hex": "20617070726f76"
+    }
+  },
+  {
+    "pid": 29414,
+    "event": {
+      "ok": true,
+      "bytes_hex": "656420736e6170"
+    }
+  },
+  {
+    "pid": 29414,
+    "event": {
+      "ok": true,
+      "bytes_hex": "73686f740a"
+    }
+  },
+  {
+    "pid": 29414,
+    "event": {
+      "ok": true,
+      "bytes_hex": ""
+    }
+  },
+  {
+    "pid": 29415,
+    "event": {
+      "listen": "127.0.0.1:60602",
+      "snapshot": "49093611c45456773fa3012dbb2104fe503394c7729e27135efbb2cb4ed555e3"
+    }
+  },
+  {
+    "pid": 29416,
+    "event": {
+      "ok": true,
+      "bytes_hex": ""
+    }
+  },
+  {
+    "pid": 29416,
+    "event": {
+      "ok": true,
+      "bytes_hex": "4c4f4f4d"
+    }
+  },
+  {
+    "pid": 29416,
+    "event": {
+      "ok": false,
+      "bytes_hex": ""
+    }
+  },
+  {
+    "pid": 29416,
+    "event": {
+      "ok": false,
+      "bytes_hex": ""
+    }
+  },
+  {
+    "pid": 29416,
+    "event": {
+      "ok": false,
+      "bytes_hex": ""
+    }
+  },
+  {
+    "pid": 29416,
+    "event": {
+      "ok": true,
+      "bytes_hex": ""
+    }
+  },
+  {
+    "pid": 29416,
+    "event": {
+      "ok": true,
+      "bytes_hex": "4c4f4f4d"
+    }
+  },
+  {
+    "pid": 29420,
+    "event": {
+      "listen": "127.0.0.1:60605",
+      "snapshot": "49093611c45456773fa3012dbb2104fe503394c7729e27135efbb2cb4ed555e3"
+    }
+  },
+  {
+    "pid": 29421,
+    "event": {
+      "ok": false,
+      "bytes_hex": ""
+    }
+  },
+  {
+    "pid": 29495,
+    "event": {
+      "listen": "0.0.0.0:35907",
+      "snapshot": "49093611c45456773fa3012dbb2104fe503394c7729e27135efbb2cb4ed555e3"
+    }
+  },
+  {
+    "pid": 29496,
+    "event": {
+      "ok": false,
+      "bytes_hex": ""
+    }
+  },
+  {
+    "pid": 29496,
+    "event": {
+      "ok": false,
+      "bytes_hex": ""
+    }
+  },
+  {
+    "pid": 29496,
+    "event": {
+      "ok": true,
+      "bytes_hex": ""
+    }
+  },
+  {
+    "pid": 29496,
+    "event": {
+      "ok": false,
+      "bytes_hex": ""
+    }
+  },
+  {
+    "pid": 29496,
+    "event": {
+      "ok": false,
+      "bytes_hex": ""
+    }
+  },
+  {
+    "pid": 29496,
+    "event": {
+      "ok": true,
+      "bytes_hex": "4c4f4f4d2d4c30"
+    }
+  },
+  {
+    "pid": 29496,
+    "event": {
+      "ok": true,
+      "bytes_hex": "30322d50524956"
+    }
+  },
+  {
+    "pid": 29496,
+    "event": {
+      "ok": true,
+      "bytes_hex": "4154452d46494c"
+    }
+  },
+  {
+    "pid": 29496,
+    "event": {
+      "ok": true,
+      "bytes_hex": "452d43414e4152"
+    }
+  },
+  {
+    "pid": 29496,
+    "event": {
+      "ok": true,
+      "bytes_hex": "590a6f776e6572"
+    }
+  },
+  {
+    "pid": 29496,
+    "event": {
+      "ok": true,
+      "bytes_hex": "20617070726f76"
+    }
+  },
+  {
+    "pid": 29496,
+    "event": {
+      "ok": true,
+      "bytes_hex": "656420736e6170"
+    }
+  },
+  {
+    "pid": 29496,
+    "event": {
+      "ok": true,
+      "bytes_hex": "73686f740a"
+    }
+  },
+  {
+    "pid": 29496,
+    "event": {
+      "ok": true,
+      "bytes_hex": ""
+    }
+  },
+  {
+    "pid": 29503,
+    "event": {
+      "listen": "0.0.0.0:41895",
+      "snapshot": "49093611c45456773fa3012dbb2104fe503394c7729e27135efbb2cb4ed555e3"
+    }
+  },
+  {
+    "pid": 29504,
+    "event": {
+      "ok": true,
+      "bytes_hex": ""
+    }
+  },
+  {
+    "pid": 29504,
+    "event": {
+      "ok": true,
+      "bytes_hex": "4c4f4f4d"
+    }
+  },
+  {
+    "pid": 29504,
+    "event": {
+      "ok": false,
+      "bytes_hex": ""
+    }
+  },
+  {
+    "pid": 29504,
+    "event": {
+      "ok": false,
+      "bytes_hex": ""
+    }
+  },
+  {
+    "pid": 29504,
+    "event": {
+      "ok": false,
+      "bytes_hex": ""
+    }
+  },
+  {
+    "pid": 29504,
+    "event": {
+      "ok": true,
+      "bytes_hex": ""
+    }
+  },
+  {
+    "pid": 29504,
+    "event": {
+      "ok": true,
+      "bytes_hex": "4c4f4f4d"
+    }
+  },
+  {
+    "pid": 29510,
+    "event": {
+      "listen": "0.0.0.0:36859",
+      "snapshot": "49093611c45456773fa3012dbb2104fe503394c7729e27135efbb2cb4ed555e3"
+    }
+  },
+  {
+    "pid": 29511,
+    "event": {
+      "ok": false,
+      "bytes_hex": ""
+    }
+  },
+  {
+    "pid": 29514,
+    "event": {
+      "listen": "0.0.0.0:38231",
+      "snapshot": "49093611c45456773fa3012dbb2104fe503394c7729e27135efbb2cb4ed555e3"
+    }
+  },
+  {
+    "pid": 29515,
+    "event": {
+      "ok": false,
+      "bytes_hex": ""
+    }
+  }
+]

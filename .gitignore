@@ -7,3 +7,4 @@
 !.env.example
 /fuzz/artifacts/
 /fuzz/corpus/
+__pycache__/

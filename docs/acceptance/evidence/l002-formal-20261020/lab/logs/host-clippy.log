@@ -1,0 +1,10 @@
+
+STDERR:
+    Checking rustls-webpki v0.103.16
+    Checking loom-store v0.1.0 (/Volumes/Data/Code/Loom/crates/loom-store)
+    Checking rustls v0.23.46
+    Checking tokio-rustls v0.26.6
+    Checking loom-transport v0.1.0 (/Volumes/Data/Code/Loom/crates/loom-transport)
+    Checking loom-core v0.1.0 (/Volumes/Data/Code/Loom/crates/loom-core)
+    Checking loomd v0.1.0 (/Volumes/Data/Code/Loom/apps/loomd)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.68s

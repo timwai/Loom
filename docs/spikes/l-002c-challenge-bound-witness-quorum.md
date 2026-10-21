@@ -1,5 +1,7 @@
 # L-002C — TPM-free challenge-bound Witness high-water verification
 
+> 2026-10-20 follow-up: [L-002D authenticated append](l-002d-authenticated-witness-append.md) and [L-002E isolated LAN read acceptance](l-002e-lan-file-read-acceptance.md) now implement and test the next candidate steps. The original model boundaries below are historical; independent Witness provisioning, production admission and release approval remain blocked.
+
 > 2026-10-18 — **SECURITY MODEL ONLY / DIAGNOSTIC / NO ServiceOpen**. Stacked on L-002B Draft PR #40. No networking, signed Owner admission, trusted remote persistence, real key provisioning or hardware state mutation.
 
 ## Problem and security boundary

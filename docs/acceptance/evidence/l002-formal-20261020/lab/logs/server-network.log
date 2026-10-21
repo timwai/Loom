@@ -1,3 +1,3 @@
-{"loom-l002-32611-isolated":{"IPAMConfig":null,"Links":null,"Aliases":null,"DriverOpts":null,"GwPriority":0,"NetworkID":"ccd3ad37c5d3ccdffec108b0a1a1667c88f26da9baca9e7de2223e059c4b5a94","EndpointID":"e48961e2404b9c30db6d6dab791895dc3d3fbf93c7c871f61f2546d74aee193d","Gateway":"","IPAddress":"192.168.107.2","MacAddress":"32:b7:4d:67:2f:f0","IPPrefixLen":24,"IPv6Gateway":"","GlobalIPv6Address":"","GlobalIPv6PrefixLen":0,"DNSNames":["loom-l002-32611-server","34170997acdf"]}} 
+{"loom-l002-29173-isolated":{"IPAMConfig":null,"Links":null,"Aliases":null,"DriverOpts":null,"GwPriority":0,"NetworkID":"5fe373f565a6a66319b5d5f2c41f6fcfa1c06f23c472f409b3e85af45fdacff8","EndpointID":"152a04cc43ec766c4d0a2e178bd80833fe61309afbc00151b02c0fa938aea91f","Gateway":"","IPAddress":"192.168.107.2","MacAddress":"ee:6e:fa:fa:d6:37","IPPrefixLen":24,"IPv6Gateway":"","GlobalIPv6Address":"","GlobalIPv6PrefixLen":0,"DNSNames":["loom-l002-29173-server","657420a2b52f"]}} 
 
 STDERR:

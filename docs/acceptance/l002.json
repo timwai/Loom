@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "milestone": "L-002",
-  "updated": "2026-10-20",
+  "updated": "2026-10-21",
   "owner": "Codex / Loom workspace",
   "source_base_commit": "e9fe4a5f5704b9608ccbca85b8a7281b6e17596e",
   "laboratory": {
@@ -9,7 +9,7 @@
     "status": "passed",
     "tests_per_os": 282,
     "evidence": "docs/acceptance/evidence/l002-formal-20261020/lab/summary.json",
-    "sha256": "62596cbde624d417b56acdada5d022be1bf6b340c560e736d0cf3ac5ce1c5caf"
+    "sha256": "13f452c8fdfaa0260fd2242a1d988598b80e96ce4546258d814d278881986bd5"
   },
   "modules": [
     "loom-store::witness_append",
@@ -41,8 +41,8 @@
   "formal_acceptance": {
     "profile": "L-002-formal-local-docker-v1",
     "status": "failed",
-    "candidate_commit": "3c5455ae5c6e746b068c24990092b397cdb6e0ba",
+    "candidate_commit": "36cfc55957659a451e26190a8186ddbe1a744ca7",
     "evidence": "docs/acceptance/evidence/l002-formal-20261020/summary.json",
-    "sha256": "0f861602e3043d07b93fd5cb8109958f689288906e94f0e57bcd43d8a8ea47e7"
+    "sha256": "f7e32b63ff6085c11f4f8dcf4afd82f35ed0bd73d4a8bcb937003d71e4c938b5"
   }
 }

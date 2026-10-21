@@ -1,8 +1,8 @@
 # L-002 正式验收：本机 / Docker
 
-2026-10-20，Asia/Shanghai。结论：**FAILED / NO-GO，正式验收未通过，发布继续 BLOCKED。** 按用户指定，仅使用本机 macOS 与 Linux Docker。执行环境的限定不构成对正式安全要求的豁免。
+2026-10-21，Asia/Shanghai。结论：**FAILED / NO-GO，正式验收未通过，发布继续 BLOCKED。** 按用户指定，仅使用本机 macOS 与 Linux Docker。执行环境的限定不构成对正式安全要求的豁免。
 
-验收对象为 PR [#42](https://github.com/timwai/Loom/pull/42) 的运行时代码 `3c5455ae5c6e746b068c24990092b397cdb6e0ba`（功能实现提交 `e5e757d0ac9e4c7d3272f94f01c4a0bb37544fd8`）。本轮新增正式验收探针、门禁及记录；运行时代码未改动。完整源文件哈希见 [本轮全量回归摘要](lab/summary.json)，机器结论和归档哈希见 [正式验收摘要](summary.json)。没有填写独立审查签字。
+验收对象为 PR [#42](https://github.com/timwai/Loom/pull/42) 的运行时代码 `36cfc55957659a451e26190a8186ddbe1a744ca7`（功能实现提交 `e5e757d0ac9e4c7d3272f94f01c4a0bb37544fd8`）。L-001 合并时将 `rustls-webpki` 从 0.103.15 升至 0.103.16，以修复依赖策略 CI 报出的安全公告；之后在合并后的 L-002 源码上重新执行全量回归与正式回滚探针。运行时功能代码未改动。完整源文件哈希见 [本轮全量回归摘要](lab/summary.json)，机器结论和归档哈希见 [正式验收摘要](summary.json)。没有填写独立审查签字。
 
 ## 执行结果
 
@@ -57,7 +57,7 @@ python3 docs/acceptance/evidence/l002-formal-20261020/reproduce.py \
 # 当前候选：exit 1，FORMAL ROLLBACK: FAILED
 ```
 
-完整本机 / Docker 回归由 `python3 scripts/l002_acceptance.py --output target/l002-new-lab` 执行。Linux 回滚探针使用相同脚本和已有 `loom-l001-target` 中的 Linux 二进制，在 `--network none`、无端口发布的资源受限临时容器内运行；实际命令见 [执行记录](execution.json)。Docker 镜像仍为已归档摘要的 `loom-l001-lab:local`，没有本轮安装或升级依赖。
+完整本机 / Docker 回归由 `python3 scripts/l002_acceptance.py --output target/l002-new-lab` 执行。Linux 回滚探针使用相同脚本和已有 `loom-l001-target` 中的 Linux 二进制，在 `--network none`、无端口发布的资源受限临时容器内运行；实际命令见 [执行记录](execution.json)。Docker 镜像仍使用现有 `loom-l001-lab:local`；候选二进制由更新后的锁文件构建，包含 `rustls-webpki 0.103.16`。
 
 ```sh
 python3 scripts/l002_gate.py --require-lab       # exit 0：实验及正式证据一致，并非正式通过

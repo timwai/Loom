@@ -1,8 +1,8 @@
 {
   "schema": 1,
   "profile": "L-002-formal-rollback-probe-v1",
-  "started_utc": "2026-10-20T08:18:49.264937+00:00",
-  "binary_sha256": "c2f27711ef13a9c2a97431b0347d8820e81b325a368bd2c72e4e49f8c1e0f2e8",
+  "started_utc": "2026-10-21T10:03:47.025189+00:00",
+  "binary_sha256": "1c5abc2a58c69dd9bced9ae1156acabaff138cd6f3542b8e759f95735d0d565c",
   "cases": {
     "control-granted-read": {
       "status": "passed",
@@ -89,69 +89,69 @@
   "state": "failed",
   "events": {
     "path": "events.json",
-    "sha256": "63be6b40631422394bf3388921dfbad257a9bc5644fd69094157d4b86556acbf"
+    "sha256": "60a7e7ed643c9982afe01f56eec8ece541e1f161bcc3b92182481359687c061e"
   },
   "checks": {
     "host": {
       "exit_code": 0,
       "expected": 0,
-      "elapsed_s": 0.006,
+      "elapsed_s": 0.005,
       "log": "logs/host.log",
       "sha256": "3536a364a3ae2f59f6b096ef8fdc1efb37786350e8ebc5cba00681c334f20102"
     },
     "host-1-init": {
       "exit_code": 0,
       "expected": 0,
-      "elapsed_s": 0.041,
+      "elapsed_s": 0.023,
       "log": "logs/host-1-init.log",
       "sha256": "c9054b0a949dfbb1444b510c1b29a2d2ac0e7d342d176c74ad3a58f2d6892d57"
     },
     "host-2-grant": {
       "exit_code": 0,
       "expected": 0,
-      "elapsed_s": 0.027,
+      "elapsed_s": 0.022,
       "log": "logs/host-2-grant.log",
       "sha256": "871a2ac475cba42cf4e9080f8cabea0f88e6ebc656e6cd36fbc3086b8174348f"
     },
     "host-3-status": {
       "exit_code": 0,
       "expected": 0,
-      "elapsed_s": 0.015,
+      "elapsed_s": 0.011,
       "log": "logs/host-3-status.log",
       "sha256": "f6f8fb808383cb7a39805a26c6ac957ec73d6b73179b4120890bffe8e1133e41"
     },
     "host-5-revoke": {
       "exit_code": 0,
       "expected": 0,
-      "elapsed_s": 0.049,
+      "elapsed_s": 0.045,
       "log": "logs/host-5-revoke.log",
       "sha256": "1e828edf1be8a6d16287ffc881801dc3ae9b073be769755afff3f726ed4194f0"
     },
     "host-6-status": {
       "exit_code": 0,
       "expected": 0,
-      "elapsed_s": 0.018,
+      "elapsed_s": 0.022,
       "log": "logs/host-6-status.log",
       "sha256": "2d374862d0c57291d378305cc27c464e7d2266f5de90466410d243947ee5243d"
     },
     "host-8-status": {
       "exit_code": 0,
       "expected": 0,
-      "elapsed_s": 0.017,
+      "elapsed_s": 0.014,
       "log": "logs/host-8-status.log",
       "sha256": "ac11ba859692c78ec9798abd5e5e6309757bfa3261597ad399862f8e9e1f062a"
     },
     "host-10-status": {
       "exit_code": 0,
       "expected": 0,
-      "elapsed_s": 0.015,
+      "elapsed_s": 0.012,
       "log": "logs/host-10-status.log",
       "sha256": "5d9739b46f52841e442e720812a875d7c4f339dfb08f0209ccf2f80f59ff7468"
     },
     "host-12-status": {
       "exit_code": 0,
       "expected": 0,
-      "elapsed_s": 0.015,
+      "elapsed_s": 0.013,
       "log": "logs/host-12-status.log",
       "sha256": "f6f8fb808383cb7a39805a26c6ac957ec73d6b73179b4120890bffe8e1133e41"
     }
@@ -177,5 +177,5 @@
     "logs/whole-installation-restore-client.log": "abc30023955fb1415cb6df613a2f287897377fa4b0a607d322483e2bd51a91d1",
     "logs/whole-installation-restore-server.log": "abc30023955fb1415cb6df613a2f287897377fa4b0a607d322483e2bd51a91d1"
   },
-  "finished_utc": "2026-10-20T08:18:50.604329+00:00"
+  "finished_utc": "2026-10-21T10:03:48.226750+00:00"
 }

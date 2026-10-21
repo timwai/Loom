@@ -7,7 +7,7 @@
   "candidate_commit": "36cfc55957659a451e26190a8186ddbe1a744ca7",
   "candidate_scope": "Runtime source at candidate commit; the formal gate changes are bound by lab/source_sha256 and source-diff.log, without runtime changes.",
   "started_utc": "2026-10-21T10:02:30.594236+00:00",
-  "finished_utc": "2026-10-21T10:05:26.578370+00:00",
+  "finished_utc": "2026-10-21T10:07:57.823698+00:00",
   "execution_environment": "Local macOS arm64 and Linux Docker only, as explicitly selected by the user.",
   "requirements": {
     "lab-regression": {
@@ -47,7 +47,7 @@
   },
   "independent_signoffs": [],
   "artifact_sha256": {
-    "ci-candidate.json": "2a9a1ce420b029751f5ee8630dd1ac4e10975fc4eef567a74b5a679aaf925a3f",
+    "ci-candidate.json": "6f441393d14e5cbefce7e21036aef6d8547c75543d817c7ed183e041a215a28c",
     "execution.json": "8ec4ca8486758b775cadafd619ebad3acb3a3187b1a9d138bfaea003722e3695",
     "final-gates.json": "fa01d90d49efb5be1f895f64a6898fe84fe14ae127ca2f77236aea81658439a8",
     "gate-negative-checks.json": "201ee59aff8c4a640f232a94f30d722ebea2aa2640fe9ce5b16a6aa103d3d6d5",

@@ -1,13 +1,13 @@
 {
-  "headRevision": "3c5455ae5c6e746b068c24990092b397cdb6e0ba",
+  "headRevision": "b728bbfa39fd8c1843712127224cc45573775567",
   "checks": [
     {
-      "id": 118520834759,
+      "id": 119162144602,
       "name": "Remove already integrated legacy branch refs",
-      "head_sha": "3c5455ae5c6e746b068c24990092b397cdb6e0ba",
+      "head_sha": "b728bbfa39fd8c1843712127224cc45573775567",
       "status": "completed",
       "conclusion": "skipped",
-      "details_url": "https://github.com/timwai/Loom/actions/runs/39390380548/job/118520834759",
+      "details_url": "https://github.com/timwai/Loom/actions/runs/39582025092/job/119162144602",
       "output": {
         "title": null,
         "summary": null,
@@ -16,26 +16,12 @@
       }
     },
     {
-      "id": 118520198012,
-      "name": "Rust library host tests (windows-latest)",
-      "head_sha": "3c5455ae5c6e746b068c24990092b397cdb6e0ba",
-      "status": "completed",
-      "conclusion": "success",
-      "details_url": "https://github.com/timwai/Loom/actions/runs/39390380548/job/118520198012",
-      "output": {
-        "title": null,
-        "summary": null,
-        "text": null,
-        "annotations_count": 1
-      }
-    },
-    {
-      "id": 118520197943,
+      "id": 119161672864,
       "name": "Rust library host tests (macos-latest)",
-      "head_sha": "3c5455ae5c6e746b068c24990092b397cdb6e0ba",
+      "head_sha": "b728bbfa39fd8c1843712127224cc45573775567",
       "status": "completed",
       "conclusion": "success",
-      "details_url": "https://github.com/timwai/Loom/actions/runs/39390380548/job/118520197943",
+      "details_url": "https://github.com/timwai/Loom/actions/runs/39582025092/job/119161672864",
       "output": {
         "title": null,
         "summary": null,
@@ -44,26 +30,12 @@
       }
     },
     {
-      "id": 118520197920,
-      "name": "dependency-policy",
-      "head_sha": "3c5455ae5c6e746b068c24990092b397cdb6e0ba",
-      "status": "completed",
-      "conclusion": "success",
-      "details_url": "https://github.com/timwai/Loom/actions/runs/39390380548/job/118520197920",
-      "output": {
-        "title": null,
-        "summary": null,
-        "text": null,
-        "annotations_count": 2
-      }
-    },
-    {
-      "id": 118520197913,
+      "id": 119161672823,
       "name": "wire01-four-languages",
-      "head_sha": "3c5455ae5c6e746b068c24990092b397cdb6e0ba",
+      "head_sha": "b728bbfa39fd8c1843712127224cc45573775567",
       "status": "completed",
       "conclusion": "success",
-      "details_url": "https://github.com/timwai/Loom/actions/runs/39390380548/job/118520197913",
+      "details_url": "https://github.com/timwai/Loom/actions/runs/39582025092/job/119161672823",
       "output": {
         "title": null,
         "summary": null,
@@ -72,12 +44,26 @@
       }
     },
     {
-      "id": 118520197699,
-      "name": "lint-and-test",
-      "head_sha": "3c5455ae5c6e746b068c24990092b397cdb6e0ba",
+      "id": 119161672799,
+      "name": "Rust library host tests (windows-latest)",
+      "head_sha": "b728bbfa39fd8c1843712127224cc45573775567",
       "status": "completed",
       "conclusion": "success",
-      "details_url": "https://github.com/timwai/Loom/actions/runs/39390380548/job/118520197699",
+      "details_url": "https://github.com/timwai/Loom/actions/runs/39582025092/job/119161672799",
+      "output": {
+        "title": null,
+        "summary": null,
+        "text": null,
+        "annotations_count": 1
+      }
+    },
+    {
+      "id": 119161672794,
+      "name": "dependency-policy",
+      "head_sha": "b728bbfa39fd8c1843712127224cc45573775567",
+      "status": "completed",
+      "conclusion": "success",
+      "details_url": "https://github.com/timwai/Loom/actions/runs/39582025092/job/119161672794",
       "output": {
         "title": null,
         "summary": null,
@@ -86,12 +72,26 @@
       }
     },
     {
-      "id": 118520197523,
-      "name": "l001-milestone-truth",
-      "head_sha": "3c5455ae5c6e746b068c24990092b397cdb6e0ba",
+      "id": 119161672729,
+      "name": "lint-and-test",
+      "head_sha": "b728bbfa39fd8c1843712127224cc45573775567",
       "status": "completed",
       "conclusion": "success",
-      "details_url": "https://github.com/timwai/Loom/actions/runs/39390380548/job/118520197523",
+      "details_url": "https://github.com/timwai/Loom/actions/runs/39582025092/job/119161672729",
+      "output": {
+        "title": null,
+        "summary": null,
+        "text": null,
+        "annotations_count": 2
+      }
+    },
+    {
+      "id": 119161672306,
+      "name": "l001-milestone-truth",
+      "head_sha": "b728bbfa39fd8c1843712127224cc45573775567",
+      "status": "completed",
+      "conclusion": "success",
+      "details_url": "https://github.com/timwai/Loom/actions/runs/39582025092/job/119161672306",
       "output": {
         "title": null,
         "summary": null,

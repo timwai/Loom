@@ -43,6 +43,6 @@
     "status": "failed",
     "candidate_commit": "36cfc55957659a451e26190a8186ddbe1a744ca7",
     "evidence": "docs/acceptance/evidence/l002-formal-20261020/summary.json",
-    "sha256": "f7e32b63ff6085c11f4f8dcf4afd82f35ed0bd73d4a8bcb937003d71e4c938b5"
+    "sha256": "0b4d6578a9ec61ae0e225898799e85559b4a4e84c6a484972e969d625d8d8676"
   }
 }

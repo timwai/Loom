@@ -27,6 +27,44 @@ impl SignedMembershipVerifier {
         Ok(())
     }
 
+    /// Hold the live membership lock across a bounded local admission/read
+    /// operation. `pause` must linearize either before this check (denial) or
+    /// after the operation finishes; it cannot invalidate membership between
+    /// the final check and the release of already-authorized bytes.
+    ///
+    /// Do not perform network I/O or invoke untrusted callbacks while holding
+    /// this guard. Callers must coordinate the separate Resource policy barrier.
+    /// This is not durable membership enrollment or a ServiceOpen permit.
+    pub fn with_validated_member<T>(
+        &self,
+        expected: &VerifiedMembership,
+        principal: &PeerPrincipal,
+        tls_key_epoch: u64,
+        operation: impl FnOnce() -> T,
+    ) -> Result<T, CryptoError> {
+        let current = self
+            .current
+            .lock()
+            .map_err(|_| CryptoError::InvalidIdentity)?;
+        let actual = current.as_ref().ok_or(CryptoError::InvalidIdentity)?;
+        let now: u64 = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map_err(|_| CryptoError::InvalidIdentity)?
+            .as_millis()
+            .try_into()
+            .map_err(|_| CryptoError::InvalidIdentity)?;
+        if !actual.valid_at(now)
+            || actual != expected
+            || principal.peer_id != actual.peer()
+            || principal.space_id != actual.space()
+            || principal.membership_epoch != actual.member_epoch()
+            || tls_key_epoch != actual.key_epoch()
+        {
+            return Err(CryptoError::InvalidIdentity);
+        }
+        Ok(operation())
+    }
+
     fn current(&self) -> Result<VerifiedMembership, CryptoError> {
         let value = self
             .current

@@ -103,17 +103,12 @@ fn l002_membership_pause_linearizes_before_or_after_bounded_read() {
         let credential = &peer.credential;
         let reader = scope.spawn(move || {
             verifier
-                .with_validated_member(
-                    credential,
-                    &principal,
-                    credential.key_epoch(),
-                    || {
-                        entered_tx.send(()).unwrap();
-                        resume_rx
-                            .recv_timeout(std::time::Duration::from_secs(5))
-                            .unwrap();
-                    },
-                )
+                .with_validated_member(credential, &principal, credential.key_epoch(), || {
+                    entered_tx.send(()).unwrap();
+                    resume_rx
+                        .recv_timeout(std::time::Duration::from_secs(5))
+                        .unwrap();
+                })
                 .unwrap();
         });
         entered_rx

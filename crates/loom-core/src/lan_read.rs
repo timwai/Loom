@@ -205,35 +205,44 @@ impl LanReadCandidate {
         self.check_channel(channel, member, verifier)?;
         journal
             .inspect(|current| {
-                Ok((|| {
-                    if current.high_water() != history.high_water() {
-                        return Err(ReadError::Stale);
-                    }
-                    if !self.trust.valid_at(now_ms()?)
-                        || !history.permits(
-                            member.peer(),
-                            member.key_epoch(),
-                            member.member_epoch(),
-                            now_ms()?,
-                        )
-                    {
-                        return Err(ReadError::Denied);
-                    }
-                    Ok(ReadSession {
-                        principal: *channel.remote_principal(),
-                        key_epoch: member.key_epoch(),
-                        head: history.high_water().policy_head,
-                        snapshot: self.digest,
-                        offset: 0,
-                    })
-                })())
+                Ok(verifier
+                    .with_validated_member(
+                        member,
+                        channel.remote_principal(),
+                        channel.remote_key_epoch(),
+                        || {
+                            if current.high_water() != history.high_water() {
+                                return Err(ReadError::Stale);
+                            }
+                            if !self.trust.valid_at(now_ms()?)
+                                || !history.permits(
+                                    member.peer(),
+                                    member.key_epoch(),
+                                    member.member_epoch(),
+                                    now_ms()?,
+                                )
+                            {
+                                return Err(ReadError::Denied);
+                            }
+                            Ok(ReadSession {
+                                principal: *channel.remote_principal(),
+                                key_epoch: member.key_epoch(),
+                                head: history.high_water().policy_head,
+                                snapshot: self.digest,
+                                offset: 0,
+                            })
+                        },
+                    )
+                    .map_err(|_| ReadError::Membership)
+                    .and_then(std::convert::identity))
             })
             .map_err(|_| ReadError::Storage)?
     }
 
     /// Linearization boundary is copying this bounded chunk under the local
-    /// commit barrier. Bytes copied before a revoke can remain in TLS/kernel
-    /// buffers; a revocation cannot recall bytes already released.
+    /// policy commit barrier AND live membership pause barrier. Bytes copied
+    /// before a revoke can remain in TLS/kernel buffers; a revocation cannot
+    /// recall bytes already released.
     pub fn read_chunk<S, F>(
         &self,
         session: &mut ReadSession,
@@ -261,31 +270,39 @@ impl LanReadCandidate {
         self.check_channel(channel, member, verifier)?;
         journal
             .inspect(|current| {
-                Ok((|| {
-                    if current.high_water() != history.high_water()
-                        || session.head != current.high_water().policy_head
-                    {
-                        return Err(ReadError::Stale);
-                    }
-                    if !self.trust.valid_at(now_ms()?)
-                        || !history.permits(
-                            member.peer(),
-                            member.key_epoch(),
-                            member.member_epoch(),
-                            now_ms()?,
-                        )
-                    {
-                        return Err(ReadError::Denied);
-                    }
-                    let end = session.offset.saturating_add(size).min(self.bytes.len());
-                    let bytes = self
-                        .bytes
-                        .get(session.offset..end)
-                        .ok_or(ReadError::Stale)?
-                        .to_vec();
-                    session.offset = end;
-                    Ok(bytes)
-                })())
+                Ok(verifier
+                    .with_validated_member(
+                        member,
+                        channel.remote_principal(),
+                        channel.remote_key_epoch(),
+                        || {
+                            if current.high_water() != history.high_water()
+                                || session.head != current.high_water().policy_head
+                            {
+                                return Err(ReadError::Stale);
+                            }
+                            if !self.trust.valid_at(now_ms()?)
+                                || !history.permits(
+                                    member.peer(),
+                                    member.key_epoch(),
+                                    member.member_epoch(),
+                                    now_ms()?,
+                                )
+                            {
+                                return Err(ReadError::Denied);
+                            }
+                            let end = session.offset.saturating_add(size).min(self.bytes.len());
+                            let bytes = self
+                                .bytes
+                                .get(session.offset..end)
+                                .ok_or(ReadError::Stale)?
+                                .to_vec();
+                            session.offset = end;
+                            Ok(bytes)
+                        },
+                    )
+                    .map_err(|_| ReadError::Membership)
+                    .and_then(std::convert::identity))
             })
             .map_err(|_| ReadError::Storage)?
     }

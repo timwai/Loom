@@ -205,7 +205,12 @@ impl LanReadCandidate {
         self.check_channel(channel, member, verifier)?;
         journal
             .inspect(|current| {
-                Ok((|| {
+                Ok(verifier
+                    .with_validated_member(
+                        member,
+                        channel.remote_principal(),
+                        channel.remote_key_epoch(),
+                        || {
                     if current.high_water() != history.high_water() {
                         return Err(ReadError::Stale);
                     }
@@ -226,13 +231,16 @@ impl LanReadCandidate {
                         snapshot: self.digest,
                         offset: 0,
                     })
-                })())
+                        },
+                    )
+                    .map_err(|_| ReadError::Membership)
+                    .and_then(std::convert::identity))
             })
             .map_err(|_| ReadError::Storage)?
     }
 
     /// Linearization boundary is copying this bounded chunk under the local
-    /// commit barrier. Bytes copied before a revoke can remain in TLS/kernel
+    /// policy commit barrier AND live membership pause barrier. Bytes copied before a revoke can remain in TLS/kernel
     /// buffers; a revocation cannot recall bytes already released.
     pub fn read_chunk<S, F>(
         &self,
@@ -261,7 +269,12 @@ impl LanReadCandidate {
         self.check_channel(channel, member, verifier)?;
         journal
             .inspect(|current| {
-                Ok((|| {
+                Ok(verifier
+                    .with_validated_member(
+                        member,
+                        channel.remote_principal(),
+                        channel.remote_key_epoch(),
+                        || {
                     if current.high_water() != history.high_water()
                         || session.head != current.high_water().policy_head
                     {
@@ -285,7 +298,10 @@ impl LanReadCandidate {
                         .to_vec();
                     session.offset = end;
                     Ok(bytes)
-                })())
+                        },
+                    )
+                    .map_err(|_| ReadError::Membership)
+                    .and_then(std::convert::identity))
             })
             .map_err(|_| ReadError::Storage)?
     }

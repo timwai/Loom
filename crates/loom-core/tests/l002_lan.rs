@@ -82,15 +82,16 @@ fn l002_membership_pause_linearizes_before_or_after_bounded_read() {
         space_id: peer.credential.space(),
         membership_epoch: peer.credential.member_epoch(),
     };
-    assert!(peer
-        .verifier
-        .with_validated_member(
-            &peer.credential,
-            &principal,
-            peer.credential.key_epoch() + 1,
-            || ()
-        )
-        .is_err());
+    assert!(
+        peer.verifier
+            .with_validated_member(
+                &peer.credential,
+                &principal,
+                peer.credential.key_epoch() + 1,
+                || ()
+            )
+            .is_err()
+    );
 
     let (entered_tx, entered_rx) = mpsc::channel();
     let (resume_tx, resume_rx) = mpsc::channel();
@@ -106,7 +107,9 @@ fn l002_membership_pause_linearizes_before_or_after_bounded_read() {
                     peer.credential.key_epoch(),
                     || {
                         entered_tx.send(()).unwrap();
-                        resume_rx.recv_timeout(std::time::Duration::from_secs(5)).unwrap();
+                        resume_rx
+                            .recv_timeout(std::time::Duration::from_secs(5))
+                            .unwrap();
                     },
                 )
                 .unwrap();
@@ -133,10 +136,16 @@ fn l002_membership_pause_linearizes_before_or_after_bounded_read() {
     });
 
     // After pause has returned, new admission and reads are always refused.
-    assert!(peer
-        .verifier
-        .with_validated_member(&peer.credential, &principal, peer.credential.key_epoch(), || ())
-        .is_err());
+    assert!(
+        peer.verifier
+            .with_validated_member(
+                &peer.credential,
+                &principal,
+                peer.credential.key_epoch(),
+                || ()
+            )
+            .is_err()
+    );
 }
 
 #[tokio::test]

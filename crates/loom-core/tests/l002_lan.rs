@@ -99,12 +99,14 @@ fn l002_membership_pause_linearizes_before_or_after_bounded_read() {
     let (done_tx, done_rx) = mpsc::channel();
 
     std::thread::scope(|scope| {
-        let reader = scope.spawn(|| {
-            peer.verifier
+        let verifier = &peer.verifier;
+        let credential = &peer.credential;
+        let reader = scope.spawn(move || {
+            verifier
                 .with_validated_member(
-                    &peer.credential,
+                    credential,
                     &principal,
-                    peer.credential.key_epoch(),
+                    credential.key_epoch(),
                     || {
                         entered_tx.send(()).unwrap();
                         resume_rx
@@ -117,9 +119,9 @@ fn l002_membership_pause_linearizes_before_or_after_bounded_read() {
         entered_rx
             .recv_timeout(std::time::Duration::from_secs(5))
             .unwrap();
-        let revoker = scope.spawn(|| {
+        let revoker = scope.spawn(move || {
             attempt_tx.send(()).unwrap();
-            peer.verifier.pause().unwrap();
+            verifier.pause().unwrap();
             done_tx.send(()).unwrap();
         });
         attempt_rx

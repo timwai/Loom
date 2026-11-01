@@ -684,12 +684,14 @@ mod tests {
         )
     }
 
-    fn tls_identity() -> (SigningKey, Vec<u8>, Vec<u8>) {
-        let pair = KeyPair::generate_for(&PKCS_ED25519).unwrap();
-        let private_key = pair.serialize_der();
-        let seed: [u8; 32] = private_key[private_key.len() - 32..]
-            .try_into()
-            .unwrap();
+    fn tls_identity(seed: [u8; 32]) -> (SigningKey, Vec<u8>, Vec<u8>) {
+        // RFC 8410 Ed25519 PKCS#8 PrivateKeyInfo with a 32-byte seed.
+        let mut private_key = vec![
+            0x30, 0x2e, 0x02, 0x01, 0x00, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x70, 0x04, 0x22,
+            0x04, 0x20,
+        ];
+        private_key.extend_from_slice(&seed);
+        let pair = KeyPair::from_der(&private_key).unwrap();
         let signer = SigningKey::from_bytes(&seed);
         let params = CertificateParams::new(vec![TLS_SERVER_NAME.to_owned()]).unwrap();
         let certificate = params.self_signed(&pair).unwrap();
@@ -772,7 +774,7 @@ mod tests {
 
     #[test]
     fn remote_tls_append_and_challenge_observation_roundtrip() {
-        let (witness_signer, certificate, private_key) = tls_identity();
+        let (witness_signer, certificate, private_key) = tls_identity([21; 32]);
         let second_witness_signer = SigningKey::from_bytes(&[22; 32]);
         let (trust, owner) = fixture(&witness_signer, &second_witness_signer);
         let db = temp_db();

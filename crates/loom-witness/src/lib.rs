@@ -184,9 +184,9 @@ impl WitnessRpcServer {
                         .name("loom-witness-rpc".to_owned())
                         .spawn(move || {
                             let _guard = guard;
-                            let result = serve_connection(socket, service, tls, timeout);
+                            let _result = serve_connection(socket, service, tls, timeout);
                             #[cfg(test)]
-                            if let Err(error) = result {
+                            if let Err(error) = _result {
                                 eprintln!("Witness RPC server connection failed: {error:?}");
                             }
                         });
@@ -257,9 +257,9 @@ impl TlsWitnessEndpoint {
 
     fn transact(&self, request: &[u8]) -> Result<Vec<u8>, WitnessEndpointError> {
         let socket = TcpStream::connect_timeout(&self.address, self.io_timeout)
-            .map_err(|error| {
+            .map_err(|_error| {
                 #[cfg(test)]
-                eprintln!("Witness RPC connect failed: {error}");
+                eprintln!("Witness RPC connect failed: {_error}");
                 WitnessEndpointError::Unavailable
             })?;
         socket
@@ -276,14 +276,14 @@ impl TlsWitnessEndpoint {
         let connection = ClientConnection::new(Arc::clone(&self.tls), server_name)
             .map_err(|_| WitnessEndpointError::Protocol)?;
         let mut tls = StreamOwned::new(connection, socket);
-        write_frame(&mut tls, request).map_err(|error| {
+        write_frame(&mut tls, request).map_err(|_error| {
             #[cfg(test)]
-            eprintln!("Witness RPC TLS write failed: {error:?}");
+            eprintln!("Witness RPC TLS write failed: {_error:?}");
             WitnessEndpointError::Unavailable
         })?;
-        read_frame(&mut tls).map_err(|error| {
+        read_frame(&mut tls).map_err(|_error| {
             #[cfg(test)]
-            eprintln!("Witness RPC TLS read failed: {error:?}");
+            eprintln!("Witness RPC TLS read failed: {_error:?}");
             WitnessEndpointError::Unavailable
         })
     }

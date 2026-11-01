@@ -13,6 +13,8 @@ use crate::witness_checkpoint::{
 };
 
 const TRUST_DOMAIN: &[u8] = b"LOOM:RESOURCE-TRUST:V1\0";
+const ROOT_PIN_DOMAIN: &[u8] = b"LOOM:ROOT-PIN:V1\0";
+const TRUST_MANIFEST_BODY_BYTES: usize = 168;
 
 /// This pin represents a *previously authenticated*, external Space trust root.
 /// No network message or SQLite row may create a trusted pin.
@@ -348,7 +350,10 @@ mod tests {
         assert_eq!(decoded.signature, signed.signature);
         let mut trailing = encoded;
         trailing.push(0);
-        assert_eq!(SignedResourceTrust::decode(&trailing), Err(RootTrustError::InvalidManifest));
+        assert!(matches!(
+            SignedResourceTrust::decode(&trailing),
+            Err(RootTrustError::InvalidManifest)
+        ));
     }
 
     #[test]

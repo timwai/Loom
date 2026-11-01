@@ -626,7 +626,10 @@ mod tests {
         ExternallyPinnedRootForSpike, ResourceTrustManifest, SignedResourceTrust,
         trust_manifest_transcript, verify_resource_trust_for_spike,
     };
-    use loom_store::witness_append::{AppendRequest, ReadMutation, append_transcript};
+    use loom_store::{
+        remote_witness_quorum::{WitnessClientError, WitnessQuorumClient},
+        witness_append::{AppendRequest, ReadMutation, append_transcript},
+    };
     use loom_types::{PeerId, ResourceId, SpaceId};
     use rcgen::{CertificateParams, KeyPair, PKCS_ED25519};
     use std::{fs, net::TcpListener};
@@ -693,20 +696,34 @@ mod tests {
         (signer, certificate.der().to_vec(), private_key)
     }
 
-    fn signed_append(
+    fn genesis(trust: &VerifiedResourceTrust) -> QuorumHighWater {
+        QuorumHighWater {
+            space: trust.space(),
+            resource: trust.resource(),
+            writer_epoch: trust.writer_epoch(),
+            sequence: 0,
+            policy_head: [0; 32],
+            revocation_root: [0; 32],
+        }
+    }
+
+    fn signed_append_for_state(
         trust: &VerifiedResourceTrust,
         owner: &SigningKey,
+        current: QuorumHighWater,
+        peer_byte: u8,
+        allow: bool,
         now: u64,
     ) -> SignedAppend {
         let request = AppendRequest {
             manifest: trust.manifest_commitment(),
-            expected_generation: 0,
-            previous_head: [0; 32],
+            expected_generation: current.sequence,
+            previous_head: current.policy_head,
             mutation: ReadMutation {
-                peer: PeerId::from_digest([41; 32]),
+                peer: PeerId::from_digest([peer_byte; 32]),
                 key_epoch: 1,
                 member_epoch: 1,
-                allow: true,
+                allow,
             },
             issued_at_ms: now.saturating_sub(1),
             expires_at_ms: now.saturating_add(60_000),
@@ -715,6 +732,42 @@ mod tests {
             request,
             owner_signature: owner.sign(&append_transcript(&request)).to_bytes(),
         }
+    }
+
+    fn signed_append(
+        trust: &VerifiedResourceTrust,
+        owner: &SigningKey,
+        now: u64,
+    ) -> SignedAppend {
+        signed_append_for_state(trust, owner, genesis(trust), 41, true, now)
+    }
+
+    fn start_server(
+        trust: VerifiedResourceTrust,
+        signer: SigningKey,
+        certificate: Vec<u8>,
+        private_key: Vec<u8>,
+        log: WitnessLog,
+    ) -> (
+        SocketAddr,
+        Arc<AtomicBool>,
+        thread::JoinHandle<()>,
+    ) {
+        let service = WitnessRpcService::new(trust, signer, log).unwrap();
+        let server = WitnessRpcServer::new(
+            service,
+            certificate,
+            private_key,
+            8,
+            Duration::from_secs(3),
+        )
+        .unwrap();
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let shutdown = Arc::new(AtomicBool::new(false));
+        let server_shutdown = Arc::clone(&shutdown);
+        let handle = thread::spawn(move || server.serve(listener, &server_shutdown).unwrap());
+        (address, shutdown, handle)
     }
 
     #[test]
@@ -765,6 +818,127 @@ mod tests {
         shutdown.store(true, Ordering::Release);
         thread.join().unwrap();
         let _ = fs::remove_file(db);
+    }
+
+    #[test]
+    fn two_remote_witnesses_confirm_and_exact_retry_recovers_partial_commit() {
+        let (signer_a, certificate_a, private_key_a) = tls_identity();
+        let (signer_b, certificate_b, private_key_b) = tls_identity();
+        let (trust, owner) = fixture(&signer_a, &signer_b);
+        let db_a = temp_db();
+        let db_b = temp_db();
+        let _ = fs::remove_file(&db_a);
+        let _ = fs::remove_file(&db_b);
+        let log_a = WitnessLog::create(&db_a, trust).unwrap();
+        let log_b = WitnessLog::create(&db_b, trust).unwrap();
+
+        let (address_a, shutdown_a, thread_a) = start_server(
+            trust,
+            signer_a.clone(),
+            certificate_a.clone(),
+            private_key_a,
+            log_a,
+        );
+        let (address_b, shutdown_b, thread_b) = start_server(
+            trust,
+            signer_b.clone(),
+            certificate_b.clone(),
+            private_key_b.clone(),
+            log_b,
+        );
+        let endpoint_a = TlsWitnessEndpoint::new(
+            address_a,
+            certificate_a,
+            signer_a.verifying_key().to_bytes(),
+            Duration::from_secs(3),
+        )
+        .unwrap();
+        let endpoint_b = TlsWitnessEndpoint::new(
+            address_b,
+            certificate_b.clone(),
+            signer_b.verifying_key().to_bytes(),
+            Duration::from_secs(3),
+        )
+        .unwrap();
+        let client = WitnessQuorumClient::new(trust, &endpoint_a, &endpoint_b).unwrap();
+        let now = now_ms();
+        let first_event = signed_append_for_state(&trust, &owner, genesis(&trust), 41, true, now);
+        let first = client
+            .append_and_confirm(first_event, genesis(&trust), 0, QuorumChallenge {
+                nonce: [101; 32],
+                expected_space: trust.space(),
+                expected_resource: trust.resource(),
+                expected_writer_epoch: trust.writer_epoch(),
+            }, now)
+            .unwrap();
+        let current = first.high_water();
+        let minimum_generation = first.generation();
+
+        // Stop Witness B after A has already accepted the next event. The
+        // coordinator must not claim success while the second endpoint is down.
+        let second_event =
+            signed_append_for_state(&trust, &owner, current, 42, false, now);
+        shutdown_b.store(true, Ordering::Release);
+        thread_b.join().unwrap();
+        let partial = client.append_and_confirm(
+            second_event,
+            current,
+            minimum_generation,
+            QuorumChallenge {
+                nonce: [102; 32],
+                expected_space: trust.space(),
+                expected_resource: trust.resource(),
+                expected_writer_epoch: trust.writer_epoch(),
+            },
+            now,
+        );
+        assert_eq!(partial, Err(WitnessClientError::WitnessUnavailable));
+
+        // Reopen B's durable log and retry the identical signed event. A's
+        // duplicate is idempotent; B commits; fresh observations then agree.
+        let reopened_b = WitnessLog::open(&db_b, trust).unwrap();
+        let (address_b2, shutdown_b2, thread_b2) = start_server(
+            trust,
+            signer_b.clone(),
+            certificate_b.clone(),
+            private_key_b,
+            reopened_b,
+        );
+        let endpoint_b2 = TlsWitnessEndpoint::new(
+            address_b2,
+            certificate_b,
+            signer_b.verifying_key().to_bytes(),
+            Duration::from_secs(3),
+        )
+        .unwrap();
+        let retry_client = WitnessQuorumClient::new(trust, &endpoint_a, &endpoint_b2).unwrap();
+        let confirmed = retry_client
+            .append_and_confirm(
+                second_event,
+                current,
+                minimum_generation,
+                QuorumChallenge {
+                    nonce: [103; 32],
+                    expected_space: trust.space(),
+                    expected_resource: trust.resource(),
+                    expected_writer_epoch: trust.writer_epoch(),
+                },
+                now,
+            )
+            .unwrap();
+        assert_eq!(confirmed.generation(), 2);
+        assert_eq!(confirmed.high_water().sequence, 2);
+        assert_ne!(
+            confirmed.high_water().revocation_root,
+            current.revocation_root
+        );
+
+        shutdown_a.store(true, Ordering::Release);
+        shutdown_b2.store(true, Ordering::Release);
+        thread_a.join().unwrap();
+        thread_b2.join().unwrap();
+        let _ = fs::remove_file(db_a);
+        let _ = fs::remove_file(db_b);
     }
 
     #[test]

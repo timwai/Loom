@@ -618,7 +618,7 @@ mod tests {
         witness_append::{AppendRequest, ReadMutation, append_transcript},
     };
     use loom_types::{PeerId, ResourceId, SpaceId};
-    use rcgen::{CertificateParams, KeyPair, PKCS_ED25519};
+    use rcgen::{CertificateParams, KeyPair};
     use std::{fs, net::TcpListener};
 
     static NEXT_DB: AtomicUsize = AtomicUsize::new(0);
@@ -673,6 +673,31 @@ mod tests {
         )
     }
 
+    fn base64(bytes: &[u8]) -> String {
+        const TABLE: &[u8; 64] =
+            b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+        let mut output = String::new();
+        for chunk in bytes.chunks(3) {
+            let a = u32::from(chunk[0]);
+            let b = chunk.get(1).copied().map(u32::from).unwrap_or(0);
+            let c = chunk.get(2).copied().map(u32::from).unwrap_or(0);
+            let block = (a << 16) | (b << 8) | c;
+            output.push(TABLE[((block >> 18) & 0x3f) as usize] as char);
+            output.push(TABLE[((block >> 12) & 0x3f) as usize] as char);
+            output.push(if chunk.len() > 1 {
+                TABLE[((block >> 6) & 0x3f) as usize] as char
+            } else {
+                '='
+            });
+            output.push(if chunk.len() > 2 {
+                TABLE[(block & 0x3f) as usize] as char
+            } else {
+                '='
+            });
+        }
+        output
+    }
+
     fn tls_identity(seed: [u8; 32]) -> (SigningKey, Vec<u8>, Vec<u8>) {
         // RFC 8410 Ed25519 PKCS#8 PrivateKeyInfo with a 32-byte seed.
         let mut private_key = vec![
@@ -680,7 +705,11 @@ mod tests {
             0x04, 0x20,
         ];
         private_key.extend_from_slice(&seed);
-        let pair = KeyPair::from_der(&private_key).unwrap();
+        let pem = format!(
+            "-----BEGIN PRIVATE KEY-----\\n{}\\n-----END PRIVATE KEY-----\\n",
+            base64(&private_key)
+        );
+        let pair = KeyPair::from_pem(&pem).unwrap();
         let signer = SigningKey::from_bytes(&seed);
         let params = CertificateParams::new(vec![TLS_SERVER_NAME.to_owned()]).unwrap();
         let certificate = params.self_signed(&pair).unwrap();

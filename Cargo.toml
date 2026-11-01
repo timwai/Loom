@@ -8,6 +8,7 @@ members = [
   "crates/loom-policy",
   "crates/loom-store",
   "crates/loom-transport",
+  "crates/loom-witness",
   "crates/loom-core",
   "apps/loomd",
   "crates/loom-android",

@@ -13,6 +13,8 @@ use crate::witness_checkpoint::{
 };
 
 const TRUST_DOMAIN: &[u8] = b"LOOM:RESOURCE-TRUST:V1\0";
+const ROOT_PIN_DOMAIN: &[u8] = b"LOOM:ROOT-PIN:V1\0";
+const TRUST_MANIFEST_BODY_BYTES: usize = 168;
 
 /// This pin represents a *previously authenticated*, external Space trust root.
 /// No network message or SQLite row may create a trusted pin.
@@ -21,6 +23,42 @@ pub struct ExternallyPinnedRootForSpike {
     pub space: SpaceId,
     pub public_key: [u8; 32],
     pub key_epoch: u64,
+}
+
+impl ExternallyPinnedRootForSpike {
+    /// Canonical offline provisioning record: domain || space || public key || epoch.
+    pub fn encode(&self) -> Vec<u8> {
+        let mut out = Vec::with_capacity(ROOT_PIN_DOMAIN.len() + 56);
+        out.extend_from_slice(ROOT_PIN_DOMAIN);
+        out.extend_from_slice(self.space.as_bytes());
+        out.extend_from_slice(&self.public_key);
+        out.extend_from_slice(&self.key_epoch.to_be_bytes());
+        out
+    }
+
+    /// Decode only. Authenticity still depends on provisioning this file
+    /// through a trusted channel outside the Witness database.
+    pub fn decode(bytes: &[u8]) -> Result<Self, RootTrustError> {
+        if bytes.len() != ROOT_PIN_DOMAIN.len() + 56 || !bytes.starts_with(ROOT_PIN_DOMAIN) {
+            return Err(RootTrustError::InvalidManifest);
+        }
+        let mut pos = ROOT_PIN_DOMAIN.len();
+        fn take<const N: usize>(bytes: &[u8], pos: &mut usize) -> Result<[u8; N], RootTrustError> {
+            let end = pos.checked_add(N).ok_or(RootTrustError::InvalidManifest)?;
+            let value = bytes
+                .get(*pos..end)
+                .ok_or(RootTrustError::InvalidManifest)?;
+            *pos = end;
+            value
+                .try_into()
+                .map_err(|_| RootTrustError::InvalidManifest)
+        }
+        Ok(Self {
+            space: SpaceId::from_bytes(take(bytes, &mut pos)?),
+            public_key: take(bytes, &mut pos)?,
+            key_epoch: u64::from_be_bytes(take(bytes, &mut pos)?),
+        })
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -39,6 +77,51 @@ pub struct ResourceTrustManifest {
 pub struct SignedResourceTrust {
     pub manifest: ResourceTrustManifest,
     pub signature: [u8; 64],
+}
+
+impl SignedResourceTrust {
+    /// Canonical offline provisioning record: the signed transcript followed
+    /// by the Root signature. This is a file format, not an authorization token.
+    pub fn encode(&self) -> Vec<u8> {
+        let mut out = trust_manifest_transcript(&self.manifest);
+        out.extend_from_slice(&self.signature);
+        out
+    }
+
+    pub fn decode(bytes: &[u8]) -> Result<Self, RootTrustError> {
+        if bytes.len() != TRUST_DOMAIN.len() + TRUST_MANIFEST_BODY_BYTES + 64
+            || !bytes.starts_with(TRUST_DOMAIN)
+        {
+            return Err(RootTrustError::InvalidManifest);
+        }
+        let mut pos = TRUST_DOMAIN.len();
+        fn take<const N: usize>(bytes: &[u8], pos: &mut usize) -> Result<[u8; N], RootTrustError> {
+            let end = pos.checked_add(N).ok_or(RootTrustError::InvalidManifest)?;
+            let value = bytes
+                .get(*pos..end)
+                .ok_or(RootTrustError::InvalidManifest)?;
+            *pos = end;
+            value
+                .try_into()
+                .map_err(|_| RootTrustError::InvalidManifest)
+        }
+        let manifest = ResourceTrustManifest {
+            space: SpaceId::from_bytes(take(bytes, &mut pos)?),
+            resource: ResourceId::from_bytes(take(bytes, &mut pos)?),
+            owner_public_key: take(bytes, &mut pos)?,
+            owner_key_epoch: u64::from_be_bytes(take(bytes, &mut pos)?),
+            witness_public_keys: [take(bytes, &mut pos)?, take(bytes, &mut pos)?],
+            writer_epoch: u64::from_be_bytes(take(bytes, &mut pos)?),
+            root_key_epoch: u64::from_be_bytes(take(bytes, &mut pos)?),
+            issued_at_ms: u64::from_be_bytes(take(bytes, &mut pos)?),
+            expires_at_ms: u64::from_be_bytes(take(bytes, &mut pos)?),
+        };
+        let signature = take(bytes, &mut pos)?;
+        Ok(Self {
+            manifest,
+            signature,
+        })
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -264,6 +347,32 @@ mod tests {
             checkpoint: cp,
             signature: keys[index].sign(&bytes).to_bytes(),
         })
+    }
+
+    #[test]
+    fn provisioning_records_roundtrip_and_reject_trailing_bytes() {
+        let (root, signed, _) = fixture();
+        assert_eq!(
+            ExternallyPinnedRootForSpike::decode(&root.encode())
+                .unwrap()
+                .space,
+            root.space
+        );
+        let encoded = signed.encode();
+        let decoded = SignedResourceTrust::decode(&encoded).unwrap();
+        assert_eq!(decoded.manifest.space, signed.manifest.space);
+        assert_eq!(decoded.manifest.resource, signed.manifest.resource);
+        assert_eq!(
+            decoded.manifest.witness_public_keys,
+            signed.manifest.witness_public_keys
+        );
+        assert_eq!(decoded.signature, signed.signature);
+        let mut trailing = encoded;
+        trailing.push(0);
+        assert!(matches!(
+            SignedResourceTrust::decode(&trailing),
+            Err(RootTrustError::InvalidManifest)
+        ));
     }
 
     #[test]

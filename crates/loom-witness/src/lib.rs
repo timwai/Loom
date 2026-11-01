@@ -10,10 +10,7 @@
 //! service does not claim hardware anti-rollback or physical independence.
 
 use ed25519_dalek::SigningKey;
-use loom_crypto::{
-    space_trust::VerifiedResourceTrust,
-    witness_checkpoint::TrustedWitnessForSpike,
-};
+use loom_crypto::{space_trust::VerifiedResourceTrust, witness_checkpoint::TrustedWitnessForSpike};
 use loom_store::{
     challenge_witness_quorum::{
         QuorumChallenge, QuorumHighWater, QuorumObservation, SignedQuorumObservation,
@@ -75,7 +72,10 @@ impl WitnessRpcService {
         let key_id =
             TrustedWitnessForSpike::from_public_key(signer.verifying_key().to_bytes()).key_id;
         if log.manifest_commitment() != trust.manifest_commitment()
-            || !trust.witnesses().iter().any(|witness| witness.key_id == key_id)
+            || !trust
+                .witnesses()
+                .iter()
+                .any(|witness| witness.key_id == key_id)
         {
             return Err(WitnessRpcError::WrongWitnessIdentity);
         }
@@ -98,10 +98,7 @@ impl WitnessRpcService {
             .map(|_| ())
     }
 
-    fn observe(
-        &self,
-        challenge: QuorumChallenge,
-    ) -> Result<SignedQuorumObservation, AppendError> {
+    fn observe(&self, challenge: QuorumChallenge) -> Result<SignedQuorumObservation, AppendError> {
         let now = unix_time_ms().map_err(|_| AppendError::Storage)?;
         self.log
             .lock()
@@ -337,16 +334,12 @@ fn decode_request(bytes: &[u8]) -> Result<Request, WitnessRpcError> {
         return Err(WitnessRpcError::InvalidMessage);
     }
     match bytes[4] {
-        OP_APPEND if bytes.len() == 5 + SIGNED_APPEND_BYTES => {
-            SignedAppend::decode(&bytes[5..])
-                .map(Request::Append)
-                .map_err(|_| WitnessRpcError::InvalidMessage)
-        }
-        OP_OBSERVE if bytes.len() == 5 + CHALLENGE_BYTES => {
-            decode_challenge(&bytes[5..])
-                .map(Request::Observe)
-                .map_err(|_| WitnessRpcError::InvalidMessage)
-        }
+        OP_APPEND if bytes.len() == 5 + SIGNED_APPEND_BYTES => SignedAppend::decode(&bytes[5..])
+            .map(Request::Append)
+            .map_err(|_| WitnessRpcError::InvalidMessage),
+        OP_OBSERVE if bytes.len() == 5 + CHALLENGE_BYTES => decode_challenge(&bytes[5..])
+            .map(Request::Observe)
+            .map_err(|_| WitnessRpcError::InvalidMessage),
         _ => Err(WitnessRpcError::InvalidMessage),
     }
 }
@@ -422,9 +415,7 @@ fn decode_observation(bytes: &[u8]) -> Result<SignedQuorumObservation, WitnessRp
 }
 
 fn take<const N: usize>(bytes: &[u8], pos: &mut usize) -> Result<[u8; N], WitnessRpcError> {
-    let end = pos
-        .checked_add(N)
-        .ok_or(WitnessRpcError::InvalidMessage)?;
+    let end = pos.checked_add(N).ok_or(WitnessRpcError::InvalidMessage)?;
     let value = bytes
         .get(*pos..end)
         .ok_or(WitnessRpcError::InvalidMessage)?;
@@ -462,7 +453,9 @@ fn decode_append_response(bytes: &[u8]) -> Result<(), WitnessEndpointError> {
         (0, 0) => Ok(()),
         (1, 1) => Err(WitnessEndpointError::Rejected(AppendError::Storage)),
         (1, 2) => Err(WitnessEndpointError::Rejected(AppendError::InvalidRecord)),
-        (1, 3) => Err(WitnessEndpointError::Rejected(AppendError::InvalidSignature)),
+        (1, 3) => Err(WitnessEndpointError::Rejected(
+            AppendError::InvalidSignature,
+        )),
         (1, 4) => Err(WitnessEndpointError::Rejected(AppendError::WrongTrust)),
         (1, 5) => Err(WitnessEndpointError::Rejected(AppendError::Expired)),
         (1, 6) => Err(WitnessEndpointError::Rejected(AppendError::Conflict)),
@@ -470,9 +463,7 @@ fn decode_append_response(bytes: &[u8]) -> Result<(), WitnessEndpointError> {
     }
 }
 
-fn encode_observe_response(
-    result: Result<SignedQuorumObservation, AppendError>,
-) -> Vec<u8> {
+fn encode_observe_response(result: Result<SignedQuorumObservation, AppendError>) -> Vec<u8> {
     match result {
         Ok(observation) => {
             let mut out = Vec::with_capacity(5 + OBSERVATION_BYTES);
@@ -507,10 +498,7 @@ fn decode_observe_response(bytes: &[u8]) -> Result<SignedQuorumObservation, Witn
             _ => WitnessEndpointError::Rejected(AppendError::Storage),
         });
     }
-    if bytes.len() != 5 + OBSERVATION_BYTES
-        || &bytes[..4] != RESPONSE_MAGIC
-        || bytes[4] != 0
-    {
+    if bytes.len() != 5 + OBSERVATION_BYTES || &bytes[..4] != RESPONSE_MAGIC || bytes[4] != 0 {
         return Err(WitnessEndpointError::Protocol);
     }
     decode_observation(&bytes[5..]).map_err(|_| WitnessEndpointError::Protocol)
@@ -557,9 +545,7 @@ fn serve_connection(
     socket
         .set_write_timeout(Some(io_timeout))
         .map_err(|_| WitnessRpcError::Io)?;
-    socket
-        .set_nodelay(true)
-        .map_err(|_| WitnessRpcError::Io)?;
+    socket.set_nodelay(true).map_err(|_| WitnessRpcError::Io)?;
     let connection =
         ServerConnection::new(tls_config).map_err(|_| WitnessRpcError::InvalidTlsConfiguration)?;
     let mut tls = StreamOwned::new(connection, socket);
@@ -574,7 +560,9 @@ fn read_frame(reader: &mut impl Read) -> Result<Vec<u8>, WitnessRpcError> {
     let mut complete = false;
     for index in 0..MAX_PREFIX_BYTES {
         let mut byte = [0_u8; 1];
-        reader.read_exact(&mut byte).map_err(|_| WitnessRpcError::Io)?;
+        reader
+            .read_exact(&mut byte)
+            .map_err(|_| WitnessRpcError::Io)?;
         prefix.push(byte[0]);
         length |= u64::from(byte[0] & 0x7f) << (7 * index);
         if byte[0] & 0x80 == 0 {
@@ -593,8 +581,7 @@ fn read_frame(reader: &mut impl Read) -> Result<Vec<u8>, WitnessRpcError> {
         .read_exact(&mut payload)
         .map_err(|_| WitnessRpcError::Io)?;
     prefix.extend_from_slice(&payload);
-    let (decoded, remaining) =
-        decode_frame(&prefix).map_err(|_| WitnessRpcError::InvalidFrame)?;
+    let (decoded, remaining) = decode_frame(&prefix).map_err(|_| WitnessRpcError::InvalidFrame)?;
     if !remaining.is_empty() {
         return Err(WitnessRpcError::InvalidFrame);
     }
@@ -676,7 +663,9 @@ mod tests {
         };
         let signed = SignedResourceTrust {
             manifest,
-            signature: root_key.sign(&trust_manifest_transcript(&manifest)).to_bytes(),
+            signature: root_key
+                .sign(&trust_manifest_transcript(&manifest))
+                .to_bytes(),
         };
         (
             verify_resource_trust_for_spike(&root_pin, &signed, now).unwrap(),
@@ -736,11 +725,7 @@ mod tests {
         }
     }
 
-    fn signed_append(
-        trust: &VerifiedResourceTrust,
-        owner: &SigningKey,
-        now: u64,
-    ) -> SignedAppend {
+    fn signed_append(trust: &VerifiedResourceTrust, owner: &SigningKey, now: u64) -> SignedAppend {
         signed_append_for_state(trust, owner, genesis(trust), 41, true, now)
     }
 
@@ -750,20 +735,11 @@ mod tests {
         certificate: Vec<u8>,
         private_key: Vec<u8>,
         log: WitnessLog,
-    ) -> (
-        SocketAddr,
-        Arc<AtomicBool>,
-        thread::JoinHandle<()>,
-    ) {
+    ) -> (SocketAddr, Arc<AtomicBool>, thread::JoinHandle<()>) {
         let service = WitnessRpcService::new(trust, signer, log).unwrap();
-        let server = WitnessRpcServer::new(
-            service,
-            certificate,
-            private_key,
-            8,
-            Duration::from_secs(3),
-        )
-        .unwrap();
+        let server =
+            WitnessRpcServer::new(service, certificate, private_key, 8, Duration::from_secs(3))
+                .unwrap();
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
         let address = listener.local_addr().unwrap();
         let shutdown = Arc::new(AtomicBool::new(false));
@@ -878,8 +854,7 @@ mod tests {
 
         // Stop Witness B after A has already accepted the next event. The
         // coordinator must not claim success while the second endpoint is down.
-        let second_event =
-            signed_append_for_state(&trust, &owner, current, 42, false, now);
+        let second_event = signed_append_for_state(&trust, &owner, current, 42, false, now);
         shutdown_b.store(true, Ordering::Release);
         thread_b.join().unwrap();
         let partial = client.append_and_confirm(
@@ -953,10 +928,7 @@ mod tests {
             wrong.verifying_key().to_bytes(),
             Duration::from_secs(1),
         );
-        assert!(matches!(
-            result,
-            Err(WitnessRpcError::WrongWitnessIdentity)
-        ));
+        assert!(matches!(result, Err(WitnessRpcError::WrongWitnessIdentity)));
     }
 
     #[test]
@@ -986,9 +958,18 @@ mod tests {
         assert_eq!(encoded.len(), OBSERVATION_BYTES);
         let decoded = decode_observation(&encoded).unwrap();
         assert_eq!(decoded.witness_key_id, observation.witness_key_id);
-        assert_eq!(decoded.observation.challenge, observation.observation.challenge);
-        assert_eq!(decoded.observation.generation, observation.observation.generation);
-        assert_eq!(decoded.observation.high_water, observation.observation.high_water);
+        assert_eq!(
+            decoded.observation.challenge,
+            observation.observation.challenge
+        );
+        assert_eq!(
+            decoded.observation.generation,
+            observation.observation.generation
+        );
+        assert_eq!(
+            decoded.observation.high_water,
+            observation.observation.high_water
+        );
         assert_eq!(decoded.signature, observation.signature);
     }
 }

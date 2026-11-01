@@ -842,12 +842,18 @@ mod tests {
         let now = now_ms();
         let first_event = signed_append_for_state(&trust, &owner, genesis(&trust), 41, true, now);
         let first = client
-            .append_and_confirm(first_event, genesis(&trust), 0, QuorumChallenge {
-                nonce: [101; 32],
-                expected_space: trust.space(),
-                expected_resource: trust.resource(),
-                expected_writer_epoch: trust.writer_epoch(),
-            }, now)
+            .append_and_confirm(
+                first_event,
+                genesis(&trust),
+                0,
+                QuorumChallenge {
+                    nonce: [101; 32],
+                    expected_space: trust.space(),
+                    expected_resource: trust.resource(),
+                    expected_writer_epoch: trust.writer_epoch(),
+                },
+                now,
+            )
             .unwrap();
         let current = first.high_water();
         let minimum_generation = first.generation();

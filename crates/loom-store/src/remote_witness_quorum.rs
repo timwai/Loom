@@ -38,11 +38,7 @@ pub trait WitnessEndpoint: Send + Sync {
 
     /// Submit the exact Owner-signed append. A successful return is not itself
     /// quorum confirmation; the coordinator performs a fresh signed read.
-    fn append(
-        &self,
-        signed: SignedAppend,
-        now_ms: u64,
-    ) -> Result<(), WitnessEndpointError>;
+    fn append(&self, signed: SignedAppend, now_ms: u64) -> Result<(), WitnessEndpointError>;
 
     /// Return a signature over the Witness's own current state and this nonce.
     fn observe(
@@ -108,10 +104,7 @@ impl<'a> WitnessQuorumClient<'a> {
         }
     }
 
-    fn check_challenge(
-        &self,
-        challenge: QuorumChallenge,
-    ) -> Result<(), WitnessClientError> {
+    fn check_challenge(&self, challenge: QuorumChallenge) -> Result<(), WitnessClientError> {
         if challenge.nonce == [0; 32] {
             return Err(WitnessClientError::InvalidChallenge);
         }
@@ -246,16 +239,12 @@ fn expected_next_high_water(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::challenge_witness_quorum::{
-        QuorumObservation, quorum_observation_transcript,
-    };
-    use crate::witness_append::{
-        AppendRequest, ReadMutation, WitnessHistory, append_transcript,
-    };
+    use crate::challenge_witness_quorum::{QuorumObservation, quorum_observation_transcript};
+    use crate::witness_append::{AppendRequest, ReadMutation, WitnessHistory, append_transcript};
     use ed25519_dalek::{Signer, SigningKey};
     use loom_crypto::space_trust::{
         ExternallyPinnedRootForSpike, ResourceTrustManifest, SignedResourceTrust,
-        verify_resource_trust_for_spike, trust_manifest_transcript,
+        trust_manifest_transcript, verify_resource_trust_for_spike,
     };
     use loom_crypto::witness_checkpoint::TrustedWitnessForSpike;
     use loom_types::{PeerId, ResourceId, SpaceId};
@@ -297,8 +286,7 @@ mod tests {
                 .lock()
                 .map_err(|_| WitnessEndpointError::Unavailable)?
                 .clone();
-            WitnessHistory::verify(&self.trust, records)
-                .map_err(WitnessEndpointError::Rejected)
+            WitnessHistory::verify(&self.trust, records).map_err(WitnessEndpointError::Rejected)
         }
     }
 
@@ -307,11 +295,7 @@ mod tests {
             TrustedWitnessForSpike::from_public_key(self.key.verifying_key().to_bytes()).key_id
         }
 
-        fn append(
-            &self,
-            signed: SignedAppend,
-            now_ms: u64,
-        ) -> Result<(), WitnessEndpointError> {
+        fn append(&self, signed: SignedAppend, now_ms: u64) -> Result<(), WitnessEndpointError> {
             if !self.append_available.load(Ordering::SeqCst) {
                 return Err(WitnessEndpointError::Unavailable);
             }

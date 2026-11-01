@@ -26,6 +26,7 @@ use sha2::{Digest, Sha256};
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum WitnessEndpointError {
     Unavailable,
+    Protocol,
     Rejected(AppendError),
 }
 

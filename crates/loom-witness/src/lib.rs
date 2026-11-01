@@ -184,7 +184,11 @@ impl WitnessRpcServer {
                         .name("loom-witness-rpc".to_owned())
                         .spawn(move || {
                             let _guard = guard;
-                            let _ = serve_connection(socket, service, tls, timeout);
+                            let result = serve_connection(socket, service, tls, timeout);
+                            #[cfg(test)]
+                            if let Err(error) = result {
+                                eprintln!("Witness RPC server connection failed: {error:?}");
+                            }
                         });
                     if spawn.is_err() {
                         // The moved guard is dropped with the failed closure.
@@ -253,7 +257,11 @@ impl TlsWitnessEndpoint {
 
     fn transact(&self, request: &[u8]) -> Result<Vec<u8>, WitnessEndpointError> {
         let socket = TcpStream::connect_timeout(&self.address, self.io_timeout)
-            .map_err(|_| WitnessEndpointError::Unavailable)?;
+            .map_err(|error| {
+                #[cfg(test)]
+                eprintln!("Witness RPC connect failed: {error}");
+                WitnessEndpointError::Unavailable
+            })?;
         socket
             .set_read_timeout(Some(self.io_timeout))
             .map_err(|_| WitnessEndpointError::Unavailable)?;
@@ -268,8 +276,16 @@ impl TlsWitnessEndpoint {
         let connection = ClientConnection::new(Arc::clone(&self.tls), server_name)
             .map_err(|_| WitnessEndpointError::Protocol)?;
         let mut tls = StreamOwned::new(connection, socket);
-        write_frame(&mut tls, request).map_err(|_| WitnessEndpointError::Unavailable)?;
-        read_frame(&mut tls).map_err(|_| WitnessEndpointError::Unavailable)
+        write_frame(&mut tls, request).map_err(|error| {
+            #[cfg(test)]
+            eprintln!("Witness RPC TLS write failed: {error:?}");
+            WitnessEndpointError::Unavailable
+        })?;
+        read_frame(&mut tls).map_err(|error| {
+            #[cfg(test)]
+            eprintln!("Witness RPC TLS read failed: {error:?}");
+            WitnessEndpointError::Unavailable
+        })
     }
 }
 

@@ -630,11 +630,7 @@ mod tests {
     use loom_store::witness_append::{AppendRequest, ReadMutation, append_transcript};
     use loom_types::{PeerId, ResourceId, SpaceId};
     use rcgen::{CertificateParams, KeyPair, PKCS_ED25519};
-    use std::{
-        fs,
-        net::TcpListener,
-        sync::atomic::AtomicU64,
-    };
+    use std::{fs, net::TcpListener};
 
     static NEXT_DB: AtomicUsize = AtomicUsize::new(0);
 

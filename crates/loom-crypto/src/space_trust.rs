@@ -45,9 +45,13 @@ impl ExternallyPinnedRootForSpike {
         let mut pos = ROOT_PIN_DOMAIN.len();
         fn take<const N: usize>(bytes: &[u8], pos: &mut usize) -> Result<[u8; N], RootTrustError> {
             let end = pos.checked_add(N).ok_or(RootTrustError::InvalidManifest)?;
-            let value = bytes.get(*pos..end).ok_or(RootTrustError::InvalidManifest)?;
+            let value = bytes
+                .get(*pos..end)
+                .ok_or(RootTrustError::InvalidManifest)?;
             *pos = end;
-            value.try_into().map_err(|_| RootTrustError::InvalidManifest)
+            value
+                .try_into()
+                .map_err(|_| RootTrustError::InvalidManifest)
         }
         Ok(Self {
             space: SpaceId::from_bytes(take(bytes, &mut pos)?),
@@ -109,7 +113,10 @@ impl SignedResourceTrust {
             expires_at_ms: u64::from_be_bytes(take(bytes, &mut pos)?),
         };
         let signature = take(bytes, &mut pos)?;
-        Ok(Self { manifest, signature })
+        Ok(Self {
+            manifest,
+            signature,
+        })
     }
 }
 
@@ -341,12 +348,20 @@ mod tests {
     #[test]
     fn provisioning_records_roundtrip_and_reject_trailing_bytes() {
         let (root, signed, _) = fixture();
-        assert_eq!(ExternallyPinnedRootForSpike::decode(&root.encode()).unwrap().space, root.space);
+        assert_eq!(
+            ExternallyPinnedRootForSpike::decode(&root.encode())
+                .unwrap()
+                .space,
+            root.space
+        );
         let encoded = signed.encode();
         let decoded = SignedResourceTrust::decode(&encoded).unwrap();
         assert_eq!(decoded.manifest.space, signed.manifest.space);
         assert_eq!(decoded.manifest.resource, signed.manifest.resource);
-        assert_eq!(decoded.manifest.witness_public_keys, signed.manifest.witness_public_keys);
+        assert_eq!(
+            decoded.manifest.witness_public_keys,
+            signed.manifest.witness_public_keys
+        );
         assert_eq!(decoded.signature, signed.signature);
         let mut trailing = encoded;
         trailing.push(0);

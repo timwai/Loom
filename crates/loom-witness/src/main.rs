@@ -6,8 +6,7 @@ use loom_store::witness_append::WitnessLog;
 use loom_witness::{WitnessRpcServer, WitnessRpcService};
 use std::{
     collections::HashMap,
-    env, fs,
-    io,
+    env, fs, io,
     net::TcpListener,
     path::PathBuf,
     sync::atomic::AtomicBool,
@@ -31,7 +30,9 @@ fn usage() {
          --witness-seed PATH --tls-cert PATH --tls-key PATH [--initialize]"
     );
     println!("Default bind: 127.0.0.1:9443. Use a firewall when binding a public interface.");
-    println!("Provisioning files are binary records; see docs/architecture/loom-witness-service.md.");
+    println!(
+        "Provisioning files are binary records; see docs/architecture/loom-witness-service.md."
+    );
 }
 
 fn parse_args() -> Result<Option<Args>, io::Error> {
@@ -48,7 +49,10 @@ fn parse_args() -> Result<Option<Args>, io::Error> {
             continue;
         }
         let value = iter.next().ok_or_else(|| {
-            io::Error::new(io::ErrorKind::InvalidInput, format!("missing value for {argument}"))
+            io::Error::new(
+                io::ErrorKind::InvalidInput,
+                format!("missing value for {argument}"),
+            )
         })?;
         if !matches!(
             argument.as_str(),
@@ -119,10 +123,12 @@ fn run(args: Args) -> Result<(), io::Error> {
         .map_err(|error| invalid_data("resource trust verification failed", error))?;
 
     let seed_bytes = fs::read(&args.witness_seed)?;
-    let seed: [u8; 32] = seed_bytes
-        .as_slice()
-        .try_into()
-        .map_err(|_| io::Error::new(io::ErrorKind::InvalidData, "Witness seed must be exactly 32 bytes"))?;
+    let seed: [u8; 32] = seed_bytes.as_slice().try_into().map_err(|_| {
+        io::Error::new(
+            io::ErrorKind::InvalidData,
+            "Witness seed must be exactly 32 bytes",
+        )
+    })?;
     let signer = SigningKey::from_bytes(&seed);
 
     // Initialization is explicit and create_new-only. Existing databases are
@@ -152,7 +158,9 @@ fn run(args: Args) -> Result<(), io::Error> {
     println!("Loom Witness RPC listening on {address}");
     println!("TLS server identity is pinned to the Root-authorized Witness Ed25519 key.");
     println!("Append operations require Owner signatures; all reads require fresh challenges.");
-    println!("This process does not provide hardware-backed anti-rollback or production ServiceOpen.");
+    println!(
+        "This process does not provide hardware-backed anti-rollback or production ServiceOpen."
+    );
 
     let shutdown = AtomicBool::new(false);
     server

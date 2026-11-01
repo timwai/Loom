@@ -706,7 +706,7 @@ mod tests {
         ];
         private_key.extend_from_slice(&seed);
         let pem = format!(
-            "-----BEGIN PRIVATE KEY-----\\n{}\\n-----END PRIVATE KEY-----\\n",
+            "-----BEGIN PRIVATE KEY-----\n{}\n-----END PRIVATE KEY-----\n",
             base64(&private_key)
         );
         let pair = KeyPair::from_pem(&pem).unwrap();

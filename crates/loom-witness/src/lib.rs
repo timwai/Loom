@@ -645,11 +645,13 @@ mod tests {
         unix_time_ms().unwrap()
     }
 
-    fn fixture(witness_key: &SigningKey) -> (VerifiedResourceTrust, SigningKey) {
+    fn fixture(
+        first_witness_key: &SigningKey,
+        second_witness_key: &SigningKey,
+    ) -> (VerifiedResourceTrust, SigningKey) {
         let now = now_ms();
         let root_key = SigningKey::from_bytes(&[30; 32]);
         let owner_key = SigningKey::from_bytes(&[11; 32]);
-        let second_key = SigningKey::from_bytes(&[22; 32]);
         let root_pin = ExternallyPinnedRootForSpike {
             space: SpaceId::from_bytes([1; 16]),
             public_key: root_key.verifying_key().to_bytes(),
@@ -661,8 +663,8 @@ mod tests {
             owner_public_key: owner_key.verifying_key().to_bytes(),
             owner_key_epoch: 3,
             witness_public_keys: [
-                witness_key.verifying_key().to_bytes(),
-                second_key.verifying_key().to_bytes(),
+                first_witness_key.verifying_key().to_bytes(),
+                second_witness_key.verifying_key().to_bytes(),
             ],
             writer_epoch: 1,
             root_key_epoch: 7,
@@ -718,7 +720,8 @@ mod tests {
     #[test]
     fn remote_tls_append_and_challenge_observation_roundtrip() {
         let (witness_signer, certificate, private_key) = tls_identity();
-        let (trust, owner) = fixture(&witness_signer);
+        let second_witness_signer = SigningKey::from_bytes(&[22; 32]);
+        let (trust, owner) = fixture(&witness_signer, &second_witness_signer);
         let db = temp_db();
         let _ = fs::remove_file(&db);
         let log = WitnessLog::create(&db, trust).unwrap();

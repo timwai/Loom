@@ -824,8 +824,8 @@ mod tests {
 
     #[test]
     fn two_remote_witnesses_confirm_and_exact_retry_recovers_partial_commit() {
-        let (signer_a, certificate_a, private_key_a) = tls_identity();
-        let (signer_b, certificate_b, private_key_b) = tls_identity();
+        let (signer_a, certificate_a, private_key_a) = tls_identity([21; 32]);
+        let (signer_b, certificate_b, private_key_b) = tls_identity([22; 32]);
         let (trust, owner) = fixture(&signer_a, &signer_b);
         let db_a = temp_db();
         let db_b = temp_db();
@@ -945,7 +945,7 @@ mod tests {
 
     #[test]
     fn tls_certificate_must_match_root_pinned_witness_key() {
-        let (_signer, certificate, _) = tls_identity();
+        let (_signer, certificate, _) = tls_identity([23; 32]);
         let wrong = SigningKey::from_bytes(&[55; 32]);
         let result = TlsWitnessEndpoint::new(
             "127.0.0.1:9".parse().unwrap(),

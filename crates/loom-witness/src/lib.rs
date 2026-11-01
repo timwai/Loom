@@ -146,8 +146,7 @@ impl WitnessRpcServer {
             return Err(WitnessRpcError::WrongWitnessIdentity);
         }
         let certificate = CertificateDer::from(certificate_der);
-        let private_key = PrivateKeyDer::try_from(private_key_der)
-            .map_err(|_| WitnessRpcError::InvalidTlsConfiguration)?;
+        let private_key = PrivateKeyDer::Pkcs8(private_key_der.into());
         let tls = ServerConfig::builder()
             .with_no_client_auth()
             .with_single_cert(vec![certificate], private_key)

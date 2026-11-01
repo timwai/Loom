@@ -58,6 +58,7 @@ pub enum WitnessClientError {
     InvalidAppend(AppendError),
     StalePredecessor,
     SequenceExhausted,
+    GenerationExhausted,
     WitnessUnavailable,
     /// The two signed responses differ. This includes a partial append and
     /// any other split-brain state; all such cases remain fail-closed.
@@ -151,6 +152,10 @@ impl<'a> WitnessQuorumClient<'a> {
     /// with a fresh challenge-bound read. RPC acknowledgements are intentionally
     /// not trusted as proof of durable commit.
     ///
+    /// minimum_generation must be a separately trusted floor, advanced only
+    /// after a successful two-Witness confirmation. Never reconstruct it from
+    /// the same rollbackable SQLite history.
+    ///
     /// On PartialCommitOrDivergence, NotCommittedOrStale, or
     /// WitnessUnavailable, preserve and retry the SAME signed bytes after
     /// re-reading both Witnesses. Do not create a replacement event for the
@@ -160,9 +165,10 @@ impl<'a> WitnessQuorumClient<'a> {
         &self,
         signed: SignedAppend,
         current: QuorumHighWater,
+        minimum_generation: u64,
         challenge: QuorumChallenge,
         now_ms: u64,
-    ) -> Result<QuorumHighWater, WitnessClientError> {
+    ) -> Result<VerifiedQuorumDiagnostic, WitnessClientError> {
         if !self.trust.valid_at(now_ms) {
             return Err(WitnessClientError::ExpiredTrust);
         }
@@ -187,14 +193,17 @@ impl<'a> WitnessQuorumClient<'a> {
             return Err(WitnessClientError::StalePredecessor);
         }
         let expected = expected_next_high_water(current, signed)?;
+        let required_generation = minimum_generation
+            .checked_add(1)
+            .ok_or(WitnessClientError::GenerationExhausted)?;
 
         // Always attempt both endpoints. A transport error is ambiguous and
         // must not prevent the other Witness from receiving the same event.
         let _first_append = self.endpoints[0].append(signed, now_ms);
         let _second_append = self.endpoints[1].append(signed, now_ms);
 
-        match self.observe_latest(challenge, 0, expected, now_ms) {
-            Ok(observation) if observation.high_water() == expected => Ok(expected),
+        match self.observe_latest(challenge, required_generation, expected, now_ms) {
+            Ok(observation) if observation.high_water() == expected => Ok(observation),
             Ok(_) => Err(WitnessClientError::NotCommittedOrStale),
             Err(WitnessClientError::Quorum(QuorumError::SplitWitnesses)) => {
                 Err(WitnessClientError::PartialCommitOrDivergence)
@@ -460,10 +469,12 @@ mod tests {
         let client = WitnessQuorumClient::new(trust, &first, &second).unwrap();
         let current = genesis(&trust);
         let signed = signed_append(&trust, &owner, current, 41, true);
-        let next = client
-            .append_and_confirm(signed, current, challenge(&trust, 1), 150)
+        let confirmed = client
+            .append_and_confirm(signed, current, 0, challenge(&trust, 1), 150)
             .unwrap();
+        let next = confirmed.high_water();
         assert_eq!(next.sequence, 1);
+        assert_eq!(confirmed.generation(), 1);
         let verified = client
             .observe_latest(challenge(&trust, 2), 1, next, 150)
             .unwrap();
@@ -476,14 +487,22 @@ mod tests {
         let client = WitnessQuorumClient::new(trust, &first, &second).unwrap();
         let genesis = genesis(&trust);
         let first_event = signed_append(&trust, &owner, genesis, 41, true);
-        let current = client
-            .append_and_confirm(first_event, genesis, challenge(&trust, 3), 150)
+        let first_commit = client
+            .append_and_confirm(first_event, genesis, 0, challenge(&trust, 3), 150)
             .unwrap();
+        let current = first_commit.high_water();
+        let minimum_generation = first_commit.generation();
 
         let second_event = signed_append(&trust, &owner, current, 42, false);
         second.set_append_available(false);
         assert_eq!(
-            client.append_and_confirm(second_event, current, challenge(&trust, 4), 150),
+            client.append_and_confirm(
+                second_event,
+                current,
+                minimum_generation,
+                challenge(&trust, 4),
+                150
+            ),
             Err(WitnessClientError::PartialCommitOrDivergence)
         );
 
@@ -491,10 +510,17 @@ mod tests {
         // is idempotent there and advances the second Witness to the same head.
         second.set_append_available(true);
         let next = client
-            .append_and_confirm(second_event, current, challenge(&trust, 5), 150)
+            .append_and_confirm(
+                second_event,
+                current,
+                minimum_generation,
+                challenge(&trust, 5),
+                150,
+            )
             .unwrap();
-        assert_eq!(next.sequence, 2);
-        assert_ne!(next.revocation_root, current.revocation_root);
+        assert_eq!(next.high_water().sequence, 2);
+        assert_eq!(next.generation(), 2);
+        assert_ne!(next.high_water().revocation_root, current.revocation_root);
     }
 
     #[test]
@@ -504,8 +530,9 @@ mod tests {
         let genesis = genesis(&trust);
         let seed = signed_append(&trust, &owner, genesis, 41, true);
         let current = client
-            .append_and_confirm(seed, genesis, challenge(&trust, 6), 150)
-            .unwrap();
+            .append_and_confirm(seed, genesis, 0, challenge(&trust, 6), 150)
+            .unwrap()
+            .high_water();
 
         let branch_a = signed_append(&trust, &owner, current, 42, false);
         let branch_b = signed_append(&trust, &owner, current, 43, false);

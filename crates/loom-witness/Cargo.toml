@@ -1,0 +1,28 @@
+[package]
+name = "loom-witness"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "loom-witnessd"
+path = "src/main.rs"
+
+[dependencies]
+ed25519-dalek = { version = "2.2.0", default-features = false, features = ["std"] }
+loom-crypto = { path = "../loom-crypto" }
+loom-store = { path = "../loom-store" }
+loom-types = { path = "../loom-types" }
+loom-wire = { path = "../loom-wire" }
+tokio-rustls = "0.26.4"
+x509-parser = "0.17.0"
+
+[dev-dependencies]
+rcgen = "0.13.2"
+
+[lints]
+workspace = true

@@ -97,9 +97,13 @@ impl SignedResourceTrust {
         let mut pos = TRUST_DOMAIN.len();
         fn take<const N: usize>(bytes: &[u8], pos: &mut usize) -> Result<[u8; N], RootTrustError> {
             let end = pos.checked_add(N).ok_or(RootTrustError::InvalidManifest)?;
-            let value = bytes.get(*pos..end).ok_or(RootTrustError::InvalidManifest)?;
+            let value = bytes
+                .get(*pos..end)
+                .ok_or(RootTrustError::InvalidManifest)?;
             *pos = end;
-            value.try_into().map_err(|_| RootTrustError::InvalidManifest)
+            value
+                .try_into()
+                .map_err(|_| RootTrustError::InvalidManifest)
         }
         let manifest = ResourceTrustManifest {
             space: SpaceId::from_bytes(take(bytes, &mut pos)?),

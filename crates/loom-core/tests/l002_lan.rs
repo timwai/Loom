@@ -70,6 +70,81 @@ fn server(f: &Fixture) -> LanReadCandidate {
     .unwrap()
 }
 
+#[test]
+fn l002_membership_pause_linearizes_before_or_after_bounded_read() {
+    use std::sync::mpsc;
+
+    let dir = TestDir::new();
+    let f = dir.fixture();
+    let peer = f.peer("a");
+    let principal = loom_identity::PeerPrincipal {
+        peer_id: peer.credential.peer(),
+        space_id: peer.credential.space(),
+        membership_epoch: peer.credential.member_epoch(),
+    };
+    assert!(
+        peer.verifier
+            .with_validated_member(
+                &peer.credential,
+                &principal,
+                peer.credential.key_epoch() + 1,
+                || ()
+            )
+            .is_err()
+    );
+
+    let (entered_tx, entered_rx) = mpsc::channel();
+    let (resume_tx, resume_rx) = mpsc::channel();
+    let (attempt_tx, attempt_rx) = mpsc::channel();
+    let (done_tx, done_rx) = mpsc::channel();
+
+    std::thread::scope(|scope| {
+        let verifier = &peer.verifier;
+        let credential = &peer.credential;
+        let reader = scope.spawn(move || {
+            verifier
+                .with_validated_member(credential, &principal, credential.key_epoch(), || {
+                    entered_tx.send(()).unwrap();
+                    resume_rx
+                        .recv_timeout(std::time::Duration::from_secs(5))
+                        .unwrap();
+                })
+                .unwrap();
+        });
+        entered_rx
+            .recv_timeout(std::time::Duration::from_secs(5))
+            .unwrap();
+        let revoker = scope.spawn(move || {
+            attempt_tx.send(()).unwrap();
+            verifier.pause().unwrap();
+            done_tx.send(()).unwrap();
+        });
+        attempt_rx
+            .recv_timeout(std::time::Duration::from_secs(5))
+            .unwrap();
+        // An in-flight bounded copy keeps the member live until it exits.
+        assert!(done_rx.try_recv().is_err());
+        resume_tx.send(()).unwrap();
+        reader.join().unwrap();
+        revoker.join().unwrap();
+        done_rx
+            .recv_timeout(std::time::Duration::from_secs(5))
+            .unwrap();
+    });
+
+    // After pause has returned, new admission and reads are always refused.
+    assert!(
+        peer.verifier
+            .with_validated_member(
+                &peer.credential,
+                &principal,
+                peer.credential.key_epoch(),
+                || ()
+            )
+            .is_err()
+    );
+}
+
 #[tokio::test]
 async fn l002_real_tls_file_chunks_equal_owner_snapshot_and_no_write_api() {
     let dir = TestDir::new();

@@ -95,7 +95,7 @@ pub mod authenticated_intent_record;
 /// Mutation and ServiceOpen remain fail-closed.
 pub mod authenticated_intent_read_gate;
 
-/// L-001V signed write/replay-fence CAS **simulation**. No real durable writer.
+/// L-001V signed write/replay-fence CAS simulation. No real durable writer.
 pub mod authenticated_intent_write_model;
 
 /// L-001AA logical restart-retained journal reservation CAS simulator.
@@ -113,3 +113,7 @@ pub mod challenge_witness_quorum;
 /// L-002D authenticated Owner append/CAS and signed-history SQLite candidate.
 /// Partial quorum remains fail-closed; local files are not trusted antirollback.
 pub mod witness_append;
+
+/// L-002E transport-neutral two-Witness client coordinator. No remote server,
+/// independently durable backend, production admission or ServiceOpen.
+pub mod remote_witness_quorum;

@@ -548,6 +548,20 @@ name = "loom-wire"
 version = "0.1.0"
 
 [[package]]
+name = "loom-witness"
+version = "0.1.0"
+dependencies = [
+ "ed25519-dalek",
+ "loom-crypto",
+ "loom-store",
+ "loom-types",
+ "loom-wire",
+ "rcgen",
+ "tokio-rustls",
+ "x509-parser",
+]
+
+[[package]]
 name = "loomd"
 version = "0.1.0"
 dependencies = [
